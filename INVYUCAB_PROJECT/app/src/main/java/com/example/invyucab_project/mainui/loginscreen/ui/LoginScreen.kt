@@ -4,9 +4,12 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
@@ -16,11 +19,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -38,17 +44,16 @@ fun LoginScreen(
     navController: NavController,
     viewModel: LoginScreenViewModel
 ) {
-    // State is now read directly from the ViewModel
     val emailOrPhone = viewModel.emailOrPhone
     val password = viewModel.password
     val isUser = viewModel.isUser
-
-    // Local UI state (like password visibility) remains in the composable
     var passwordVisible by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState()) // ✅ Made screen scrollable
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -69,7 +74,7 @@ fun LoginScreen(
             horizontalArrangement = Arrangement.Center
         ) {
             Button(
-                onClick = { viewModel.onRoleChange(true) }, // ✅ Use ViewModel event
+                onClick = { viewModel.onRoleChange(true) },
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isUser) CabLightGreen else Color.White,
@@ -87,7 +92,7 @@ fun LoginScreen(
             }
             Spacer(modifier = Modifier.width(16.dp))
             Button(
-                onClick = { viewModel.onRoleChange(false) }, // ✅ Use ViewModel event
+                onClick = { viewModel.onRoleChange(false) },
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (!isUser) CabLightGreen else Color.White,
@@ -116,11 +121,17 @@ fun LoginScreen(
             Column(modifier = Modifier.padding(16.dp)) {
                 OutlinedTextField(
                     value = emailOrPhone,
-                    onValueChange = { viewModel.onEmailOrPhoneChange(it) }, // ✅ Use ViewModel event
+                    onValueChange = { viewModel.onEmailOrPhoneChange(it) },
                     label = { Text("Email or Phone") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next // ✅ Set IME action to Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Down) } // ✅ Move focus down
+                    ),
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Person,
@@ -131,12 +142,18 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { viewModel.onPasswordChange(it) }, // ✅ Use ViewModel event
+                    onValueChange = { viewModel.onPasswordChange(it) },
                     label = { Text("Password") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done // ✅ Set IME action to Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { focusManager.clearFocus() } // ✅ Clear focus (hide keyboard)
+                    ),
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Lock,
@@ -191,7 +208,7 @@ fun LoginScreen(
         Spacer(modifier = Modifier.weight(1f))
 
         Button(
-            onClick = { viewModel.onLoginClicked() }, // ✅ Use ViewModel event
+            onClick = { viewModel.onLoginClicked() },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
