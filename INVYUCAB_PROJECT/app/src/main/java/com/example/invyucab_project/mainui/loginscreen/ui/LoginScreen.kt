@@ -30,15 +30,21 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.invyucab_project.R
 import com.example.invyucab_project.core.navigations.Screen
+import com.example.invyucab_project.mainui.loginscreen.viewmodel.LoginScreenViewModel
 import com.example.invyucab_project.ui.theme.*
 
 @Composable
-fun LoginScreen(navController: NavController) {
-    // State variables
-    var emailOrPhone by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+fun LoginScreen(
+    navController: NavController,
+    viewModel: LoginScreenViewModel
+) {
+    // State is now read directly from the ViewModel
+    val emailOrPhone = viewModel.emailOrPhone
+    val password = viewModel.password
+    val isUser = viewModel.isUser
+
+    // Local UI state (like password visibility) remains in the composable
     var passwordVisible by remember { mutableStateOf(false) }
-    var isUser by remember { mutableStateOf(true) }
 
     Column(
         modifier = Modifier
@@ -63,7 +69,7 @@ fun LoginScreen(navController: NavController) {
             horizontalArrangement = Arrangement.Center
         ) {
             Button(
-                onClick = { isUser = true },
+                onClick = { viewModel.onRoleChange(true) }, // ✅ Use ViewModel event
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isUser) CabLightGreen else Color.White,
@@ -81,7 +87,7 @@ fun LoginScreen(navController: NavController) {
             }
             Spacer(modifier = Modifier.width(16.dp))
             Button(
-                onClick = { isUser = false },
+                onClick = { viewModel.onRoleChange(false) }, // ✅ Use ViewModel event
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (!isUser) CabLightGreen else Color.White,
@@ -110,7 +116,7 @@ fun LoginScreen(navController: NavController) {
             Column(modifier = Modifier.padding(16.dp)) {
                 OutlinedTextField(
                     value = emailOrPhone,
-                    onValueChange = { emailOrPhone = it },
+                    onValueChange = { viewModel.onEmailOrPhoneChange(it) }, // ✅ Use ViewModel event
                     label = { Text("Email or Phone") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
@@ -125,7 +131,7 @@ fun LoginScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it },
+                    onValueChange = { viewModel.onPasswordChange(it) }, // ✅ Use ViewModel event
                     label = { Text("Password") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
@@ -174,7 +180,6 @@ fun LoginScreen(navController: NavController) {
         ClickableText(
             text = annotatedText,
             onClick = {
-                // ✅ Corrected and completed navigation logic
                 if (isUser) {
                     navController.navigate(Screen.UserSignUpScreen.route)
                 } else {
@@ -186,7 +191,7 @@ fun LoginScreen(navController: NavController) {
         Spacer(modifier = Modifier.weight(1f))
 
         Button(
-            onClick = { /* Handle login */ },
+            onClick = { viewModel.onLoginClicked() }, // ✅ Use ViewModel event
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),

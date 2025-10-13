@@ -28,18 +28,15 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.invyucab_project.R
+import com.example.invyucab_project.mainui.signupscreen.viewmodel.SignUpScreenViewModel
 import com.example.invyucab_project.ui.theme.*
 
 @Composable
-fun DriverSignUpScreen(navController: NavController) {
-    // State variables
-    var fullName by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var vehicleModel by remember { mutableStateOf("") }
-    var vehicleNumber by remember { mutableStateOf("") }
-    var licenseNumber by remember { mutableStateOf("") }
+fun DriverSignUpScreen(
+    navController: NavController,
+    viewModel: SignUpScreenViewModel
+) {
+    // Local UI state
     var passwordVisible by remember { mutableStateOf(false) }
 
     Column(
@@ -74,24 +71,24 @@ fun DriverSignUpScreen(navController: NavController) {
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 OutlinedTextField(
-                    value = fullName, onValueChange = { fullName = it }, label = { Text("Full Name") },
+                    value = viewModel.fullName, onValueChange = { viewModel.onFullNameChange(it) }, label = { Text("Full Name") },
                     modifier = Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.Person, null) }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
-                    value = phone, onValueChange = { phone = it }, label = { Text("Phone Number") },
+                    value = viewModel.phone, onValueChange = { viewModel.onPhoneChange(it) }, label = { Text("Phone Number") },
                     modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     leadingIcon = { Icon(Icons.Default.Phone, null) }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
-                    value = email, onValueChange = { email = it }, label = { Text("Email Address") },
+                    value = viewModel.email, onValueChange = { viewModel.onEmailChange(it) }, label = { Text("Email Address") },
                     modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     leadingIcon = { Icon(Icons.Default.Email, null) }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
-                    value = password, onValueChange = { password = it }, label = { Text("Password") },
+                    value = viewModel.password, onValueChange = { viewModel.onPasswordChange(it) }, label = { Text("Password") },
                     modifier = Modifier.fillMaxWidth(), visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     leadingIcon = { Icon(Icons.Default.Lock, null) },
@@ -115,18 +112,21 @@ fun DriverSignUpScreen(navController: NavController) {
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 OutlinedTextField(
-                    value = vehicleModel, onValueChange = { vehicleModel = it }, label = { Text("Vehicle Model (e.g., Swift Dzire)") },
+                    value = viewModel.vehicleModel, onValueChange = { viewModel.onVehicleModelChange(it) }, label = { Text("Vehicle Model (e.g., Swift Dzire)") },
                     modifier = Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.DirectionsCar, null) }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
-                    value = vehicleNumber, onValueChange = { vehicleNumber = it }, label = { Text("Vehicle Number (e.g., BR01 AA 1234)") },
+                    value = viewModel.vehicleNumber, onValueChange = { viewModel.onVehicleNumberChange(it) }, label = { Text("Vehicle Number (e.g., BR01 AA 1234)") },
                     modifier = Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.Pin, null) }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
-                    value = licenseNumber, onValueChange = { licenseNumber = it }, label = { Text("Driving License Number") },
-                    modifier = Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.CreditCard, null) }
+                    value = viewModel.licenseNumber, // ✅ CORRECTED: Was 'licenseNumber'
+                    onValueChange = { viewModel.onLicenseNumberChange(it) },
+                    label = { Text("Driving License Number") },
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Default.CreditCard, null) }
                 )
             }
         }
@@ -134,7 +134,7 @@ fun DriverSignUpScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = { /* Handle driver sign up */ },
+            onClick = { viewModel.onDriverSignUpClicked() },
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(containerColor = CabPrimaryGreen)
@@ -161,10 +161,3 @@ fun DriverSignUpScreen(navController: NavController) {
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun DriverSignUpScreenPreview() {
-    INVYUCAB_PROJECTTheme {
-        DriverSignUpScreen(rememberNavController())
-    }
-}

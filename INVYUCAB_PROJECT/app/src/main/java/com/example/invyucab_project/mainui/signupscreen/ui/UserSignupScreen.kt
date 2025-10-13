@@ -26,15 +26,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.invyucab_project.R
+import com.example.invyucab_project.mainui.signupscreen.viewmodel.SignUpScreenViewModel
 import com.example.invyucab_project.ui.theme.*
 
 @Composable
-fun UserSignUpScreen(navController: NavController) { // ✅ NavController added
-    // State variables for the input fields
-    var fullName by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+fun UserSignUpScreen(
+    navController: NavController,
+    viewModel: SignUpScreenViewModel
+) {
+    // Local UI state
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
@@ -70,8 +70,8 @@ fun UserSignUpScreen(navController: NavController) { // ✅ NavController added
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 OutlinedTextField(
-                    value = fullName,
-                    onValueChange = { fullName = it },
+                    value = viewModel.fullName,
+                    onValueChange = { viewModel.onFullNameChange(it) },
                     label = { Text("Full Name") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
@@ -79,8 +79,8 @@ fun UserSignUpScreen(navController: NavController) { // ✅ NavController added
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
-                    value = phone,
-                    onValueChange = { phone = it },
+                    value = viewModel.phone,
+                    onValueChange = { viewModel.onPhoneChange(it) },
                     label = { Text("Phone Number") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
@@ -89,8 +89,8 @@ fun UserSignUpScreen(navController: NavController) { // ✅ NavController added
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
+                    value = viewModel.email,
+                    onValueChange = { viewModel.onEmailChange(it) },
                     label = { Text("Email Address") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
@@ -99,8 +99,8 @@ fun UserSignUpScreen(navController: NavController) { // ✅ NavController added
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
+                    value = viewModel.password,
+                    onValueChange = { viewModel.onPasswordChange(it) },
                     label = { Text("Password") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
@@ -137,7 +137,7 @@ fun UserSignUpScreen(navController: NavController) { // ✅ NavController added
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = { /* Handle sign up logic */ },
+            onClick = { viewModel.onUserSignUpClicked() }, // ✅ Use ViewModel event
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
@@ -160,7 +160,6 @@ fun UserSignUpScreen(navController: NavController) { // ✅ NavController added
         ClickableText(
             text = annotatedText,
             onClick = {
-                // ✅ Navigation logic implemented
                 navController.navigateUp()
             }
         )
