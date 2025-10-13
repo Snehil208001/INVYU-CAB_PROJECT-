@@ -1,2 +1,199 @@
 package com.example.invyucab_project.mainui.loginscreen.ui
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import com.example.invyucab_project.R
+import com.example.invyucab_project.core.navigations.Screen
+import com.example.invyucab_project.ui.theme.*
+
+@Composable
+fun LoginScreen(navController: NavController) {
+    // State variables
+    var emailOrPhone by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var isUser by remember { mutableStateOf(true) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(40.dp))
+
+        Image(
+            painter = painterResource(id = R.drawable.logo),
+            contentDescription = "Login Illustration",
+            modifier = Modifier.height(250.dp)
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+        Text("-------- Login As --------", color = Color.Gray)
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Button(
+                onClick = { isUser = true },
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isUser) CabLightGreen else Color.White,
+                    contentColor = Color.Black
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .border(
+                        width = 1.dp,
+                        color = if (!isUser) Color.LightGray else Color.Transparent,
+                        shape = RoundedCornerShape(50)
+                    )
+            ) {
+                Text("User", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Button(
+                onClick = { isUser = false },
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (!isUser) CabLightGreen else Color.White,
+                    contentColor = Color.Black
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .border(
+                        width = 1.dp,
+                        color = if (isUser) Color.LightGray else Color.Transparent,
+                        shape = RoundedCornerShape(50)
+                    )
+            ) {
+                Text("Driver", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF5EFF7))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                OutlinedTextField(
+                    value = emailOrPhone,
+                    onValueChange = { emailOrPhone = it },
+                    label = { Text("Email or Phone") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Email or Phone Icon"
+                        )
+                    }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Password Icon"
+                        )
+                    },
+                    trailingIcon = {
+                        val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(imageVector = image, contentDescription = "Toggle Password")
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    TextButton(
+                        onClick = { /* Handle forgot password */ },
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                    ) {
+                        Text(
+                            "Forgot Password?",
+                            color = LinkColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        val annotatedText = buildAnnotatedString {
+            append("Don't have a ${if (isUser) "User" else "Driver"} account? ")
+            pushStringAnnotation(tag = "REGISTER", annotation = "REGISTER")
+            withStyle(style = SpanStyle(color = LinkColor, fontWeight = FontWeight.Bold)) {
+                append("Register Now")
+            }
+            pop()
+        }
+        ClickableText(
+            text = annotatedText,
+            onClick = {
+                // ✅ Corrected and completed navigation logic
+                if (isUser) {
+                    navController.navigate(Screen.UserSignUpScreen.route)
+                } else {
+                    navController.navigate(Screen.DriverSignUpScreen.route)
+                }
+            }
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Button(
+            onClick = { /* Handle login */ },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(containerColor = CabPrimaryGreen)
+        ) {
+            Text("Login", fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.Bold)
+        }
+    }
+}
