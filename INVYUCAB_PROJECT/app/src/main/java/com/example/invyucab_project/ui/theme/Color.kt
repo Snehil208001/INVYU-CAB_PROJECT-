@@ -11,7 +11,12 @@ val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
 
 // --- CORRECT COLORS FOR YOUR CAB APP ---
-val CabPrimaryGreen = Color(0xFF00A651) // Main Green for buttons (matches image)
-val CabLightGreen = Color(0xFFDFFFE2)   // Light green for selected role (Admin)
-val CabBorderGray = Color(0xFFBDBDBD)   // Light gray border for unselected button
-val LinkColor = Color(0xFF1A73E8)       // Blue for links (Forgot Password / Register)
+val CabPrimaryGreen = Color(0xFF00A651)
+val CabMintGreen = Color(0xFF16D7A4) // ✅ New Mint Green color added
+val CabLightGreen = Color(0xFFDFFFE2)
+val CabBorderGray = Color(0xFFBDBDBD)
+val LinkColor = Color(0xFF1A73E8)
+
+val CabVeryLightMint = Color(0xFFF0FFFA)
+
+val LightSlateGray = Color(0xFFF4F6F8)
