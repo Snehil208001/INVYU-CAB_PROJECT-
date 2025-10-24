@@ -1,6 +1,8 @@
 package com.example.invyucab_project.mainui.rideselectionscreen.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,6 +14,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.LocalOffer
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +43,9 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.*
+import java.text.SimpleDateFormat
+import java.util.*
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,18 +54,44 @@ fun RideSelectionScreen(
     viewModel: RideSelectionViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val rideOptions by viewModel.rideOptions.collectAsState()
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(uiState.pickupLocation, 12f)
+        position = CameraPosition.fromLatLngZoom(LatLng(25.5941, 85.1376), 12f)
     }
 
-    // This will animate the camera to show the whole route
-    LaunchedEffect(uiState.routePolyline) {
+    LaunchedEffect(uiState.pickupLocation, uiState.dropLocation, uiState.routePolyline) {
+        val pickup = uiState.pickupLocation
+        val drop = uiState.dropLocation
+
         if (uiState.routePolyline.isNotEmpty()) {
             val boundsBuilder = LatLngBounds.Builder()
             uiState.routePolyline.forEach { boundsBuilder.include(it) }
-            cameraPositionState.animate(
-                CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), 100)
-            )
+            try {
+                cameraPositionState.animate(
+                    CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), 150)
+                )
+            } catch (e: IllegalStateException) {
+                if (uiState.routePolyline.size == 1) {
+                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(uiState.routePolyline.first(), 15f))
+                }
+                e.printStackTrace()
+            }
+        } else if (pickup != null && drop != null) {
+            val boundsBuilder = LatLngBounds.Builder()
+            boundsBuilder.include(pickup)
+            boundsBuilder.include(drop)
+            try {
+                cameraPositionState.animate(
+                    CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), 150)
+                )
+            } catch (e: IllegalStateException) {
+                if (pickup == drop) {
+                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(pickup, 15f))
+                }
+                e.printStackTrace()
+            }
+        } else if (pickup != null) {
+            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(pickup, 15f))
         }
     }
 
@@ -70,34 +103,37 @@ fun RideSelectionScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Map
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
-                uiSettings = MapUiSettings(zoomControlsEnabled = false)
+                uiSettings = MapUiSettings(zoomControlsEnabled = false, compassEnabled = false)
             ) {
-                // Draw the route
                 if (uiState.routePolyline.isNotEmpty()) {
                     Polyline(
                         points = uiState.routePolyline,
                         color = Color.Black,
-                        width = 10f
+                        width = 15f,
+                        zIndex = 1f
                     )
                 }
-                // Add markers
-                Marker(
-                    state = MarkerState(position = uiState.pickupLocation),
-                    title = "Pickup"
-                )
-                uiState.dropLocation?.let {
+
+                // ✅ FIX: Removed the custom icon code. This will use the default map pin.
+                uiState.pickupLocation?.let { pickupLatLng ->
                     Marker(
-                        state = MarkerState(position = it),
+                        state = MarkerState(position = pickupLatLng),
+                        title = "Pickup"
+                    )
+                }
+
+                // ✅ FIX: Removed the custom icon code. This will use the default map pin.
+                uiState.dropLocation?.let { dropLatLng ->
+                    Marker(
+                        state = MarkerState(position = dropLatLng),
                         title = "Drop"
                     )
                 }
             }
 
-            // Top Bar with location info
             LocationTopBar(
                 pickup = uiState.pickupDescription,
                 drop = uiState.dropDescription,
@@ -105,10 +141,22 @@ fun RideSelectionScreen(
                 onAddStop = { /* TODO */ }
             )
 
-            // Bottom Sheet
             RideOptionsBottomSheet(
-                rideOptions = viewModel.rideOptions
+                rideOptions = rideOptions
             )
+
+            if (uiState.isLoading || uiState.isFetchingLocation) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
+
+            uiState.errorMessage?.let { error ->
+                Snackbar(
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 360.dp, start=16.dp, end=16.dp),
+                    action = { Button(onClick = { /* TODO */ }) { Text("OK") } }
+                ) {
+                    Text(text = error)
+                }
+            }
         }
     }
 }
@@ -120,66 +168,68 @@ fun LocationTopBar(
     onBack: () -> Unit,
     onAddStop: () -> Unit
 ) {
-    Card(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(8.dp)
+            .background(Color.White)
+            .padding(top = 16.dp, start = 8.dp, end = 16.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp)
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-            }
-            // Dotted line graphic
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 8.dp)) {
-                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(CabMintGreen))
-                Box(modifier = Modifier.width(1.dp).height(20.dp).background(Color.Gray))
-                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color.Black))
-            }
-            // Location text
-            Column(modifier = Modifier.weight(1f)) {
-                Text(pickup, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                Text(drop, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
-            }
-            // Add stop button
-            IconButton(onClick = onAddStop) {
-                Icon(Icons.Default.Add, contentDescription = "Add stop", modifier = Modifier.clip(CircleShape).background(LightSlateGray).padding(4.dp))
-            }
+        IconButton(onClick = onBack) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 8.dp)) {
+            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(CabMintGreen))
+            Box(modifier = Modifier.width(1.dp).height(20.dp).background(Color.Gray))
+            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color.Black))
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(pickup, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Text(drop, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
+        }
+        IconButton(onClick = onAddStop) {
+            Icon(Icons.Default.Add, contentDescription = "Add stop", modifier = Modifier.clip(CircleShape).background(LightSlateGray).padding(4.dp))
         }
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BoxScope.RideOptionsBottomSheet(rideOptions: List<RideOption>) {
-    var selectedRideId by remember { mutableStateOf(1) } // Default to Bike
+    var selectedRideId by remember { mutableStateOf(1) }
 
     BottomSheetScaffold(
+        scaffoldState = rememberBottomSheetScaffoldState(),
         sheetContent = {
             Column(modifier = Modifier.padding(bottom = 16.dp)) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 300.dp) // Limit height
-                ) {
-                    items(rideOptions) { ride ->
-                        RideOptionItem(
-                            ride = ride,
-                            isSelected = ride.id == selectedRideId,
-                            onClick = { selectedRideId = ride.id }
-                        )
+                if (rideOptions.isEmpty()) {
+                    Text("Loading ride options...", modifier = Modifier.padding(16.dp).align(Alignment.CenterHorizontally))
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 300.dp)
+                    ) {
+                        items(rideOptions) { ride ->
+                            RideOptionItem(
+                                ride = ride,
+                                isSelected = ride.id == selectedRideId,
+                                onClick = { selectedRideId = ride.id }
+                            )
+                        }
                     }
                 }
-                // Banner
-                Text("UNLIMITED Discounts! Buy Pass Now >", color = Color.Red, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                Text(
+                    "UNLIMITED Discounts! Buy Pass Now >",
+                    color = Color(0xFFE65100),
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.background(Color(0xFFFFF8E1)).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                )
 
-                // Payment & Book Button
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -187,25 +237,32 @@ fun BoxScope.RideOptionsBottomSheet(rideOptions: List<RideOption>) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CreditCard, contentDescription = "Payment")
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { /* TODO */ }) {
+                        Icon(Icons.Default.CreditCard, contentDescription = "Payment", tint = Color.Gray)
                         Text("Cash", fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 8.dp))
-                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null)
+                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = Color.Gray)
                     }
-                    Text("% Offers", fontWeight = FontWeight.Medium)
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { /* TODO */ }) {
+                        Icon(Icons.Filled.LocalOffer, contentDescription = "Offers", tint = CabMintGreen)
+                        Text("% Offers", fontWeight = FontWeight.Medium, color = CabMintGreen, modifier = Modifier.padding(start = 4.dp))
+                    }
                 }
 
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Button(
-                    onClick = { /* TODO: Book Ride */ },
-                    modifier = Modifier.fillMaxWidth().padding(16.dp).height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107)) // Yellow
+                    onClick = { /* TODO */ },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal=16.dp).height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107)),
+                    enabled = rideOptions.isNotEmpty()
                 ) {
-                    Text("Book ${rideOptions.find { it.id == selectedRideId }?.name ?: ""}", color = Color.Black, fontWeight = FontWeight.Bold)
+                    val selectedRideName = rideOptions.find { it.id == selectedRideId }?.name ?: "Ride"
+                    Text("Book $selectedRideName", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
         },
         sheetContainerColor = Color.White,
-        sheetPeekHeight = 350.dp, // Adjust as needed
+        sheetPeekHeight = 350.dp,
         sheetShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
         modifier = Modifier.align(Alignment.BottomCenter)
     ) {}
@@ -213,23 +270,60 @@ fun BoxScope.RideOptionsBottomSheet(rideOptions: List<RideOption>) {
 
 @Composable
 fun RideOptionItem(ride: RideOption, isSelected: Boolean, onClick: () -> Unit) {
+    val backgroundColor = if (isSelected) CabMintGreen.copy(alpha = 0.1f) else Color.Transparent
+    val borderModifier = if (isSelected) {
+        Modifier.border(BorderStroke(3.dp, CabMintGreen), RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp))
+    } else {
+        Modifier
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .background(if (isSelected) CabMintGreen.copy(alpha = 0.1f) else Color.Transparent)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .then(borderModifier)
+            .background(backgroundColor)
+            .padding(start = if(isSelected) 13.dp else 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(ride.icon, contentDescription = ride.name, modifier = Modifier.size(40.dp))
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
+        Icon(ride.icon, contentDescription = ride.name, modifier = Modifier.size(48.dp))
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column( modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(ride.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(ride.description, fontSize = 13.sp, color = Color.Gray)
+                if (ride.id == 1) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(Icons.Default.Person, contentDescription="Single Rider", modifier = Modifier.size(14.dp), tint = Color.Gray)
+                    Text("1", fontSize=12.sp, color = Color.Gray)
+                }
             }
+
+            ride.subtitle?.let {
+                Text(it, fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(top=2.dp))
+            }
+
+            val etaMinutes = ride.description.filter { it.isDigit() }.toIntOrNull() ?: 0
+            val dropTime = calculateDropOffTime(etaMinutes, ride.estimatedDurationMinutes)
+            Text(
+                "${ride.description} • Drop ${dropTime}",
+                fontSize = 13.sp,
+                color = Color.Gray,
+                modifier = Modifier.padding(top=2.dp)
+            )
         }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
         Text("₹${ride.price}", fontWeight = FontWeight.Bold, fontSize = 18.sp)
     }
+}
+
+
+fun calculateDropOffTime(etaMinutes: Int, durationMinutes: Int?): String {
+    val calendar = Calendar.getInstance()
+    calendar.add(Calendar.MINUTE, etaMinutes + (durationMinutes ?: 0))
+    val format = SimpleDateFormat("h:mm a", Locale.getDefault())
+    return format.format(calendar.time).lowercase()
 }

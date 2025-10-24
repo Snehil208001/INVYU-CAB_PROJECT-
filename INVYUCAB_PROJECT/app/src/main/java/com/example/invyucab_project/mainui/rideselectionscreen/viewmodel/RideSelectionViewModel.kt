@@ -1,79 +1,158 @@
 package com.example.invyucab_project.mainui.rideselectionscreen.viewmodel
 
+import android.annotation.SuppressLint
+import android.os.Looper
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ElectricRickshaw
-import androidx.compose.material.icons.filled.LocalTaxi
-import androidx.compose.material.icons.filled.Stars
-import androidx.compose.material.icons.filled.TwoWheeler
+import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.data.api.GoogleMapsApiService
+import com.google.android.gms.location.*
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.PolyUtil
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
+// ✅ MODIFIED RideOption to include subtitle and duration
 data class RideOption(
     val id: Int,
     val icon: ImageVector,
     val name: String,
-    val description: String,
-    val price: Int
+    val description: String, // ETA like "2 mins away"
+    val price: Int,
+    val subtitle: String? = null,
+    val estimatedDurationMinutes: Int? = null // Trip duration
 )
 
 data class RideSelectionState(
-    val pickupLocation: LatLng = LatLng(25.5941, 85.1376), // Default to Patna
+    val pickupLocation: LatLng? = null, // ✅ Changed to nullable, default is now unknown
     val dropLocation: LatLng? = null,
-    val pickupDescription: String = "Your Current Location",
+    val pickupDescription: String = "Fetching current location...", // ✅ Updated default
     val dropDescription: String = "",
     val routePolyline: List<LatLng> = emptyList(),
+    val tripDurationSeconds: Int? = null, // ✅ Added duration state
     val isLoading: Boolean = false,
+    val isFetchingLocation: Boolean = true, // ✅ Added location fetching state
     val errorMessage: String? = null
 )
 
 @HiltViewModel
 class RideSelectionViewModel @Inject constructor(
     private val apiService: GoogleMapsApiService,
+    private val fusedLocationClient: FusedLocationProviderClient, // ✅ INJECT Location Client
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RideSelectionState())
     val uiState = _uiState.asStateFlow()
 
-    // TODO: Replace with real user location
-    private val currentUserLocation = "25.594095, 85.137611" // Patna
     private val dropPlaceId: String = savedStateHandle.get<String>("placeId") ?: ""
     private val encodedDropDescription: String = savedStateHandle.get<String>("description") ?: ""
-
-    // Decode the description
     private val dropDescription: String = try {
         URLDecoder.decode(encodedDropDescription, StandardCharsets.UTF_8.toString())
     } catch (e: Exception) {
-        encodedDropDescription // Fallback
+        encodedDropDescription
     }
 
-
-    // Dummy ride options
-    val rideOptions = listOf(
-        RideOption(1, Icons.Default.TwoWheeler, "Bike", "2 mins away", 91),
-        RideOption(2, Icons.Default.ElectricRickshaw, "Auto", "2 mins away", 148),
-        RideOption(3, Icons.Default.LocalTaxi, "Cab Economy", "2 mins away", 217),
-        RideOption(4, Icons.Default.Stars, "Cab Premium", "5 mins away", 274)
+    // ✅ MODIFIED: Ride options now include subtitle and placeholder duration
+    private val initialRideOptions = listOf(
+        RideOption(1, Icons.Default.TwoWheeler, "Bike", "2 mins away", 91, subtitle = "Quick Bike rides"),
+        RideOption(2, Icons.Default.ElectricRickshaw, "Auto", "2 mins away", 148, subtitle = "Affordable Auto rides"),
+        RideOption(3, Icons.Default.LocalTaxi, "Cab Economy", "2 mins away", 217, subtitle = "Comfy, economical"),
+        RideOption(4, Icons.Default.Stars, "Cab Premium", "5 mins away", 274, subtitle = "Spacious & top-rated")
     )
+
+    // StateFlow to hold ride options, allowing updates with duration
+    private val _rideOptions = MutableStateFlow(initialRideOptions)
+    val rideOptions = _rideOptions.asStateFlow()
 
     init {
         _uiState.value = _uiState.value.copy(dropDescription = dropDescription)
-        fetchDirections()
+        // Start fetching current location and then details/directions
+        getCurrentLocationAndProceed()
     }
 
-    private fun fetchDirections() {
+    // --- Location Fetching ---
+
+    @SuppressLint("MissingPermission") // IMPORTANT: Handle permissions properly!
+    private fun getCurrentLocationAndProceed() {
+        _uiState.value = _uiState.value.copy(isFetchingLocation = true)
+
+        // 1. Try getting last known location (quick)
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            if (location != null) {
+                val currentLatLng = LatLng(location.latitude, location.longitude)
+                _uiState.value = _uiState.value.copy(
+                    pickupLocation = currentLatLng,
+                    pickupDescription = "Your Current Location", // Or reverse geocode later
+                    isFetchingLocation = false
+                )
+                // Got location, now fetch drop details and route
+                fetchDropLocationDetailsAndRoute(currentLatLng)
+            } else {
+                // No last location, request a fresh one
+                requestNewLocation()
+            }
+        }.addOnFailureListener {
+            // Handle error, maybe request new location
+            requestNewLocation()
+        }
+    }
+
+    @SuppressLint("MissingPermission") // IMPORTANT: Handle permissions properly!
+    private fun requestNewLocation() {
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000) // Interval 10s
+            .setMinUpdateIntervalMillis(5000) // Fastest interval 5s
+            .setMaxUpdates(1) // We only need one update here
+            .build()
+
+        val locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                locationResult.lastLocation?.let { location ->
+                    val currentLatLng = LatLng(location.latitude, location.longitude)
+                    _uiState.value = _uiState.value.copy(
+                        pickupLocation = currentLatLng,
+                        pickupDescription = "Your Current Location",
+                        isFetchingLocation = false
+                    )
+                    // Got location, now fetch drop details and route
+                    fetchDropLocationDetailsAndRoute(currentLatLng)
+                } ?: run {
+                    // Still couldn't get location
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = "Could not fetch current location.",
+                        isFetchingLocation = false
+                    )
+                }
+                // Stop listening after getting the location
+                fusedLocationClient.removeLocationUpdates(this)
+            }
+
+            override fun onLocationAvailability(locationAvailability: LocationAvailability) {
+                if (!locationAvailability.isLocationAvailable) {
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = "Location services unavailable.",
+                        isFetchingLocation = false
+                    )
+                    fusedLocationClient.removeLocationUpdates(this)
+                }
+            }
+        }
+
+        // Start listening
+        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
+    }
+
+    // --- API Calls ---
+
+    private fun fetchDropLocationDetailsAndRoute(pickupLatLng: LatLng) {
         if (dropPlaceId.isEmpty()) {
             _uiState.value = _uiState.value.copy(errorMessage = "No drop location selected")
             return
@@ -82,35 +161,75 @@ class RideSelectionViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
-                // We use place IDs for accuracy
-                // TODO: Replace origin with real current placeId
-                val origin = "place_id:ChIJg-cT-jNhj4kRj8S2d32pQ2A" // Placeholder for Patna Junction
-                val destination = "place_id:$dropPlaceId"
-
-                val response = apiService.getDirections(origin = origin, destination = destination)
-
-                if (response.status == "OK" && response.routes.isNotEmpty()) {
-                    val points = response.routes[0].overviewPolyline.points
-                    val decodedPolyline = PolyUtil.decode(points)
-
-                    // TODO: Get drop location LatLng from Places Details API
-                    // For now, let's just update the polyline
-                    _uiState.value = _uiState.value.copy(
-                        routePolyline = decodedPolyline,
-                        isLoading = false
-                    )
+                // 1. Fetch Drop Location Coordinates
+                val detailsResponse = apiService.getPlaceDetails(dropPlaceId)
+                val dropLatLng = if (detailsResponse.status == "OK" && detailsResponse.result?.geometry?.location != null) {
+                    val loc = detailsResponse.result.geometry.location
+                    LatLng(loc.lat, loc.lng)
                 } else {
                     _uiState.value = _uiState.value.copy(
-                        errorMessage = response.status,
+                        errorMessage = "Could not get drop location details: ${detailsResponse.status}",
                         isLoading = false
                     )
+                    null // Indicate failure
                 }
+
+                // Update state with drop location immediately if successful
+                dropLatLng?.let {
+                    _uiState.value = _uiState.value.copy(dropLocation = it)
+                }
+
+                // 2. Fetch Directions (Only if dropLatLng was found)
+                if (dropLatLng != null) {
+                    // Use LatLng for origin, place_id for destination
+                    val originString = "${pickupLatLng.latitude},${pickupLatLng.longitude}"
+                    val destinationString = "place_id:$dropPlaceId"
+
+                    val directionsResponse = apiService.getDirections(
+                        origin = originString,
+                        destination = destinationString
+                    )
+
+                    if (directionsResponse.status == "OK" && directionsResponse.routes.isNotEmpty()) {
+                        val route = directionsResponse.routes[0]
+                        val points = route.overviewPolyline.points
+                        val decodedPolyline = PolyUtil.decode(points)
+
+                        // ✅ Get duration from the first leg (usually only one leg for simple routes)
+                        val durationSeconds = route.legs.firstOrNull()?.duration?.value
+
+                        _uiState.value = _uiState.value.copy(
+                            routePolyline = decodedPolyline,
+                            tripDurationSeconds = durationSeconds, // Store duration
+                            isLoading = false,
+                            errorMessage = null // Clear previous errors
+                        )
+                        // ✅ Update ride options with duration
+                        updateRideOptionsDuration(durationSeconds)
+                    } else {
+                        _uiState.value = _uiState.value.copy(
+                            errorMessage = "Could not get directions: ${directionsResponse.status}",
+                            isLoading = false
+                        )
+                    }
+                }
+                // If dropLatLng was null, isLoading was already set to false
+
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
-                    errorMessage = e.message ?: "An unknown error occurred",
+                    errorMessage = e.message ?: "An unknown network error occurred",
                     isLoading = false
                 )
+                e.printStackTrace() // Log the error
             }
+        }
+    }
+
+    // ✅ Helper to update ride options with fetched duration
+    private fun updateRideOptionsDuration(durationSeconds: Int?) {
+        val durationMinutes = durationSeconds?.let { (it / 60.0).roundToInt() }
+        _rideOptions.update { currentOptions ->
+            currentOptions.map { it.copy(estimatedDurationMinutes = durationMinutes) }
         }
     }
 }

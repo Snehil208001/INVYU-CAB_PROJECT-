@@ -1,7 +1,12 @@
 package com.example.invyucab_project.mainui.locationsearchscreen.ui
 
-import androidx.compose.foundation.Canvas
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,7 +24,11 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,19 +38,19 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.locationsearchscreen.viewmodel.LocationSearchViewModel
 import com.example.invyucab_project.mainui.locationsearchscreen.viewmodel.SearchLocation
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.LightSlateGray
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import com.example.invyucab_project.core.navigations.Screen // ✅ ADDED
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,12 +59,46 @@ fun LocationSearchScreen(
     viewModel: LocationSearchViewModel = hiltViewModel()
 ) {
     val focusRequester = remember { FocusRequester() }
-
-    // ✅ ADDED: Collect search results from ViewModel
     val searchResults by viewModel.searchResults.collectAsState()
+    val context = LocalContext.current
 
-    // This automatically requests focus for the "Drop location" field when
-    // the screen is first shown, just like in the image.
+    // ✅ START: Corrected Permission Handling Logic
+
+    // State to hold the location we want to navigate to *after* permission is granted
+    var pendingLocationToNavigate by remember { mutableStateOf<SearchLocation?>(null) }
+
+    val locationPermissions = arrayOf(
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION
+    )
+
+    // This launcher's 'onResult' block will run AFTER the user responds to the permission dialog
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = { permissions ->
+            if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+            ) {
+                // Permission was granted!
+                // Now, check if we have a location waiting and navigate to it.
+                pendingLocationToNavigate?.let { location ->
+                    navController.navigate(
+                        Screen.RideSelectionScreen.createRoute(
+                            placeId = location.placeId,
+                            description = location.address
+                        )
+                    )
+                    pendingLocationToNavigate = null // Clear the pending location
+                }
+            } else {
+                // Permission was denied
+                Toast.makeText(context, "Location permission is required to find rides.", Toast.LENGTH_LONG).show()
+                pendingLocationToNavigate = null // Clear the pending location
+            }
+        }
+    )
+    // ✅ END: Corrected Permission Handling Logic
+
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
@@ -70,8 +113,7 @@ fun LocationSearchScreen(
                     }
                 },
                 actions = {
-                    // "For me" button
-                    TextButton(onClick = { /* TODO: Handle dropdown */ }) {
+                    TextButton(onClick = { /* TODO */ }) {
                         Text("For me", color = Color.Black)
                         Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color.Black)
                     }
@@ -87,14 +129,12 @@ fun LocationSearchScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
-            // --- Search Input Fields ---
             SearchInputSection(
                 searchQuery = viewModel.searchQuery,
                 onSearchQueryChange = { viewModel.onSearchQueryChange(it) },
                 focusRequester = focusRequester
             )
 
-            // --- Buttons ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -115,7 +155,6 @@ fun LocationSearchScreen(
 
             Divider(color = LightSlateGray)
 
-            // ✅ MODIFIED: LazyColumn now displays API search results
             LazyColumn(
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -123,14 +162,34 @@ fun LocationSearchScreen(
                     RecentSearchItem(
                         location = location,
                         onLocationClick = {
-                            // ✅ ACTION: Navigate to RideSelectionScreen
-                            navController.navigate(
-                                Screen.RideSelectionScreen.createRoute(
-                                    placeId = location.placeId,
-                                    // Use the full address as the description
-                                    description = location.address
+                            // ✅ START: Updated Click Logic
+                            // Check if permission is already granted
+                            val hasCoarsePermission = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                            val hasFinePermission = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.ACCESS_FINE_LOCATION
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                            if (hasCoarsePermission || hasFinePermission) {
+                                // Permission is already granted, navigate immediately
+                                navController.navigate(
+                                    Screen.RideSelectionScreen.createRoute(
+                                        placeId = location.placeId,
+                                        description = location.address
+                                    )
                                 )
-                            )
+                            } else {
+                                // Permission is NOT granted
+                                // 1. Set the pending location
+                                pendingLocationToNavigate = location
+                                // 2. Launch the permission request. The 'onResult' block will handle navigation.
+                                permissionLauncher.launch(locationPermissions)
+                            }
+                            // ✅ END: Updated Click Logic
                         }
                     )
                 }
@@ -150,16 +209,12 @@ fun SearchInputSection(
             .fillMaxWidth()
             .padding(top = 16.dp)
     ) {
-        // --- Dotted Line Graphic ---
         LocationConnectorGraphic()
-
-        // --- Text Fields ---
         Column(
             modifier = Modifier
                 .weight(1f)
                 .padding(start = 12.dp)
         ) {
-            // Current Location (Static)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -173,14 +228,13 @@ fun SearchInputSection(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Drop Location (Interactive)
             BasicTextField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
-                    .focusRequester(focusRequester) // Attach the focus requester
+                    .focusRequester(focusRequester)
                     .background(LightSlateGray, RoundedCornerShape(8.dp))
                     .padding(horizontal = 12.dp),
                 singleLine = true,
@@ -205,9 +259,8 @@ fun SearchInputSection(
 fun LocationConnectorGraphic() {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(top = 12.dp, bottom = 12.dp) // Align with text fields
+        modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)
     ) {
-        // Green "Start" Circle
         Box(
             modifier = Modifier
                 .size(24.dp)
@@ -223,11 +276,10 @@ fun LocationConnectorGraphic() {
             )
         }
 
-        // Dotted Line
         val pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
         Canvas(
             modifier = Modifier
-                .height(36.dp) // Space between circles
+                .height(36.dp)
                 .width(1.dp)
         ) {
             drawLine(
@@ -239,7 +291,6 @@ fun LocationConnectorGraphic() {
             )
         }
 
-        // Orange "End" Circle
         Box(
             modifier = Modifier
                 .size(24.dp)
@@ -260,9 +311,9 @@ fun LocationConnectorGraphic() {
 @Composable
 fun SearchButton(text: String, icon: ImageVector, modifier: Modifier = Modifier) {
     OutlinedButton(
-        onClick = { /* TODO: Handle button click */ },
+        onClick = { /* TODO */ },
         modifier = modifier.height(40.dp),
-        shape = RoundedCornerShape(50.dp), // Fully rounded
+        shape = RoundedCornerShape(50.dp),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = Color.Black
         ),
@@ -274,7 +325,6 @@ fun SearchButton(text: String, icon: ImageVector, modifier: Modifier = Modifier)
     }
 }
 
-// ✅ MODIFIED: Now takes an onClick lambda
 @Composable
 fun RecentSearchItem(
     location: SearchLocation,
@@ -283,11 +333,10 @@ fun RecentSearchItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onLocationClick) // Use the lambda
+            .clickable(onClick = onLocationClick)
             .padding(vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Icon (History or Home)
         Icon(
             imageVector = location.icon,
             contentDescription = null,
@@ -299,7 +348,6 @@ fun RecentSearchItem(
                 .padding(8.dp)
         )
         Spacer(modifier = Modifier.width(16.dp))
-        // Location Text
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = location.name,
@@ -316,8 +364,7 @@ fun RecentSearchItem(
             )
         }
         Spacer(modifier = Modifier.width(16.dp))
-        // Favorite Icon
-        IconButton(onClick = { /* TODO: Handle favorite */ }) {
+        IconButton(onClick = { /* TODO */ }) {
             Icon(
                 imageVector = Icons.Outlined.FavoriteBorder,
                 contentDescription = "Favorite",
