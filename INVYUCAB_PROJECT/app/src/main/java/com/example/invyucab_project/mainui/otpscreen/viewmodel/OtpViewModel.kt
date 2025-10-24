@@ -13,23 +13,26 @@ class OtpViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
+    // ✅ MODIFIED: Retrieve both phone and the new optional email
     val fullPhoneNumber: String = savedStateHandle.get<String>("phone") ?: ""
+    val email: String? = savedStateHandle.get<String>("email")
 
     var otp by mutableStateOf("")
         private set
 
     fun onOtpChange(value: String) {
-        // This ensures the state is updated only with valid input,
-        // which is crucial for the UI to recompose and show your typing.
         if (value.length <= 4 && value.all { it.isDigit() }) {
             otp = value
         }
     }
 
-    fun onVerifyClicked() {
-        // TODO: Implement OTP verification logic
+    // ✅ MODIFIED: Added an onSuccess callback to handle navigation
+    fun onVerifyClicked(onSuccess: () -> Unit) {
+        // TODO: Implement real OTP verification logic
         if (otp.length == 4) {
             println("Verification successful for OTP: $otp on number: $fullPhoneNumber")
+            // Call the callback on success
+            onSuccess()
         } else {
             println("Invalid OTP")
         }

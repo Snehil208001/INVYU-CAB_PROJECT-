@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.invyucab_project.core.navigations.Screen // ✅ Import Screen
 import com.example.invyucab_project.mainui.otpscreen.viewmodel.OtpViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
@@ -81,8 +82,21 @@ fun OtpScreen(
             Spacer(modifier = Modifier.height(40.dp))
             Button(
                 onClick = {
-                    viewModel.onVerifyClicked()
-                    // TODO: Navigate to the Home Screen on successful verification
+                    // ✅ MODIFIED: Call onVerifyClicked with the success callback
+                    viewModel.onVerifyClicked(
+                        onSuccess = {
+                            // On success, navigate to the new UserDetailsScreen
+                            navController.navigate(
+                                Screen.UserDetailsScreen.createRoute(
+                                    phone = viewModel.fullPhoneNumber,
+                                    email = viewModel.email
+                                )
+                            ) {
+                                // Pop this OTP screen off the back stack
+                                popUpTo(Screen.OtpScreen.route) { inclusive = true }
+                            }
+                        }
+                    )
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -96,6 +110,7 @@ fun OtpScreen(
     }
 }
 
+// ... (OtpTextField and OtpChar composables are unchanged) ...
 @Composable
 fun OtpTextField(
     modifier: Modifier = Modifier,

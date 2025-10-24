@@ -33,6 +33,7 @@ import com.example.invyucab_project.mainui.authscreen.viewmodel.AuthViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
 
+// ... (AuthScreen, AuthHeader, AuthTabs, AuthTabItem composables are unchanged) ...
 @Composable
 fun AuthScreen(
     navController: NavController,
@@ -135,7 +136,7 @@ fun AuthTabItem(text: String, isSelected: Boolean, onClick: () -> Unit) {
     }
 }
 
-// ✅ CHANGED: Added navController parameter
+
 @Composable
 fun SignUpForm(viewModel: AuthViewModel, navController: NavController) {
     Column {
@@ -166,7 +167,13 @@ fun SignUpForm(viewModel: AuthViewModel, navController: NavController) {
         Button(
             onClick = {
                 viewModel.onSignUpClicked { phone ->
-                    navController.navigate(Screen.OtpScreen.createRoute(phone))
+                    // ✅ MODIFIED: Pass both phone and the optional email
+                    navController.navigate(
+                        Screen.OtpScreen.createRoute(
+                            phone,
+                            viewModel.signUpEmail.takeIf { it.isNotBlank() } // Pass email only if not blank
+                        )
+                    )
                 }
             },
             modifier = Modifier.fillMaxWidth().height(50.dp),
@@ -216,7 +223,6 @@ fun SignUpForm(viewModel: AuthViewModel, navController: NavController) {
     }
 }
 
-// ✅ CHANGED: Added navController parameter
 @Composable
 fun SignInForm(viewModel: AuthViewModel, navController: NavController) {
     Column {
@@ -240,9 +246,9 @@ fun SignInForm(viewModel: AuthViewModel, navController: NavController) {
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = {
-                // ✅ CHANGED: Added the navigation call here as well
                 viewModel.onSignInClicked { phone ->
-                    navController.navigate(Screen.OtpScreen.createRoute(phone))
+                    // ✅ MODIFIED: Pass phone and a null email
+                    navController.navigate(Screen.OtpScreen.createRoute(phone, null))
                 }
             },
             modifier = Modifier.fillMaxWidth().height(50.dp),

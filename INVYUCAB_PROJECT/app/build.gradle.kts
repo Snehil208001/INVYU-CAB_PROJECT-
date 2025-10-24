@@ -1,10 +1,21 @@
+// ✅ ADDED: Import for Properties
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.ksp)              // ✅ Added KSP plugin
-    id("com.google.dagger.hilt.android") // ✅ Added Hilt plugin
+    alias(libs.plugins.ksp)
+    id("com.google.dagger.hilt.android")
 }
+
+// Logic to read API key from local.properties
+val localProperties = Properties() // ✅ FIXED: Uses the imported Properties
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
+}
+val apiKey = localProperties.getProperty("MAPS_API_KEY") ?: ""
 
 android {
     namespace = "com.example.invyucab_project"
@@ -17,8 +28,13 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Make API key available in BuildConfig
+        buildConfigField("String", "MAPS_API_KEY", "\"$apiKey\"")
+
+        // Make API key available to AndroidManifest.xml
+        manifestPlaceholders["MAPS_API_KEY"] = apiKey
     }
 
     buildTypes {
@@ -29,7 +45,6 @@ android {
                 "proguard-rules.pro"
             )
         }
-
     }
 
     compileOptions {
@@ -43,6 +58,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true // ✅✅✅ THIS IS THE FIX ✅✅✅
     }
 }
 
@@ -53,7 +69,6 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
-
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
@@ -75,10 +90,16 @@ dependencies {
     implementation("com.google.maps.android:maps-compose:4.3.3")
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.android.gms:play-services-location:21.2.0")
+    implementation(libs.maps.utils) // Polyline utils
 
     // Coil for Image Loading
     implementation("io.coil-kt:coil-compose:2.4.0")
 
+    // Retrofit & Moshi
+    implementation(libs.retrofit)
+    implementation(libs.converter.moshi)
+    implementation(libs.moshi)
+    implementation(libs.okhttp.logging.interceptor)
 
     // Testing
     testImplementation(libs.junit)
