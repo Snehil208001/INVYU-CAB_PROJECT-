@@ -1,5 +1,9 @@
 package com.example.invyucab_project.mainui.rideselectionscreen.ui
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,8 +17,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LocalOffer
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -28,23 +34,36 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.invyucab_project.R
 import com.example.invyucab_project.mainui.rideselectionscreen.viewmodel.RideOption
 import com.example.invyucab_project.mainui.rideselectionscreen.viewmodel.RideSelectionViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
+import com.example.invyucab_project.ui.theme.CabVeryLightMint
 import com.example.invyucab_project.ui.theme.LightSlateGray
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
 import java.text.SimpleDateFormat
 import java.util.*
+import java.lang.Exception
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.unit.LayoutDirection
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,6 +77,31 @@ fun RideSelectionScreen(
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(25.5941, 85.1376), 12f)
     }
+
+    val context = LocalContext.current
+
+    val mapStyleOptions = remember {
+        try {
+            val json = context.resources.openRawResource(R.raw.map_style_retro)
+                .bufferedReader()
+                .use { it.readText() }
+            MapStyleOptions(json)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // ✅✅✅ START FIX: Use the new helper function with drawable IDs
+    val pickupIcon = bitmapDescriptorFromDrawable(
+        context = context,
+        drawableResId = R.drawable.ic_pickup_marker
+    )
+    val dropIcon = bitmapDescriptorFromDrawable(
+        context = context,
+        drawableResId = R.drawable.ic_dropoff_marker
+    )
+    // ✅✅✅ END FIX
 
     LaunchedEffect(uiState.pickupLocation, uiState.dropLocation, uiState.routePolyline) {
         val pickup = uiState.pickupLocation
@@ -96,7 +140,7 @@ fun RideSelectionScreen(
     }
 
     Scaffold(
-        containerColor = Color.White
+        containerColor = CabVeryLightMint
     ) { padding ->
         Box(
             modifier = Modifier
@@ -106,7 +150,8 @@ fun RideSelectionScreen(
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
-                uiSettings = MapUiSettings(zoomControlsEnabled = false, compassEnabled = false)
+                uiSettings = MapUiSettings(zoomControlsEnabled = false, compassEnabled = false),
+                properties = MapProperties(mapStyleOptions = mapStyleOptions)
             ) {
                 if (uiState.routePolyline.isNotEmpty()) {
                     Polyline(
@@ -117,19 +162,19 @@ fun RideSelectionScreen(
                     )
                 }
 
-                // ✅ FIX: Removed the custom icon code. This will use the default map pin.
                 uiState.pickupLocation?.let { pickupLatLng ->
                     Marker(
                         state = MarkerState(position = pickupLatLng),
-                        title = "Pickup"
+                        title = "Pickup",
+                        icon = pickupIcon
                     )
                 }
 
-                // ✅ FIX: Removed the custom icon code. This will use the default map pin.
                 uiState.dropLocation?.let { dropLatLng ->
                     Marker(
                         state = MarkerState(position = dropLatLng),
-                        title = "Drop"
+                        title = "Drop",
+                        icon = dropIcon
                     )
                 }
             }
@@ -151,8 +196,14 @@ fun RideSelectionScreen(
 
             uiState.errorMessage?.let { error ->
                 Snackbar(
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 360.dp, start=16.dp, end=16.dp),
-                    action = { Button(onClick = { /* TODO */ }) { Text("OK") } }
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 360.dp, start = 16.dp, end = 16.dp),
+                    action = {
+                        TextButton(onClick = { viewModel.dismissError() }) {
+                            Text("OK")
+                        }
+                    }
                 ) {
                     Text(text = error)
                 }
@@ -160,6 +211,34 @@ fun RideSelectionScreen(
         }
     }
 }
+
+// ✅✅✅ START: Corrected bitmap helper function
+// This function correctly converts a Drawable XML resource into a BitmapDescriptor
+@Composable
+private fun bitmapDescriptorFromDrawable(
+    context: Context,
+    @DrawableRes drawableResId: Int
+): BitmapDescriptor? { // Return nullable in case of error
+    return remember(drawableResId) {
+        try {
+            val drawable = ContextCompat.getDrawable(context, drawableResId) ?: return@remember null
+            val bitmap = Bitmap.createBitmap(
+                drawable.intrinsicWidth,
+                drawable.intrinsicHeight,
+                Bitmap.Config.ARGB_8888
+            )
+            val canvas = Canvas(bitmap)
+            drawable.setBounds(0, 0, canvas.width, canvas.height)
+            drawable.draw(canvas)
+            BitmapDescriptorFactory.fromBitmap(bitmap)
+        } catch (e: Exception) {
+            e.printStackTrace() // Log the error
+            null
+        }
+    }
+}
+// ✅✅✅ END: Corrected bitmap helper function
+
 
 @Composable
 fun LocationTopBar(
@@ -171,25 +250,37 @@ fun LocationTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(CabMintGreen)
             .padding(top = 16.dp, start = 8.dp, end = 16.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
         }
+
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 8.dp)) {
-            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(CabMintGreen))
-            Box(modifier = Modifier.width(1.dp).height(20.dp).background(Color.Gray))
-            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color.Black))
+            Icon(
+                imageVector = Icons.Default.GpsFixed,
+                contentDescription = "Pickup",
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+            Box(modifier = Modifier.width(1.dp).height(20.dp).background(Color.White.copy(alpha = 0.5f)))
+            Icon(
+                imageVector = Icons.Default.LocationOn,
+                contentDescription = "Drop",
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
         }
+
         Column(modifier = Modifier.weight(1f)) {
-            Text(pickup, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-            Text(drop, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
+            Text(pickup, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium, color = Color.White)
+            Divider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.3f))
+            Text(drop, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium, color = Color.White)
         }
         IconButton(onClick = onAddStop) {
-            Icon(Icons.Default.Add, contentDescription = "Add stop", modifier = Modifier.clip(CircleShape).background(LightSlateGray).padding(4.dp))
+            Icon(Icons.Default.Add, contentDescription = "Add stop", tint = Color.Black, modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.8f)).padding(4.dp))
         }
     }
 }
@@ -253,11 +344,11 @@ fun BoxScope.RideOptionsBottomSheet(rideOptions: List<RideOption>) {
                 Button(
                     onClick = { /* TODO */ },
                     modifier = Modifier.fillMaxWidth().padding(horizontal=16.dp).height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107)),
+                    colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
                     enabled = rideOptions.isNotEmpty()
                 ) {
                     val selectedRideName = rideOptions.find { it.id == selectedRideId }?.name ?: "Ride"
-                    Text("Book $selectedRideName", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Book $selectedRideName", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
         },

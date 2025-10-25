@@ -1,6 +1,7 @@
 package com.example.invyucab_project.mainui.rideselectionscreen.viewmodel
 
 import android.annotation.SuppressLint
+import android.location.Location // ✅ ADDED Import
 import android.os.Looper
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -181,6 +182,20 @@ class RideSelectionViewModel @Inject constructor(
 
                 // 2. Fetch Directions (Only if dropLatLng was found)
                 if (dropLatLng != null) {
+
+                    // ✅✅✅ START FIX: Check if locations are the same
+                    if (areLocationsTooClose(pickupLatLng, dropLatLng)) {
+                        _uiState.value = _uiState.value.copy(
+                            errorMessage = "Pickup and drop locations are the same.",
+                            isLoading = false,
+                            routePolyline = emptyList(), // No route
+                            tripDurationSeconds = 0
+                        )
+                        updateRideOptionsDuration(0) // Update rides with 0 min duration
+                        return@launch // Stop further execution
+                    }
+                    // ✅✅✅ END FIX
+
                     // Use LatLng for origin, place_id for destination
                     val originString = "${pickupLatLng.latitude},${pickupLatLng.longitude}"
                     val destinationString = "place_id:$dropPlaceId"
@@ -231,5 +246,21 @@ class RideSelectionViewModel @Inject constructor(
         _rideOptions.update { currentOptions ->
             currentOptions.map { it.copy(estimatedDurationMinutes = durationMinutes) }
         }
+    }
+
+    // ✅ ADDED: Helper function to check distance
+    private fun areLocationsTooClose(start: LatLng, end: LatLng, thresholdMeters: Float = 50f): Boolean {
+        val results = FloatArray(1)
+        Location.distanceBetween(
+            start.latitude, start.longitude,
+            end.latitude, end.longitude,
+            results
+        )
+        return results[0] < thresholdMeters // Returns true if distance is less than 50 meters
+    }
+
+    // ✅ ADDED: Function to dismiss the error message from the UI
+    fun dismissError() {
+        _uiState.update { it.copy(errorMessage = null) }
     }
 }
