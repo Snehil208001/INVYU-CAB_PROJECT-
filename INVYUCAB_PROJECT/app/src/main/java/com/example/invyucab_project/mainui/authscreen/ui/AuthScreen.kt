@@ -149,6 +149,13 @@ fun SignUpForm(viewModel: AuthViewModel, navController: NavController) {
             shape = RoundedCornerShape(8.dp),
             leadingIcon = {
                 Icon(Icons.Default.Email, contentDescription = "Email Icon")
+            },
+            // ✅ ADDED: Show email error
+            isError = viewModel.signUpEmailError != null,
+            supportingText = {
+                if (viewModel.signUpEmailError != null) {
+                    Text(viewModel.signUpEmailError!!, color = MaterialTheme.colorScheme.error)
+                }
             }
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -161,17 +168,25 @@ fun SignUpForm(viewModel: AuthViewModel, navController: NavController) {
             shape = RoundedCornerShape(8.dp),
             leadingIcon = {
                 Icon(Icons.Default.Phone, contentDescription = "Phone Icon")
+            },
+            // ✅ ADDED: Show phone error
+            isError = viewModel.signUpPhoneError != null,
+            supportingText = {
+                if (viewModel.signUpPhoneError != null) {
+                    Text(viewModel.signUpPhoneError!!, color = MaterialTheme.colorScheme.error)
+                }
             }
         )
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = {
                 viewModel.onSignUpClicked { phone ->
-                    // ✅ MODIFIED: Pass both phone and the optional email
+                    // ✅ MODIFIED: Pass 'isSignUp = true'
                     navController.navigate(
                         Screen.OtpScreen.createRoute(
-                            phone,
-                            viewModel.signUpEmail.takeIf { it.isNotBlank() } // Pass email only if not blank
+                            phone = phone,
+                            isSignUp = true, // <-- THIS IS THE FIX
+                            email = viewModel.signUpEmail.takeIf { it.isNotBlank() }
                         )
                     )
                 }
@@ -241,14 +256,27 @@ fun SignInForm(viewModel: AuthViewModel, navController: NavController) {
             shape = RoundedCornerShape(8.dp),
             leadingIcon = {
                 Icon(Icons.Default.Phone, contentDescription = "Phone Icon")
+            },
+            // ✅ ADDED: Show phone error
+            isError = viewModel.signInPhoneError != null,
+            supportingText = {
+                if (viewModel.signInPhoneError != null) {
+                    Text(viewModel.signInPhoneError!!, color = MaterialTheme.colorScheme.error)
+                }
             }
         )
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = {
                 viewModel.onSignInClicked { phone ->
-                    // ✅ MODIFIED: Pass phone and a null email
-                    navController.navigate(Screen.OtpScreen.createRoute(phone, null))
+                    // ✅ MODIFIED: Pass 'isSignUp = false'
+                    navController.navigate(
+                        Screen.OtpScreen.createRoute(
+                            phone = phone,
+                            isSignUp = false, // <-- THIS IS THE FIX
+                            email = null // No email on sign in
+                        )
+                    )
                 }
             },
             modifier = Modifier.fillMaxWidth().height(50.dp),

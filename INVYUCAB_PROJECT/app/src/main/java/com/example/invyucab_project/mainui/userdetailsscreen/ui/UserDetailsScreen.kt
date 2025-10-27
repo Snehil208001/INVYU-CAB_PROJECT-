@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.invyucab_project.core.navigations.Screen
+import com.example.invyucab_project.core.navigations.Screen // Make sure Screen is imported
 import com.example.invyucab_project.mainui.userdetailsscreen.viewmodel.UserDetailsViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
@@ -36,8 +36,13 @@ fun UserDetailsScreen(
             TopAppBar(
                 title = { Text("Complete Your Profile", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    // Allow navigation back to Auth screen if needed
-                    IconButton(onClick = { navController.navigateUp() }) {
+                    // ✅ MODIFIED THIS onClick LAMBDA TO AVOID CRASH
+                    IconButton(onClick = {
+                        navController.navigate(Screen.AuthScreen.route) {
+                            popUpTo(Screen.UserDetailsScreen.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -85,7 +90,14 @@ fun UserDetailsScreen(
                 leadingIcon = {
                     Icon(Icons.Default.Person, contentDescription = "Name Icon")
                 },
-                singleLine = true
+                singleLine = true,
+                // ✅ ADDED: Show name error
+                isError = viewModel.nameError != null,
+                supportingText = {
+                    if (viewModel.nameError != null) {
+                        Text(viewModel.nameError!!, color = MaterialTheme.colorScheme.error)
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -101,7 +113,14 @@ fun UserDetailsScreen(
                 leadingIcon = {
                     Icon(Icons.Default.Email, contentDescription = "Email Icon")
                 },
-                singleLine = true
+                singleLine = true,
+                // ✅ ADDED: Show email error
+                isError = viewModel.emailError != null,
+                supportingText = {
+                    if (viewModel.emailError != null) {
+                        Text(viewModel.emailError!!, color = MaterialTheme.colorScheme.error)
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(40.dp))
@@ -112,7 +131,8 @@ fun UserDetailsScreen(
                     viewModel.onSaveClicked {
                         // On success, navigate to Home and clear the entire auth stack
                         navController.navigate(Screen.HomeScreen.route) {
-                            popUpTo(Screen.OnboardingScreen.route) { inclusive = true }
+                            // ✅ *** CORRECTED LINE ***
+                            popUpTo(Screen.AuthScreen.route) { inclusive = true }
                         }
                     }
                 },

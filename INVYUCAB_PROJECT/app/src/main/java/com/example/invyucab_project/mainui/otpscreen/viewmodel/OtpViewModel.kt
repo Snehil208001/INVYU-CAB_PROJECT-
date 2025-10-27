@@ -17,24 +17,52 @@ class OtpViewModel @Inject constructor(
     val fullPhoneNumber: String = savedStateHandle.get<String>("phone") ?: ""
     val email: String? = savedStateHandle.get<String>("email")
 
+    // ✅ ADDED: Read the 'isSignUp' flag from the navigation route
+    private val isSignUp: Boolean = savedStateHandle.get<Boolean>("isSignUp") ?: false
+
     var otp by mutableStateOf("")
+        private set
+
+    var error by mutableStateOf<String?>(null) // Error state
         private set
 
     fun onOtpChange(value: String) {
         if (value.length <= 4 && value.all { it.isDigit() }) {
             otp = value
+            error = null // Clear error on change
         }
     }
 
     // ✅ MODIFIED: Added an onSuccess callback to handle navigation
-    fun onVerifyClicked(onSuccess: () -> Unit) {
+    fun onVerifyClicked(
+        onNavigateToHome: () -> Unit,
+        onNavigateToDetails: () -> Unit
+    ) {
+        if (otp.length != 4) {
+            error = "OTP must be 4 digits"
+            return
+        }
+
         // TODO: Implement real OTP verification logic
-        if (otp.length == 4) {
+        // if (api.verify(otp) == true) {
+        if (true) { // Simulating success
             println("Verification successful for OTP: $otp on number: $fullPhoneNumber")
-            // Call the callback on success
-            onSuccess()
+            error = null
+
+            // --- THIS IS THE NEW LOGIC ---
+            if (isSignUp) {
+                // User is SIGNING UP -> Go to UserDetails
+                onNavigateToDetails()
+            } else {
+                // User is SIGNING IN -> Go to Home
+                onNavigateToHome()
+            }
+            // -----------------------------
+
         } else {
-            println("Invalid OTP")
+            // else { // Simulating failure
+            //    error = "The OTP entered is incorrect"
+            // }
         }
     }
 }

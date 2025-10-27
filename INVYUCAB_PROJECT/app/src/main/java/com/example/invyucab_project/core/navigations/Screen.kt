@@ -6,14 +6,19 @@ import java.nio.charset.StandardCharsets
 sealed class Screen(val route: String) {
     object OnboardingScreen : Screen("onboarding_screen")
     object AuthScreen : Screen("auth_screen")
-    object OtpScreen : Screen("otp_screen/{phone}?email={email}") {
-        fun createRoute(phone: String, email: String?): String {
+
+    // ✅ MODIFIED: Added '{isSignUp}' as a required argument
+    object OtpScreen : Screen("otp_screen/{phone}/{isSignUp}?email={email}") {
+        // ✅ MODIFIED: Added 'isSignUp' boolean
+        fun createRoute(phone: String, isSignUp: Boolean, email: String?): String {
             val encodedEmail = email?.let {
                 URLEncoder.encode(it, StandardCharsets.UTF_8.toString())
-            }
-            return "otp_screen/$phone" + (encodedEmail?.let { "?email=$it" } ?: "?email=")
+            } ?: "" // Use empty string if email is null
+            // ✅ MODIFIED: Route now includes the isSignUp flag
+            return "otp_screen/$phone/$isSignUp?email=$encodedEmail"
         }
     }
+
     object UserDetailsScreen : Screen("user_details_screen/{phone}?email={email}") {
         fun createRoute(phone: String, email: String?): String {
             val encodedEmail = email?.let {

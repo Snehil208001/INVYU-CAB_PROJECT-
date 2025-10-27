@@ -79,13 +79,31 @@ fun OtpScreen(
                 otpText = viewModel.otp,
                 onOtpTextChange = { value -> viewModel.onOtpChange(value) }
             )
+
+            // ✅ ADDED: Show error text
+            if (viewModel.error != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = viewModel.error!!,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 14.sp
+                )
+            }
+
             Spacer(modifier = Modifier.height(40.dp))
             Button(
                 onClick = {
-                    // ✅ MODIFIED: Call onVerifyClicked with the success callback
+                    // ✅ MODIFIED: Pass both navigation paths to the ViewModel
                     viewModel.onVerifyClicked(
-                        onSuccess = {
-                            // On success, navigate to the new UserDetailsScreen
+                        // Path 1: (Sign In) Navigate to Home
+                        onNavigateToHome = {
+                            navController.navigate(Screen.HomeScreen.route) {
+                                // ✅ *** CORRECTED LINE ***
+                                popUpTo(Screen.AuthScreen.route) { inclusive = true }
+                            }
+                        },
+                        // Path 2: (Sign Up) Navigate to UserDetails
+                        onNavigateToDetails = {
                             navController.navigate(
                                 Screen.UserDetailsScreen.createRoute(
                                     phone = viewModel.fullPhoneNumber,

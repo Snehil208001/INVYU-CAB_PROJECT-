@@ -34,6 +34,8 @@ fun NavGraph() {
             route = Screen.OtpScreen.route,
             arguments = listOf(
                 navArgument("phone") { type = NavType.StringType },
+                // ✅ ADDED: New required argument
+                navArgument("isSignUp") { type = NavType.BoolType },
                 navArgument("email") {
                     type = NavType.StringType
                     nullable = true
