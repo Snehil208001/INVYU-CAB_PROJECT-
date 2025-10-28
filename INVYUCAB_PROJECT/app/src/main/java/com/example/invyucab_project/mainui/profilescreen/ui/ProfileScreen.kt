@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel // Import hiltViewModel
 import androidx.navigation.NavController
+import com.example.invyucab_project.core.navigations.Screen // Import Screen
 import com.example.invyucab_project.mainui.homescreen.ui.AppBottomNavigation
 import com.example.invyucab_project.mainui.profilescreen.viewmodel.ProfileOption // Import ProfileOption
 import com.example.invyucab_project.mainui.profilescreen.viewmodel.ProfileViewModel // Import ProfileViewModel
@@ -65,7 +66,7 @@ fun ProfileScreen(
 
             // Options Section - Use options from ViewModel
             items(profileOptions) { option ->
-                ProfileOptionItem(option = option)
+                ProfileOptionItem(option = option, navController = navController)
             }
         }
     }
@@ -110,12 +111,21 @@ fun ProfileHeader(name: String, phone: String) {
 
 // Composable for each item in the profile options list
 @Composable
-fun ProfileOptionItem(option: ProfileOption) {
+fun ProfileOptionItem(option: ProfileOption, navController: NavController) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.White)
-            .clickable(onClick = option.onClick) // Use onClick from ProfileOption
+            .clickable(onClick = {
+                // Handle navigation directly
+                when (option.title) {
+                    "Edit Profile" -> navController.navigate(Screen.EditProfileScreen.route)
+                    "Payment Methods" -> navController.navigate(Screen.PaymentMethodScreen.route) // Add this case
+                    // "Ride History" -> navController.navigate(Screen.RideHistoryScreen.route) // Example
+                    // "Logout" -> { /* TODO: Call viewModel.logout() */ }
+                    else -> option.onClick() // Fallback to VM placeholder
+                }
+            })
             .padding(horizontal = 20.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

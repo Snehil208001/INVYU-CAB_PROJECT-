@@ -13,9 +13,12 @@ import com.example.invyucab_project.mainui.locationsearchscreen.ui.LocationSearc
 import com.example.invyucab_project.mainui.onboardingscreen.ui.OnboardingScreen
 import com.example.invyucab_project.mainui.otpscreen.ui.OtpScreen
 import com.example.invyucab_project.mainui.profilescreen.ui.ProfileScreen
-import com.example.invyucab_project.mainui.rideselectionscreen.ui.RideSelectionScreen // ✅ ADDED
+import com.example.invyucab_project.mainui.rideselectionscreen.ui.RideSelectionScreen
 import com.example.invyucab_project.mainui.travelscreen.ui.TravelScreen
 import com.example.invyucab_project.mainui.userdetailsscreen.ui.UserDetailsScreen
+import com.example.invyucab_project.mainui.profilescreen.editprofilescreen.ui.EditProfileScreen
+import com.example.invyucab_project.mainui.profilescreen.memberlevelscreen.ui.MemberLevelScreen
+import com.example.invyucab_project.mainui.profilescreen.paymentmethodscreen.ui.PaymentMethodScreen // Import new screen
 
 @Composable
 fun NavGraph() {
@@ -34,8 +37,7 @@ fun NavGraph() {
             route = Screen.OtpScreen.route,
             arguments = listOf(
                 navArgument("phone") { type = NavType.StringType },
-                // ✅ ADDED: New required argument
-                navArgument("isSignUp") { type = NavType.BoolType },
+                navArgument("isSignUp") { type = NavType.BoolType }, // Required arg
                 navArgument("email") {
                     type = NavType.StringType
                     nullable = true
@@ -72,11 +74,23 @@ fun NavGraph() {
             ProfileScreen(navController = navController)
         }
 
+        composable(Screen.EditProfileScreen.route) {
+            EditProfileScreen(navController = navController)
+        }
+
+        composable(Screen.MemberLevelScreen.route) {
+            MemberLevelScreen(navController = navController)
+        }
+
+        // New composable for Payment Method Screen
+        composable(Screen.PaymentMethodScreen.route) {
+            PaymentMethodScreen(navController = navController)
+        }
+
         composable(Screen.LocationSearchScreen.route) {
             LocationSearchScreen(navController = navController)
         }
 
-        // ✅ ADDED: Composable for the new RideSelectionScreen
         composable(
             route = Screen.RideSelectionScreen.route,
             arguments = listOf(

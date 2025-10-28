@@ -7,18 +7,17 @@ sealed class Screen(val route: String) {
     object OnboardingScreen : Screen("onboarding_screen")
     object AuthScreen : Screen("auth_screen")
 
-    // ✅ MODIFIED: Added '{isSignUp}' as a required argument
+    // Route for OTP Screen
     object OtpScreen : Screen("otp_screen/{phone}/{isSignUp}?email={email}") {
-        // ✅ MODIFIED: Added 'isSignUp' boolean
         fun createRoute(phone: String, isSignUp: Boolean, email: String?): String {
             val encodedEmail = email?.let {
                 URLEncoder.encode(it, StandardCharsets.UTF_8.toString())
             } ?: "" // Use empty string if email is null
-            // ✅ MODIFIED: Route now includes the isSignUp flag
             return "otp_screen/$phone/$isSignUp?email=$encodedEmail"
         }
     }
 
+    // Route for User Details Screen
     object UserDetailsScreen : Screen("user_details_screen/{phone}?email={email}") {
         fun createRoute(phone: String, email: String?): String {
             val encodedEmail = email?.let {
@@ -28,15 +27,21 @@ sealed class Screen(val route: String) {
         }
     }
 
+    // Routes for main app sections
     object HomeScreen : Screen("home_screen")
     object AllServicesScreen : Screen("all_services_screen")
     object TravelScreen : Screen("travel_screen")
     object ProfileScreen : Screen("profile_screen")
+    object EditProfileScreen : Screen("edit_profile_screen")
+    object MemberLevelScreen : Screen("member_level_screen")
 
+    // New route for Payment Methods
+    object PaymentMethodScreen : Screen("payment_method_screen")
+
+    // Route for Location Search
     object LocationSearchScreen : Screen("location_search_screen")
 
-    // ✅ ADDED: New route for Ride Selection Screen
-    // We pass the placeId and description of the selected drop location
+    // Route for Ride Selection
     object RideSelectionScreen : Screen("ride_selection_screen/{placeId}/{description}") {
         fun createRoute(placeId: String, description: String): String {
             // URL-encode the description to handle special characters
