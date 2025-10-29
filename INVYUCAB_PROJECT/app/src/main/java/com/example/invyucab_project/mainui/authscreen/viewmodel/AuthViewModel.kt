@@ -1,6 +1,7 @@
 package com.example.invyucab_project.mainui.authscreen.viewmodel
 
 import android.content.Context
+import android.util.Log
 import android.util.Patterns // Import for email validation
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -11,7 +12,6 @@ import androidx.credentials.GetCredentialResponse
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.invyucab_project.R
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
@@ -24,7 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withTimeoutOrNull // Make sure this import is present
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 enum class AuthTab {
@@ -48,6 +48,8 @@ class AuthViewModel @Inject constructor(
     private val credentialManager: CredentialManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    private val TAG = "AuthViewModel"
 
     var selectedTab by mutableStateOf(AuthTab.SIGN_UP)
         private set
@@ -111,6 +113,7 @@ class AuthViewModel @Inject constructor(
     // --- Validation Functions ---
 
     private fun validateSignUpEmail(): Boolean {
+        // Email is optional, but if present, must be valid
         if (signUpEmail.isNotBlank() && !Patterns.EMAIL_ADDRESS.matcher(signUpEmail).matches()) {
             signUpEmailError = "Invalid email format"
             return false
@@ -120,6 +123,10 @@ class AuthViewModel @Inject constructor(
     }
 
     private fun validateSignUpPhone(): Boolean {
+        if (signUpPhone.isBlank()) {
+            signUpPhoneError = "Phone number is required"
+            return false
+        }
         if (signUpPhone.length != 10) {
             signUpPhoneError = "Must be 10 digits"
             return false
@@ -129,6 +136,10 @@ class AuthViewModel @Inject constructor(
     }
 
     private fun validateSignInPhone(): Boolean {
+        if (signInPhone.isBlank()) {
+            signInPhoneError = "Phone number is required"
+            return false
+        }
         if (signInPhone.length != 10) {
             signInPhoneError = "Must be 10 digits"
             return false
@@ -145,6 +156,7 @@ class AuthViewModel @Inject constructor(
 
         if (isEmailValid && isPhoneValid) {
             // TODO: Implement actual Sign Up API call and OTP sending
+            Log.d(TAG, "Sign up validation passed. Phone: $signUpPhone")
             onNavigate(signUpPhone)
         }
     }
@@ -152,6 +164,7 @@ class AuthViewModel @Inject constructor(
     fun onSignInClicked(onNavigate: (String) -> Unit) {
         if (validateSignInPhone()) {
             // TODO: Implement actual Sign In API call and OTP sending
+            Log.d(TAG, "Sign in validation passed. Phone: $signInPhone")
             onNavigate(signInPhone)
         }
     }
@@ -159,10 +172,7 @@ class AuthViewModel @Inject constructor(
     // --- Google Sign-In Logic ---
 
     fun onGoogleSignInClicked() {
-        // Get the Web Client ID from your google-services.json file
-        // It's best practice to store this in res/values/strings.xml,
-        // but for this example, we'll use the one from your file.
-        // Make sure to add this ID to your strings.xml
+        // Make sure this ID is correct and is your WEB client ID
         val serverClientId = "4006876917-onht2bdb8l3vjbvg8eranfceuapk8efc.apps.googleusercontent.com"
 
         // 1. Configure Google One Tap
@@ -179,9 +189,11 @@ class AuthViewModel @Inject constructor(
         // 3. Launch coroutine to get credential
         viewModelScope.launch {
             _googleSignInState.value = GoogleSignInState.Loading
+            Log.i(TAG, "Initiating Google Sign-In with Credential Manager...")
             try {
-                // Add a 10-second timeout for the credential manager
-                val result: GetCredentialResponse? = withTimeoutOrNull(10000L) {
+                // Add a 15-second timeout for the credential manager
+                val result: GetCredentialResponse? = withTimeoutOrNull(15000L) {
+                    Log.d(TAG, "Calling credentialManager.getCredential...")
                     credentialManager.getCredential(
                         context = context,
                         request = request
@@ -190,6 +202,7 @@ class AuthViewModel @Inject constructor(
 
                 // Check if result is null (which means it timed out)
                 if (result == null) {
+                    Log.w(TAG, "getCredential timed out after 15 seconds. Check device/emulator Google Play Services status and internet connection.")
                     _googleSignInState.value = GoogleSignInState.Error(
                         "Google Sign-In timed out. Check emulator connection and ensure it has Google Play."
                     )
@@ -197,21 +210,43 @@ class AuthViewModel @Inject constructor(
                 }
 
                 // 5. Handle the result
+                Log.d(TAG, "getCredential call successful.")
                 val credential = result.credential
-                if (credential is GoogleIdTokenCredential) {
-                    // 6. Got the ID token, now sign in with Firebase
-                    firebaseSignInWithGoogle(credential.idToken)
+                Log.d(TAG, "Credential type received: ${credential.type}")
+
+
+                // ✅✅✅ START: THE FIX ✅✅✅
+                // Check the credential's TYPE, not its CLASS
+                if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                    try {
+                        // Manually create the GoogleIdTokenCredential from the response data
+                        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+
+                        // 6. Got the ID token, now sign in with Firebase
+                        val idToken = googleIdTokenCredential.idToken
+                        Log.i(TAG, "Successfully created GoogleIdTokenCredential. Proceeding to Firebase sign-in.")
+                        firebaseSignInWithGoogle(idToken)
+
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to create GoogleIdTokenCredential from data: ${e.message}", e)
+                        _googleSignInState.value = GoogleSignInState.Error(e.message ?: "Failed to parse Google credential")
+                    }
                 } else {
+                    // This is now the correct "else" block
+                    Log.e(TAG, "Sign-In failed: Unexpected credential type: ${credential.type}")
                     _googleSignInState.value = GoogleSignInState.Error("Sign-In failed: Unexpected credential type.")
                 }
+                // ✅✅✅ END: THE FIX ✅✅✅
 
             }
             catch (e: GetCredentialException) {
-                // Handle credential-specific exceptions (e.g., user cancelled the One Tap flow)
+                // Handle credential-specific exceptions (e.g., user cancelled, or no accounts found)
+                Log.e(TAG, "GetCredentialException occurred: Type: ${e::class.java.simpleName}, Message: ${e.message}", e)
                 _googleSignInState.value = GoogleSignInState.Error(e.message ?: "Google Sign-In failed or was cancelled.")
             }
             catch (e: Exception) {
                 // Handle other generic exceptions
+                Log.e(TAG, "General Exception in getCredential: ${e.message}", e)
                 _googleSignInState.value = GoogleSignInState.Error(e.message ?: "An unknown error occurred.")
             }
         }
@@ -219,6 +254,7 @@ class AuthViewModel @Inject constructor(
 
     private suspend fun firebaseSignInWithGoogle(idToken: String) {
         try {
+            Log.d(TAG, "Attempting Firebase sign-in with Google ID token...")
             val credential = GoogleAuthProvider.getCredential(idToken, null)
             val authResult = auth.signInWithCredential(credential).await()
             val user = authResult.user
@@ -226,11 +262,14 @@ class AuthViewModel @Inject constructor(
 
             if (user != null) {
                 // 7. Success! Update the state
+                Log.i(TAG, "Firebase sign-in success. User: ${user.uid}, IsNew: $isNewUser")
                 _googleSignInState.value = GoogleSignInState.Success(user, isNewUser)
             } else {
+                Log.e(TAG, "Firebase sign-in failed: User is null after await.")
                 _googleSignInState.value = GoogleSignInState.Error("Firebase sign-in failed: User is null")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "FirebaseSignInWithGoogle Exception: ${e.message}", e)
             _googleSignInState.value = GoogleSignInState.Error(e.message ?: "Firebase sign-in failed")
         }
     }
@@ -239,6 +278,7 @@ class AuthViewModel @Inject constructor(
      * Resets the Google Sign-In state to Idle, e.g., after handling a Success or Error.
      */
     fun resetGoogleSignInState() {
+        Log.d(TAG, "Resetting Google Sign-In state to Idle.")
         _googleSignInState.value = GoogleSignInState.Idle
     }
 }
