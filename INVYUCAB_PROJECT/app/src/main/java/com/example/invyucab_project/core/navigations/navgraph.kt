@@ -55,6 +55,12 @@ fun NavGraph() {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
+                },
+                // ✅ ADDED: New 'name' argument
+                navArgument("name") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
                 }
             )
         ) {

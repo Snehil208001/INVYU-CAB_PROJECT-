@@ -1,5 +1,6 @@
 package com.example.invyucab_project.mainui.authscreen.ui
 
+import android.widget.Toast
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -13,11 +14,16 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -30,16 +36,72 @@ import com.example.invyucab_project.R
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.authscreen.viewmodel.AuthTab
 import com.example.invyucab_project.mainui.authscreen.viewmodel.AuthViewModel
+import com.example.invyucab_project.mainui.authscreen.viewmodel.GoogleSignInState
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
 
-// ... (AuthScreen, AuthHeader, AuthTabs, AuthTabItem composables are unchanged) ...
+// ... (AuthHeader, AuthTabs, AuthTabItem composables are unchanged) ...
 @Composable
 fun AuthScreen(
     navController: NavController,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
-    Scaffold(containerColor = CabVeryLightMint) { padding ->
+    // ✅ ADDED: State for Google Sign-In and a Snackbar host
+    val googleSignInState by viewModel.googleSignInState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    // ✅ ADDED: LaunchedEffect to handle navigation/errors from Google Sign-In
+    LaunchedEffect(googleSignInState) {
+        when (val state = googleSignInState) {
+            is GoogleSignInState.Success -> {
+                // Sign-in was successful
+                if (state.isNewUser || state.user.displayName.isNullOrBlank()) {
+                    // New user or user has no name, go to UserDetails
+                    navController.navigate(
+                        Screen.UserDetailsScreen.createRoute(
+                            phone = state.user.phoneNumber ?: "Google User", // Phone is not available via Google
+                            email = state.user.email,
+                            name = state.user.displayName
+                        )
+                    ) {
+                        // Clear the auth stack
+                        popUpTo(Screen.AuthScreen.route) { inclusive = true }
+                    }
+                } else {
+                    // Existing user, go to Home
+                    navController.navigate(Screen.HomeScreen.route) {
+                        // Clear the auth stack
+                        popUpTo(Screen.AuthScreen.route) { inclusive = true }
+                    }
+                }
+                // Reset the state in the ViewModel
+                viewModel.resetGoogleSignInState()
+            }
+            is GoogleSignInState.Error -> {
+                // Show error in a snackbar or toast
+                snackbarHostState.showSnackbar(
+                    message = state.message,
+                    duration = SnackbarDuration.Short
+                )
+                // Reset the state in the ViewModel
+                viewModel.resetGoogleSignInState()
+            }
+            GoogleSignInState.Loading -> {
+                // UI shows its own loading state
+            }
+            GoogleSignInState.Idle -> {
+                // Do nothing
+            }
+        }
+    }
+
+
+    Scaffold(
+        containerColor = CabVeryLightMint,
+        // ✅ ADDED: Snackbar host
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -64,8 +126,8 @@ fun AuthScreen(
 
                     Crossfade(targetState = viewModel.selectedTab, label = "AuthFormCrossfade") { tab ->
                         when (tab) {
-                            // ✅ CHANGED: Pass navController to both forms
-                            AuthTab.SIGN_UP -> SignUpForm(viewModel, navController)
+                            // ✅ CHANGED: Pass googleSignInState to SignUpForm
+                            AuthTab.SIGN_UP -> SignUpForm(viewModel, navController, googleSignInState)
                             AuthTab.SIGN_IN -> SignInForm(viewModel, navController)
                         }
                     }
@@ -138,7 +200,11 @@ fun AuthTabItem(text: String, isSelected: Boolean, onClick: () -> Unit) {
 
 
 @Composable
-fun SignUpForm(viewModel: AuthViewModel, navController: NavController) {
+fun SignUpForm(
+    viewModel: AuthViewModel,
+    navController: NavController,
+    googleSignInState: GoogleSignInState // ✅ ADDED: Pass state for loading
+) {
     Column {
         OutlinedTextField(
             value = viewModel.signUpEmail,
@@ -191,7 +257,9 @@ fun SignUpForm(viewModel: AuthViewModel, navController: NavController) {
                     )
                 }
             },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen)
         ) {
             Text("Sign Up", fontSize = 16.sp)
@@ -208,24 +276,44 @@ fun SignUpForm(viewModel: AuthViewModel, navController: NavController) {
         }
         Spacer(modifier = Modifier.height(24.dp))
 
+        // ✅ MODIFIED: Google Sign-In Button
         OutlinedButton(
-            onClick = { /* TODO: Handle Google Login */ },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
+            onClick = {
+                // Only call if not already loading
+                if (googleSignInState != GoogleSignInState.Loading) {
+                    viewModel.onGoogleSignInClicked()
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
             shape = RoundedCornerShape(8.dp),
-            border = BorderStroke(1.dp, Color.LightGray)
+            border = BorderStroke(1.dp, Color.LightGray),
+            // Disable button while loading
+            enabled = googleSignInState != GoogleSignInState.Loading
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.ic_google),
-                contentDescription = "Google Logo",
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Connect with Google",
-                fontSize = 16.sp,
-                color = Color.Black.copy(alpha = 0.8f)
-            )
+            // Show loading spinner or icon/text
+            if (googleSignInState == GoogleSignInState.Loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                    color = CabMintGreen
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_google),
+                    contentDescription = "Google Logo",
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Connect with Google",
+                    fontSize = 16.sp,
+                    color = Color.Black.copy(alpha = 0.8f)
+                )
+            }
         }
+
 
         Spacer(modifier = Modifier.height(16.dp))
         Text(
@@ -279,7 +367,9 @@ fun SignInForm(viewModel: AuthViewModel, navController: NavController) {
                     )
                 }
             },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen)
         ) {
             Text("Next", fontSize = 16.sp)

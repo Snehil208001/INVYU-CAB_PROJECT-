@@ -18,12 +18,19 @@ sealed class Screen(val route: String) {
     }
 
     // Route for User Details Screen
-    object UserDetailsScreen : Screen("user_details_screen/{phone}?email={email}") {
-        fun createRoute(phone: String, email: String?): String {
+    // ✅ MODIFIED: Added 'name' as an optional query parameter
+    object UserDetailsScreen : Screen("user_details_screen/{phone}?email={email}&name={name}") {
+        fun createRoute(phone: String, email: String?, name: String? = null): String {
             val encodedEmail = email?.let {
                 URLEncoder.encode(it, StandardCharsets.UTF_8.toString())
-            }
-            return "user_details_screen/$phone" + (encodedEmail?.let { "?email=$it" } ?: "?email=")
+            } ?: ""
+            // ✅ MODIFIED: Encode and add the name
+            val encodedName = name?.let {
+                URLEncoder.encode(it, StandardCharsets.UTF_8.toString())
+            } ?: ""
+
+            // ✅ MODIFIED: Return route with both email and name
+            return "user_details_screen/$phone?email=$encodedEmail&name=$encodedName"
         }
     }
 

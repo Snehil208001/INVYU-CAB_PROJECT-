@@ -17,9 +17,12 @@ class UserDetailsViewModel @Inject constructor(
     // Retrieve phone and email from navigation arguments
     val phone: String = savedStateHandle.get<String>("phone") ?: ""
     private val initialEmail: String? = savedStateHandle.get<String>("email")
+    // ✅ ADDED: Retrieve initial name from navigation arguments
+    private val initialName: String? = savedStateHandle.get<String>("name")
 
     // State for the text fields
-    var name by mutableStateOf("")
+    // ✅ MODIFIED: Pre-fill name if it exists
+    var name by mutableStateOf(initialName.orEmpty())
         private set
     var nameError by mutableStateOf<String?>(null) // ADDED: Error state
         private set
