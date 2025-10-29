@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.example.invyucab_project" />
+                  <option name="mobileSdkAppId" value="1:4006876917:android:7219560f6b0130678797bc" />
+                  <option name="projectId" value="invyu-cab-project" />
+                  <option name="projectNumber" value="4006876917" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
