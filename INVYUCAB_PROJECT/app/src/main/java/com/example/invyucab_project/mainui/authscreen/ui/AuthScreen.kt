@@ -205,6 +205,9 @@ fun SignUpForm(
     navController: NavController,
     googleSignInState: GoogleSignInState // ✅ ADDED: Pass state for loading
 ) {
+    // ✅ *** ADDED THIS LINE ***
+    val activityContext = LocalContext.current
+
     Column {
         OutlinedTextField(
             value = viewModel.signUpEmail,
@@ -281,7 +284,8 @@ fun SignUpForm(
             onClick = {
                 // Only call if not already loading
                 if (googleSignInState != GoogleSignInState.Loading) {
-                    viewModel.onGoogleSignInClicked()
+                    // ✅ *** CHANGED THIS LINE ***
+                    viewModel.onGoogleSignInClicked(activityContext)
                 }
             },
             modifier = Modifier

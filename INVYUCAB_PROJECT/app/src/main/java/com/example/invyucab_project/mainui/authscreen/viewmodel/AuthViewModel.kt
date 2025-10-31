@@ -18,7 +18,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
+// import dagger.hilt.android.qualifiers.ApplicationContext // <-- REMOVED
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,8 +45,8 @@ sealed class GoogleSignInState {
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val credentialManager: CredentialManager,
-    @ApplicationContext private val context: Context
+    private val credentialManager: CredentialManager
+    // REMOVED: @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val TAG = "AuthViewModel"
@@ -171,7 +171,8 @@ class AuthViewModel @Inject constructor(
 
     // --- Google Sign-In Logic ---
 
-    fun onGoogleSignInClicked() {
+    // ✅ *** CHANGED HERE (added parameter) ***
+    fun onGoogleSignInClicked(activityContext: Context) {
         // Make sure this ID is correct and is your WEB client ID
         val serverClientId = "4006876917-onht2bdb8l3vjbvg8eranfceuapk8efc.apps.googleusercontent.com"
 
@@ -195,7 +196,7 @@ class AuthViewModel @Inject constructor(
                 val result: GetCredentialResponse? = withTimeoutOrNull(15000L) {
                     Log.d(TAG, "Calling credentialManager.getCredential...")
                     credentialManager.getCredential(
-                        context = context,
+                        context = activityContext, // ✅ *** CHANGED HERE ***
                         request = request
                     )
                 }
