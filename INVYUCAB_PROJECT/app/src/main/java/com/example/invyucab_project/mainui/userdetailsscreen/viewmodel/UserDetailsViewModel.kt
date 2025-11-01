@@ -15,29 +15,39 @@ class UserDetailsViewModel @Inject constructor(
 ) : ViewModel() {
 
     // Retrieve phone and email from navigation arguments
-    val phone: String = savedStateHandle.get<String>("phone") ?: ""
+    // ✅ MODIFIED: Get phone as nullable
+    private val initialPhone: String? = savedStateHandle.get<String>("phone")
     private val initialEmail: String? = savedStateHandle.get<String>("email")
-    // ✅ ADDED: Retrieve initial name from navigation arguments
     private val initialName: String? = savedStateHandle.get<String>("name")
 
     // State for the text fields
-    // ✅ MODIFIED: Pre-fill name if it exists
     var name by mutableStateOf(initialName.orEmpty())
         private set
-    var nameError by mutableStateOf<String?>(null) // ADDED: Error state
+    var nameError by mutableStateOf<String?>(null)
         private set
 
-    // Pre-fill email if it exists, but allow user to change it
     var email by mutableStateOf(initialEmail.orEmpty())
         private set
-    var emailError by mutableStateOf<String?>(null) // ADDED: Error state
+    var emailError by mutableStateOf<String?>(null)
         private set
 
-    fun onNameChange(value: String) {
-        // MODIFIED: Regex to allow only letters (a-z, A-Z) and spaces
-        val nameRegex = "^[a-zA-Z ]*$".toRegex()
+    // ✅ MODIFIED: Phone is now mutable, pre-filled if available
+    var phone by mutableStateOf(initialPhone.orEmpty())
+        private set
+    var phoneError by mutableStateOf<String?>(null)
+        private set
 
-        // Only update the state if the new value matches the regex
+    var gender by mutableStateOf("Male")
+        private set
+    var birthday by mutableStateOf("")
+        private set
+
+    // ✅ MODIFIED: Flags to control UI editability
+    val isPhoneFromMobileAuth: Boolean = !initialPhone.isNullOrBlank()
+    val isEmailFromGoogle: Boolean = !initialEmail.isNullOrBlank()
+
+    fun onNameChange(value: String) {
+        val nameRegex = "^[a-zA-Z ]*$".toRegex()
         if (value.matches(nameRegex)) {
             name = value
             if (nameError != null) {
@@ -47,16 +57,41 @@ class UserDetailsViewModel @Inject constructor(
     }
 
     fun onEmailChange(value: String) {
-        email = value
-        if (emailError != null) {
-            validateEmail()
+        // Only allow change if email is not from Google
+        if (!isEmailFromGoogle) {
+            email = value
+            if (emailError != null) {
+                validateEmail()
+            }
         }
     }
 
-    // --- ADDED: Validation Functions ---
+    // ✅ ADDED: Handler for Phone change
+    fun onPhoneChange(value: String) {
+        // Only allow change if phone is NOT from mobile auth
+        if (!isPhoneFromMobileAuth) {
+            if (value.all { it.isDigit() } && value.length <= 10) {
+                phone = value
+                if (phoneError != null) {
+                    validatePhone()
+                }
+            }
+        }
+    }
+
+
+    fun onGenderChange(value: String) {
+        gender = value
+    }
+
+    fun onBirthdayChange(value: String) {
+        birthday = value
+    }
+
+
+    // --- Validation Functions ---
 
     private fun validateName(): Boolean {
-        // isBlank() checks for empty string OR just whitespace
         if (name.isBlank()) {
             nameError = "Name cannot be empty"
             return false
@@ -66,6 +101,12 @@ class UserDetailsViewModel @Inject constructor(
     }
 
     private fun validateEmail(): Boolean {
+        // If email is optional (not from Google) and blank, it's valid
+        if (!isEmailFromGoogle && email.isBlank()) {
+            emailError = null
+            return true
+        }
+        // If it's not blank (or from Google), it must match the pattern
         if (email.isNotBlank() && !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             emailError = "Invalid email format"
             return false
@@ -74,17 +115,33 @@ class UserDetailsViewModel @Inject constructor(
         return true
     }
 
-    fun onSaveClicked(onNavigate: () -> Unit) {
-        // MODIFIED: Run validations before navigating
+    // ✅ ADDED: Validation for Phone
+    private fun validatePhone(): Boolean {
+        if (phone.isBlank()) {
+            phoneError = "Phone number is required"
+            return false
+        }
+        if (phone.length != 10) {
+            phoneError = "Must be 10 digits"
+            return false
+        }
+        phoneError = null
+        return true
+    }
+
+    fun onSaveClicked(onNavigate: (phone: String, email: String?) -> Unit) {
+        // MODIFIED: Run all validations
         val isNameValid = validateName()
         val isEmailValid = validateEmail()
+        val isPhoneValid = validatePhone() // Always validate phone
 
-        if (isNameValid && isEmailValid) {
-            // TODO: Implement logic to save the user's name and email to your backend/database
-            println("Saving user details: Name=$name, Email=$email, Phone=$phone")
+        if (isNameValid && isEmailValid && isPhoneValid) {
+            // TODO: Implement logic to save all user details
+            println("Saving user details: Name=$name, Email=$email, Phone=$phone, Gender=$gender, Birthday=$birthday")
 
-            // Navigate to the next screen (e.g., Home)
-            onNavigate()
+            // Navigate to the next screen (OTP)
+            // ✅ This now correctly uses the mutable 'phone' state
+            onNavigate(phone, email.takeIf { it.isNotBlank() })
         }
     }
 }

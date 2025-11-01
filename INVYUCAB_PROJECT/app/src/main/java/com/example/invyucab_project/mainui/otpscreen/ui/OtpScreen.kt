@@ -102,16 +102,12 @@ fun OtpScreen(
                                 popUpTo(Screen.AuthScreen.route) { inclusive = true }
                             }
                         },
-                        // Path 2: (Sign Up) Navigate to UserDetails
+                        // ✅ *** MODIFIED THIS LAMBDA ***
+                        // Path 2: (Sign Up) Navigate to Home after successful verification
                         onNavigateToDetails = {
-                            navController.navigate(
-                                Screen.UserDetailsScreen.createRoute(
-                                    phone = viewModel.fullPhoneNumber,
-                                    email = viewModel.email
-                                )
-                            ) {
-                                // Pop this OTP screen off the back stack
-                                popUpTo(Screen.OtpScreen.route) { inclusive = true }
+                            navController.navigate(Screen.HomeScreen.route) {
+                                // Pop AuthScreen, UserDetailsScreen, and this OtpScreen
+                                popUpTo(Screen.AuthScreen.route) { inclusive = true }
                             }
                         }
                     )

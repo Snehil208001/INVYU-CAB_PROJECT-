@@ -1,29 +1,49 @@
 package com.example.invyucab_project.mainui.userdetailsscreen.ui
 
 
+import android.app.DatePickerDialog
+import android.widget.DatePicker
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Wc
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.core.navigations.Screen // Make sure Screen is imported
 import com.example.invyucab_project.mainui.userdetailsscreen.viewmodel.UserDetailsViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
+import com.example.invyucab_project.ui.theme.LightSlateGray
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,6 +51,29 @@ fun UserDetailsScreen(
     navController: NavController,
     viewModel: UserDetailsViewModel = hiltViewModel()
 ) {
+    // === STATE FOR DIALOGS ===
+    var showGenderDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    // === DATE PICKER LOGIC ===
+    val calendar = remember {
+        parseDate(viewModel.birthday) ?: Calendar.getInstance()
+    }
+    val year = calendar.get(Calendar.YEAR)
+    val month = calendar.get(Calendar.MONTH)
+    val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+    val datePickerDialog = DatePickerDialog(
+        context,
+        { _: DatePicker, selectedYear: Int, selectedMonth: Int, selectedDay: Int ->
+            val selectedCalendar = Calendar.getInstance().apply {
+                set(selectedYear, selectedMonth, selectedDay)
+            }
+            viewModel.onBirthdayChange(formatDate(selectedCalendar))
+        }, year, month, day
+    )
+    // ==========================
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -53,6 +96,7 @@ fun UserDetailsScreen(
                 )
             )
         },
+        // ✅ REVERTED: Set background back to the mint color from your screenshot
         containerColor = CabVeryLightMint
     ) { padding ->
         Column(
@@ -91,22 +135,26 @@ fun UserDetailsScreen(
                     Icon(Icons.Default.Person, contentDescription = "Name Icon")
                 },
                 singleLine = true,
-                // ✅ ADDED: Show name error
                 isError = viewModel.nameError != null,
                 supportingText = {
                     if (viewModel.nameError != null) {
                         Text(viewModel.nameError!!, color = MaterialTheme.colorScheme.error)
                     }
-                }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    errorContainerColor = Color.White
+                )
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Email Field (pre-filled from sign-up)
+            // Email Field
             OutlinedTextField(
                 value = viewModel.email,
                 onValueChange = { viewModel.onEmailChange(it) },
-                label = { Text("Email (Optional)") },
+                label = { Text("Email") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 shape = RoundedCornerShape(8.dp),
@@ -114,13 +162,78 @@ fun UserDetailsScreen(
                     Icon(Icons.Default.Email, contentDescription = "Email Icon")
                 },
                 singleLine = true,
-                // ✅ ADDED: Show email error
+                // ✅ MODIFIED: Enable/Disable based on Google Sign-In
+                enabled = !viewModel.isEmailFromGoogle,
                 isError = viewModel.emailError != null,
                 supportingText = {
                     if (viewModel.emailError != null) {
                         Text(viewModel.emailError!!, color = MaterialTheme.colorScheme.error)
                     }
-                }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    errorContainerColor = Color.White,
+                    disabledTextColor = Color.Black.copy(alpha = 0.8f),
+                    disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
+                    disabledLeadingIconColor = Color.Black.copy(alpha = 0.8f),
+                    disabledLabelColor = Color.Gray,
+                    disabledContainerColor = Color.White
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ✅ MODIFIED: Phone Field (Now conditional)
+            OutlinedTextField(
+                value = viewModel.phone,
+                onValueChange = { viewModel.onPhoneChange(it) }, // Use new handler
+                label = { Text("Mobile Number") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                leadingIcon = {
+                    Icon(Icons.Default.Phone, contentDescription = "Phone Icon")
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                // ✅ MODIFIED: Editable only if not from mobile auth
+                enabled = !viewModel.isPhoneFromMobileAuth,
+                isError = viewModel.phoneError != null,
+                supportingText = {
+                    if (viewModel.phoneError != null) {
+                        Text(viewModel.phoneError!!, color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    errorContainerColor = Color.White,
+                    disabledTextColor = Color.Black.copy(alpha = 0.8f),
+                    disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
+                    disabledLeadingIconColor = Color.Black.copy(alpha = 0.8f),
+                    disabledLabelColor = Color.Gray,
+                    disabledContainerColor = Color.White
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Gender Field (Clickable)
+            ClickableOutlinedTextField(
+                value = viewModel.gender,
+                label = "Gender",
+                leadingIcon = Icons.Default.Wc,
+                onClick = { showGenderDialog = true }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // DOB Field (Clickable)
+            ClickableOutlinedTextField(
+                value = viewModel.birthday.ifEmpty { "Date of Birth" },
+                label = "Date of Birth",
+                leadingIcon = Icons.Default.Cake,
+                onClick = { datePickerDialog.show() }
             )
 
             Spacer(modifier = Modifier.height(40.dp))
@@ -128,23 +241,156 @@ fun UserDetailsScreen(
             // Save Button
             Button(
                 onClick = {
-                    viewModel.onSaveClicked {
-                        // On success, navigate to Home and clear the entire auth stack
-                        navController.navigate(Screen.HomeScreen.route) {
-                            // ✅ *** CORRECTED LINE ***
-                            popUpTo(Screen.AuthScreen.route) { inclusive = true }
-                        }
+                    viewModel.onSaveClicked { phone, email ->
+                        navController.navigate(
+                            Screen.OtpScreen.createRoute(
+                                phone = phone,
+                                isSignUp = true,
+                                email = email
+                            )
+                        )
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
-                // Button is enabled only when a name is entered
-                enabled = viewModel.name.isNotBlank()
+                // ✅ MODIFIED: Also check for phone length
+                enabled = viewModel.name.isNotBlank() && (viewModel.isPhoneFromMobileAuth || viewModel.phone.length == 10)
             ) {
                 Text("Save & Continue", fontSize = 16.sp, color = Color.White)
             }
         }
     }
+
+    // === GENDER SELECTION DIALOG ===
+    if (showGenderDialog) {
+        GenderSelectionDialog(
+            currentGender = viewModel.gender,
+            onGenderSelected = {
+                viewModel.onGenderChange(it)
+                showGenderDialog = false
+            },
+            onDismiss = { showGenderDialog = false }
+        )
+    }
+}
+
+/**
+ * A custom composable that looks like an OutlinedTextField but is clickable.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ClickableOutlinedTextField(
+    value: String,
+    label: String,
+    leadingIcon: ImageVector,
+    onClick: () -> Unit
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        label = { Text(label) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick), // Make the whole field clickable
+        shape = RoundedCornerShape(8.dp),
+        leadingIcon = {
+            Icon(leadingIcon, contentDescription = null)
+        },
+        trailingIcon = {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+        },
+        singleLine = true,
+        enabled = false, // Disable text input
+        colors = OutlinedTextFieldDefaults.colors(
+            disabledTextColor = Color.Black.copy(alpha = 0.8f),
+            disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
+            disabledLeadingIconColor = Color.Black.copy(alpha = 0.8f),
+            disabledTrailingIconColor = Color.Gray,
+            disabledLabelColor = Color.Gray,
+            // ✅ ADDED: Set background color to white
+            disabledContainerColor = Color.White
+        )
+    )
+}
+
+/**
+ * A dialog for selecting gender.
+ */
+@Composable
+private fun GenderSelectionDialog(
+    currentGender: String,
+    onGenderSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val genderOptions = listOf("Male", "Female", "Prefer not to say")
+    var selectedOption by remember { mutableStateOf(currentGender) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Select Gender") },
+        text = {
+            Column(Modifier.fillMaxWidth()) {
+                genderOptions.forEach { gender ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = (gender == selectedOption),
+                                onClick = { selectedOption = gender }
+                            )
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (gender == selectedOption),
+                            onClick = { selectedOption = gender },
+                            colors = RadioButtonDefaults.colors(selectedColor = CabMintGreen)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = gender)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onGenderSelected(selectedOption) },
+                colors = ButtonDefaults.textButtonColors(contentColor = CabMintGreen)
+            ) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(contentColor = Color.Gray)
+            ) {
+                Text("Cancel")
+            }
+        },
+        properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
+    )
+}
+
+// === DATE HELPER FUNCTIONS ===
+
+private fun parseDate(dateString: String): Calendar? {
+    return try {
+        val format = SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH)
+        val date = format.parse(dateString)
+        Calendar.getInstance().apply {
+            if (date != null) {
+                time = date
+            }
+        }
+    } catch (e: Exception) {
+        null // Return null if parsing fails
+    }
+}
+
+private fun formatDate(calendar: Calendar): String {
+    val format = SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH)
+    return format.format(calendar.time)
 }

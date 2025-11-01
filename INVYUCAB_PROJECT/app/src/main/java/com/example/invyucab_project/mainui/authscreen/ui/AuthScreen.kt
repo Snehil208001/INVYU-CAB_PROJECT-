@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
+// import androidx.compose.material.icons.filled.Email // REMOVED
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -59,8 +59,9 @@ fun AuthScreen(
                 if (state.isNewUser || state.user.displayName.isNullOrBlank()) {
                     // New user or user has no name, go to UserDetails
                     navController.navigate(
+                        // ✅ MODIFIED: Pass phone=null for Google Sign up
                         Screen.UserDetailsScreen.createRoute(
-                            phone = state.user.phoneNumber ?: "Google User", // Phone is not available via Google
+                            phone = null,
                             email = state.user.email,
                             name = state.user.displayName
                         )
@@ -161,7 +162,7 @@ fun AuthTabs(selectedTab: AuthTab, onTabSelected: (AuthTab) -> Unit) {
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         AuthTabItem(
-            text = "Sign Up",
+            text = "Register",
             isSelected = selectedTab == AuthTab.SIGN_UP,
             onClick = { onTabSelected(AuthTab.SIGN_UP) }
         )
@@ -209,25 +210,8 @@ fun SignUpForm(
     val activityContext = LocalContext.current
 
     Column {
-        OutlinedTextField(
-            value = viewModel.signUpEmail,
-            onValueChange = { viewModel.onSignUpEmailChange(it) },
-            label = { Text("Email (Optional)") },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            shape = RoundedCornerShape(8.dp),
-            leadingIcon = {
-                Icon(Icons.Default.Email, contentDescription = "Email Icon")
-            },
-            // ✅ ADDED: Show email error
-            isError = viewModel.signUpEmailError != null,
-            supportingText = {
-                if (viewModel.signUpEmailError != null) {
-                    Text(viewModel.signUpEmailError!!, color = MaterialTheme.colorScheme.error)
-                }
-            }
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        // REMOVED Email OutlinedTextField
+        // REMOVED Spacer
         OutlinedTextField(
             value = viewModel.signUpPhone,
             onValueChange = { viewModel.onSignUpPhoneChange(it) },
@@ -250,12 +234,12 @@ fun SignUpForm(
         Button(
             onClick = {
                 viewModel.onSignUpClicked { phone ->
-                    // ✅ MODIFIED: Pass 'isSignUp = true'
+                    // ✅ *** MODIFIED THIS NAVIGATION ***
                     navController.navigate(
-                        Screen.OtpScreen.createRoute(
+                        Screen.UserDetailsScreen.createRoute(
                             phone = phone,
-                            isSignUp = true, // <-- THIS IS THE FIX
-                            email = viewModel.signUpEmail.takeIf { it.isNotBlank() }
+                            email = null,
+                            name = null
                         )
                     )
                 }
@@ -265,7 +249,7 @@ fun SignUpForm(
                 .height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen)
         ) {
-            Text("Sign Up", fontSize = 16.sp)
+            Text("Register", fontSize = 16.sp) // CHANGED TEXT
         }
 
         Spacer(modifier = Modifier.height(24.dp))

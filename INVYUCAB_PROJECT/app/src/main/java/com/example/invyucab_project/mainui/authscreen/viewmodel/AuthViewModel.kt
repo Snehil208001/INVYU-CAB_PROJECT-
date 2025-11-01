@@ -2,7 +2,7 @@ package com.example.invyucab_project.mainui.authscreen.viewmodel
 
 import android.content.Context
 import android.util.Log
-import android.util.Patterns // Import for email validation
+// import android.util.Patterns // Import for email validation // REMOVED
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -54,10 +54,8 @@ class AuthViewModel @Inject constructor(
     var selectedTab by mutableStateOf(AuthTab.SIGN_UP)
         private set
 
-    var signUpEmail by mutableStateOf("")
-        private set
-    var signUpEmailError by mutableStateOf<String?>(null)
-        private set
+    // REMOVED signUpEmail
+    // REMOVED signUpEmailError
 
     var signUpPhone by mutableStateOf("")
         private set
@@ -76,7 +74,7 @@ class AuthViewModel @Inject constructor(
     fun onTabSelected(tab: AuthTab) {
         selectedTab = tab
         // Clear errors when switching tabs
-        signUpEmailError = null
+        // REMOVED signUpEmailError = null
         signUpPhoneError = null
         signInPhoneError = null
         // Also reset Google sign in state if it was in an error state
@@ -85,12 +83,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun onSignUpEmailChange(value: String) {
-        signUpEmail = value
-        if (signUpEmailError != null) {
-            validateSignUpEmail()
-        }
-    }
+    // REMOVED onSignUpEmailChange
 
     fun onSignUpPhoneChange(value: String) {
         if (value.all { it.isDigit() } && value.length <= 10) {
@@ -112,15 +105,7 @@ class AuthViewModel @Inject constructor(
 
     // --- Validation Functions ---
 
-    private fun validateSignUpEmail(): Boolean {
-        // Email is optional, but if present, must be valid
-        if (signUpEmail.isNotBlank() && !Patterns.EMAIL_ADDRESS.matcher(signUpEmail).matches()) {
-            signUpEmailError = "Invalid email format"
-            return false
-        }
-        signUpEmailError = null
-        return true
-    }
+    // REMOVED validateSignUpEmail
 
     private fun validateSignUpPhone(): Boolean {
         if (signUpPhone.isBlank()) {
@@ -151,10 +136,10 @@ class AuthViewModel @Inject constructor(
     // --- Click Handlers with Validation ---
 
     fun onSignUpClicked(onNavigate: (String) -> Unit) {
-        val isEmailValid = validateSignUpEmail()
+        // REMOVED val isEmailValid = validateSignUpEmail()
         val isPhoneValid = validateSignUpPhone()
 
-        if (isEmailValid && isPhoneValid) {
+        if (isPhoneValid) { // MODIFIED
             // TODO: Implement actual Sign Up API call and OTP sending
             Log.d(TAG, "Sign up validation passed. Phone: $signUpPhone")
             onNavigate(signUpPhone)
