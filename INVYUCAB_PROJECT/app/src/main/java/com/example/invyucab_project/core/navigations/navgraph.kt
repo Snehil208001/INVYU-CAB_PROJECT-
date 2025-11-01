@@ -18,7 +18,12 @@ import com.example.invyucab_project.mainui.travelscreen.ui.TravelScreen
 import com.example.invyucab_project.mainui.userdetailsscreen.ui.UserDetailsScreen
 import com.example.invyucab_project.mainui.profilescreen.editprofilescreen.ui.EditProfileScreen
 import com.example.invyucab_project.mainui.profilescreen.memberlevelscreen.ui.MemberLevelScreen
-import com.example.invyucab_project.mainui.profilescreen.paymentmethodscreen.ui.PaymentMethodScreen // Import new screen
+import com.example.invyucab_project.mainui.profilescreen.paymentmethodscreen.ui.PaymentMethodScreen
+// ✅ ADDED: Imports for all new screens
+import com.example.invyucab_project.mainui.adminscreen.ui.AdminScreen
+import com.example.invyucab_project.mainui.driverdetailsscreen.ui.DriverDetailsScreen
+import com.example.invyucab_project.mainui.driverscreen.ui.DriverScreen
+import com.example.invyucab_project.mainui.roleselectionscreen.ui.RoleSelectionScreen
 
 @Composable
 fun NavGraph() {
@@ -37,12 +42,11 @@ fun NavGraph() {
             route = Screen.OtpScreen.route,
             arguments = listOf(
                 navArgument("phone") { type = NavType.StringType },
-                navArgument("isSignUp") { type = NavType.BoolType }, // Required arg
-                navArgument("email") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                }
+                navArgument("isSignUp") { type = NavType.BoolType },
+                navArgument("email") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("name") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("gender") { type = NavType.StringType; nullable = true; defaultValue = null }, // ✅ ADDED
+                navArgument("dob") { type = NavType.StringType; nullable = true; defaultValue = null }      // ✅ ADDED
             )
         ) {
             OtpScreen(navController = navController)
@@ -50,21 +54,50 @@ fun NavGraph() {
         composable(
             route = Screen.UserDetailsScreen.route,
             arguments = listOf(
-                navArgument("phone") { type = NavType.StringType },
-                navArgument("email") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                },
-                // ✅ ADDED: New 'name' argument
-                navArgument("name") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                }
+                navArgument("phone") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("email") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("name") { type = NavType.StringType; nullable = true; defaultValue = null }
             )
         ) {
             UserDetailsScreen(navController = navController)
+        }
+
+        // ✅ ADDED: Composable for RoleSelectionScreen
+        composable(
+            route = Screen.RoleSelectionScreen.route,
+            arguments = listOf(
+                navArgument("phone") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("email") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("name") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("gender") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("dob") { type = NavType.StringType; nullable = true; defaultValue = null }
+            )
+        ) {
+            RoleSelectionScreen(navController = navController)
+        }
+
+        // ✅ ADDED: Composable for DriverDetailsScreen
+        composable(
+            route = Screen.DriverDetailsScreen.route,
+            arguments = listOf(
+                navArgument("phone") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("email") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("name") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("gender") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("dob") { type = NavType.StringType; nullable = true; defaultValue = null }
+            )
+        ) {
+            DriverDetailsScreen(navController = navController)
+        }
+
+        // ✅ ADDED: Composable for AdminScreen
+        composable(Screen.AdminScreen.route) {
+            AdminScreen(navController = navController)
+        }
+
+        // ✅ ADDED: Composable for DriverScreen
+        composable(Screen.DriverScreen.route) {
+            DriverScreen(navController = navController)
         }
 
         composable(Screen.HomeScreen.route) {
@@ -79,24 +112,18 @@ fun NavGraph() {
         composable(Screen.ProfileScreen.route) {
             ProfileScreen(navController = navController)
         }
-
         composable(Screen.EditProfileScreen.route) {
             EditProfileScreen(navController = navController)
         }
-
         composable(Screen.MemberLevelScreen.route) {
             MemberLevelScreen(navController = navController)
         }
-
-        // New composable for Payment Method Screen
         composable(Screen.PaymentMethodScreen.route) {
             PaymentMethodScreen(navController = navController)
         }
-
         composable(Screen.LocationSearchScreen.route) {
             LocationSearchScreen(navController = navController)
         }
-
         composable(
             route = Screen.RideSelectionScreen.route,
             arguments = listOf(

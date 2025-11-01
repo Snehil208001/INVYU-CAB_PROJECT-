@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-// import androidx.compose.material.icons.filled.Email // REMOVED
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -40,67 +39,63 @@ import com.example.invyucab_project.mainui.authscreen.viewmodel.GoogleSignInStat
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
 
-// ... (AuthHeader, AuthTabs, AuthTabItem composables are unchanged) ...
 @Composable
 fun AuthScreen(
     navController: NavController,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
-    // ✅ ADDED: State for Google Sign-In and a Snackbar host
     val googleSignInState by viewModel.googleSignInState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
-    // ✅ ADDED: LaunchedEffect to handle navigation/errors from Google Sign-In
     LaunchedEffect(googleSignInState) {
         when (val state = googleSignInState) {
             is GoogleSignInState.Success -> {
-                // Sign-in was successful
                 if (state.isNewUser || state.user.displayName.isNullOrBlank()) {
-                    // New user or user has no name, go to UserDetails
+                    // New user -> Go to UserDetails
                     navController.navigate(
-                        // ✅ MODIFIED: Pass phone=null for Google Sign up
                         Screen.UserDetailsScreen.createRoute(
                             phone = null,
                             email = state.user.email,
                             name = state.user.displayName
                         )
                     ) {
-                        // Clear the auth stack
                         popUpTo(Screen.AuthScreen.route) { inclusive = true }
                     }
                 } else {
-                    // Existing user, go to Home
-                    navController.navigate(Screen.HomeScreen.route) {
-                        // Clear the auth stack
+                    // Existing Google user, but we don't know their role.
+                    // We must send them to Role Selection.
+                    // We simulate a "Sign Up" flow to get them to role selection.
+                    navController.navigate(
+                        Screen.OtpScreen.createRoute(
+                            phone = state.user.phoneNumber ?: "google_user", // Pass placeholder
+                            isSignUp = true, // Force sign-up flow to hit RoleSelection
+                            email = state.user.email,
+                            name = state.user.displayName,
+                            gender = null, // We don't know this
+                            dob = null     // We don't know this
+                        )
+                    ) {
                         popUpTo(Screen.AuthScreen.route) { inclusive = true }
                     }
                 }
-                // Reset the state in the ViewModel
                 viewModel.resetGoogleSignInState()
             }
             is GoogleSignInState.Error -> {
-                // Show error in a snackbar or toast
                 snackbarHostState.showSnackbar(
                     message = state.message,
                     duration = SnackbarDuration.Short
                 )
-                // Reset the state in the ViewModel
                 viewModel.resetGoogleSignInState()
             }
-            GoogleSignInState.Loading -> {
-                // UI shows its own loading state
-            }
-            GoogleSignInState.Idle -> {
-                // Do nothing
-            }
+            GoogleSignInState.Loading -> { }
+            GoogleSignInState.Idle -> { }
         }
     }
 
 
     Scaffold(
         containerColor = CabVeryLightMint,
-        // ✅ ADDED: Snackbar host
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
@@ -127,7 +122,6 @@ fun AuthScreen(
 
                     Crossfade(targetState = viewModel.selectedTab, label = "AuthFormCrossfade") { tab ->
                         when (tab) {
-                            // ✅ CHANGED: Pass googleSignInState to SignUpForm
                             AuthTab.SIGN_UP -> SignUpForm(viewModel, navController, googleSignInState)
                             AuthTab.SIGN_IN -> SignInForm(viewModel, navController)
                         }
@@ -137,6 +131,8 @@ fun AuthScreen(
         }
     }
 }
+
+// ... (AuthHeader, AuthTabs, AuthTabItem, and SignUpForm are unchanged) ...
 
 @Composable
 fun AuthHeader() {
@@ -204,14 +200,11 @@ fun AuthTabItem(text: String, isSelected: Boolean, onClick: () -> Unit) {
 fun SignUpForm(
     viewModel: AuthViewModel,
     navController: NavController,
-    googleSignInState: GoogleSignInState // ✅ ADDED: Pass state for loading
+    googleSignInState: GoogleSignInState
 ) {
-    // ✅ *** ADDED THIS LINE ***
     val activityContext = LocalContext.current
 
     Column {
-        // REMOVED Email OutlinedTextField
-        // REMOVED Spacer
         OutlinedTextField(
             value = viewModel.signUpPhone,
             onValueChange = { viewModel.onSignUpPhoneChange(it) },
@@ -222,7 +215,6 @@ fun SignUpForm(
             leadingIcon = {
                 Icon(Icons.Default.Phone, contentDescription = "Phone Icon")
             },
-            // ✅ ADDED: Show phone error
             isError = viewModel.signUpPhoneError != null,
             supportingText = {
                 if (viewModel.signUpPhoneError != null) {
@@ -234,7 +226,6 @@ fun SignUpForm(
         Button(
             onClick = {
                 viewModel.onSignUpClicked { phone ->
-                    // ✅ *** MODIFIED THIS NAVIGATION ***
                     navController.navigate(
                         Screen.UserDetailsScreen.createRoute(
                             phone = phone,
@@ -249,7 +240,7 @@ fun SignUpForm(
                 .height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen)
         ) {
-            Text("Register", fontSize = 16.sp) // CHANGED TEXT
+            Text("Register", fontSize = 16.sp)
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -263,12 +254,9 @@ fun SignUpForm(
         }
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ✅ MODIFIED: Google Sign-In Button
         OutlinedButton(
             onClick = {
-                // Only call if not already loading
                 if (googleSignInState != GoogleSignInState.Loading) {
-                    // ✅ *** CHANGED THIS LINE ***
                     viewModel.onGoogleSignInClicked(activityContext)
                 }
             },
@@ -277,10 +265,8 @@ fun SignUpForm(
                 .height(50.dp),
             shape = RoundedCornerShape(8.dp),
             border = BorderStroke(1.dp, Color.LightGray),
-            // Disable button while loading
             enabled = googleSignInState != GoogleSignInState.Loading
         ) {
-            // Show loading spinner or icon/text
             if (googleSignInState == GoogleSignInState.Loading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
@@ -314,6 +300,7 @@ fun SignUpForm(
     }
 }
 
+
 @Composable
 fun SignInForm(viewModel: AuthViewModel, navController: NavController) {
     Column {
@@ -333,7 +320,6 @@ fun SignInForm(viewModel: AuthViewModel, navController: NavController) {
             leadingIcon = {
                 Icon(Icons.Default.Phone, contentDescription = "Phone Icon")
             },
-            // ✅ ADDED: Show phone error
             isError = viewModel.signInPhoneError != null,
             supportingText = {
                 if (viewModel.signInPhoneError != null) {
@@ -345,12 +331,16 @@ fun SignInForm(viewModel: AuthViewModel, navController: NavController) {
         Button(
             onClick = {
                 viewModel.onSignInClicked { phone ->
-                    // ✅ MODIFIED: Pass 'isSignUp = false'
+                    // ✅✅✅ THIS IS THE FIX ✅✅✅
+                    // Added missing gender and dob parameters as null
                     navController.navigate(
                         Screen.OtpScreen.createRoute(
                             phone = phone,
-                            isSignUp = false, // <-- THIS IS THE FIX
-                            email = null // No email on sign in
+                            isSignUp = false,
+                            email = null,
+                            name = null,
+                            gender = null, // ✅ ADDED
+                            dob = null     // ✅ ADDED
                         )
                     )
                 }

@@ -80,7 +80,6 @@ fun OtpScreen(
                 onOtpTextChange = { value -> viewModel.onOtpChange(value) }
             )
 
-            // ✅ ADDED: Show error text
             if (viewModel.error != null) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
@@ -93,20 +92,24 @@ fun OtpScreen(
             Spacer(modifier = Modifier.height(40.dp))
             Button(
                 onClick = {
-                    // ✅ MODIFIED: Pass both navigation paths to the ViewModel
                     viewModel.onVerifyClicked(
-                        // Path 1: (Sign In) Navigate to Home
-                        onNavigateToHome = {
-                            navController.navigate(Screen.HomeScreen.route) {
-                                // ✅ *** CORRECTED LINE ***
+                        // ✅ MODIFIED: Pass all 5 details to the Role Selection route
+                        onNavigateToRoleSelection = { phone, email, name, gender, dob ->
+                            navController.navigate(
+                                Screen.RoleSelectionScreen.createRoute(
+                                    phone = phone,
+                                    email = email,
+                                    name = name,
+                                    gender = gender,
+                                    dob = dob
+                                )
+                            ) {
                                 popUpTo(Screen.AuthScreen.route) { inclusive = true }
                             }
                         },
-                        // ✅ *** MODIFIED THIS LAMBDA ***
-                        // Path 2: (Sign Up) Navigate to Home after successful verification
-                        onNavigateToDetails = {
+                        // Path 2: (Sign In) Navigate to Home
+                        onNavigateToHome = {
                             navController.navigate(Screen.HomeScreen.route) {
-                                // Pop AuthScreen, UserDetailsScreen, and this OtpScreen
                                 popUpTo(Screen.AuthScreen.route) { inclusive = true }
                             }
                         }
@@ -134,7 +137,6 @@ fun OtpTextField(
 ) {
     val focusRequester = remember { FocusRequester() }
 
-    // This is key for interactivity: it automatically opens the keyboard.
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
@@ -143,7 +145,6 @@ fun OtpTextField(
         modifier = modifier.focusRequester(focusRequester),
         value = TextFieldValue(otpText, selection = TextRange(otpText.length)),
         onValueChange = {
-            // This is the core loop: send changes up to the ViewModel.
             if (it.text.length <= otpCount) {
                 onOtpTextChange.invoke(it.text)
             }
@@ -153,7 +154,6 @@ fun OtpTextField(
             Row(horizontalArrangement = Arrangement.Center) {
                 repeat(otpCount) { index ->
                     val char = otpText.getOrNull(index)?.toString() ?: ""
-                    // This provides visual feedback for the current input position.
                     val isFocused = otpText.length == index
                     OtpChar(
                         char = char,

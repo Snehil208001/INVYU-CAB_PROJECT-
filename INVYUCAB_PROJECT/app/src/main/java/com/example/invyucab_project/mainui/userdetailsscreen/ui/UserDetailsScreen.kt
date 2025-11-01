@@ -79,7 +79,6 @@ fun UserDetailsScreen(
             TopAppBar(
                 title = { Text("Complete Your Profile", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    // ✅ MODIFIED THIS onClick LAMBDA TO AVOID CRASH
                     IconButton(onClick = {
                         navController.navigate(Screen.AuthScreen.route) {
                             popUpTo(Screen.UserDetailsScreen.route) { inclusive = true }
@@ -96,7 +95,6 @@ fun UserDetailsScreen(
                 )
             )
         },
-        // ✅ REVERTED: Set background back to the mint color from your screenshot
         containerColor = CabVeryLightMint
     ) { padding ->
         Column(
@@ -162,7 +160,6 @@ fun UserDetailsScreen(
                     Icon(Icons.Default.Email, contentDescription = "Email Icon")
                 },
                 singleLine = true,
-                // ✅ MODIFIED: Enable/Disable based on Google Sign-In
                 enabled = !viewModel.isEmailFromGoogle,
                 isError = viewModel.emailError != null,
                 supportingText = {
@@ -184,10 +181,10 @@ fun UserDetailsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ✅ MODIFIED: Phone Field (Now conditional)
+            // Phone Field
             OutlinedTextField(
                 value = viewModel.phone,
-                onValueChange = { viewModel.onPhoneChange(it) }, // Use new handler
+                onValueChange = { viewModel.onPhoneChange(it) },
                 label = { Text("Mobile Number") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
@@ -196,7 +193,6 @@ fun UserDetailsScreen(
                 },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                // ✅ MODIFIED: Editable only if not from mobile auth
                 enabled = !viewModel.isPhoneFromMobileAuth,
                 isError = viewModel.phoneError != null,
                 supportingText = {
@@ -233,7 +229,14 @@ fun UserDetailsScreen(
                 value = viewModel.birthday.ifEmpty { "Date of Birth" },
                 label = "Date of Birth",
                 leadingIcon = Icons.Default.Cake,
-                onClick = { datePickerDialog.show() }
+                onClick = { datePickerDialog.show() },
+                // ✅ ADDED: Error handling
+                isError = viewModel.birthdayError != null,
+                supportingText = {
+                    if (viewModel.birthdayError != null) {
+                        Text(viewModel.birthdayError!!, color = MaterialTheme.colorScheme.error)
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(40.dp))
@@ -241,12 +244,16 @@ fun UserDetailsScreen(
             // Save Button
             Button(
                 onClick = {
-                    viewModel.onSaveClicked { phone, email ->
+                    // ✅ MODIFIED: Lambda now includes all 5 user details
+                    viewModel.onSaveClicked { phone, email, name, gender, dob ->
                         navController.navigate(
                             Screen.OtpScreen.createRoute(
                                 phone = phone,
                                 isSignUp = true,
-                                email = email
+                                email = email,
+                                name = name,
+                                gender = gender, // ✅ ADDED
+                                dob = dob        // ✅ ADDED
                             )
                         )
                     }
@@ -255,15 +262,16 @@ fun UserDetailsScreen(
                     .fillMaxWidth()
                     .height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
-                // ✅ MODIFIED: Also check for phone length
-                enabled = viewModel.name.isNotBlank() && (viewModel.isPhoneFromMobileAuth || viewModel.phone.length == 10)
+                // ✅ MODIFIED: Enable button only if all required fields are filled
+                enabled = viewModel.name.isNotBlank() &&
+                        (viewModel.isPhoneFromMobileAuth || viewModel.phone.length == 10) &&
+                        viewModel.birthday.isNotBlank()
             ) {
                 Text("Save & Continue", fontSize = 16.sp, color = Color.White)
             }
         }
     }
 
-    // === GENDER SELECTION DIALOG ===
     if (showGenderDialog) {
         GenderSelectionDialog(
             currentGender = viewModel.gender,
@@ -276,48 +284,56 @@ fun UserDetailsScreen(
     }
 }
 
-/**
- * A custom composable that looks like an OutlinedTextField but is clickable.
- */
+// ✅ MODIFIED: ClickableOutlinedTextField now supports error states
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ClickableOutlinedTextField(
     value: String,
     label: String,
     leadingIcon: ImageVector,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isError: Boolean = false,
+    supportingText: @Composable (() -> Unit)? = null
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = {},
-        label = { Text(label) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick), // Make the whole field clickable
-        shape = RoundedCornerShape(8.dp),
-        leadingIcon = {
-            Icon(leadingIcon, contentDescription = null)
-        },
-        trailingIcon = {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
-        },
-        singleLine = true,
-        enabled = false, // Disable text input
-        colors = OutlinedTextFieldDefaults.colors(
-            disabledTextColor = Color.Black.copy(alpha = 0.8f),
-            disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
-            disabledLeadingIconColor = Color.Black.copy(alpha = 0.8f),
-            disabledTrailingIconColor = Color.Gray,
-            disabledLabelColor = Color.Gray,
-            // ✅ ADDED: Set background color to white
-            disabledContainerColor = Color.White
+    Column(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            label = { Text(label) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
+            shape = RoundedCornerShape(8.dp),
+            leadingIcon = {
+                Icon(leadingIcon, contentDescription = null)
+            },
+            trailingIcon = {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+            },
+            singleLine = true,
+            enabled = false,
+            isError = isError,
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledTextColor = Color.Black.copy(alpha = 0.8f),
+                disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
+                disabledLeadingIconColor = Color.Black.copy(alpha = 0.8f),
+                disabledTrailingIconColor = Color.Gray,
+                disabledLabelColor = Color.Gray,
+                disabledContainerColor = Color.White,
+                // ✅ ADDED: Error color for the border
+                errorBorderColor = MaterialTheme.colorScheme.error
+            )
         )
-    )
+        // ✅ ADDED: Show supporting text (e.g., error message)
+        if (supportingText != null) {
+            Box(modifier = Modifier.padding(start = 16.dp, top = 4.dp)) {
+                supportingText()
+            }
+        }
+    }
 }
 
-/**
- * A dialog for selecting gender.
- */
+
 @Composable
 private fun GenderSelectionDialog(
     currentGender: String,
@@ -386,7 +402,7 @@ private fun parseDate(dateString: String): Calendar? {
             }
         }
     } catch (e: Exception) {
-        null // Return null if parsing fails
+        null
     }
 }
 

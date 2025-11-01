@@ -15,7 +15,6 @@ class UserDetailsViewModel @Inject constructor(
 ) : ViewModel() {
 
     // Retrieve phone and email from navigation arguments
-    // ✅ MODIFIED: Get phone as nullable
     private val initialPhone: String? = savedStateHandle.get<String>("phone")
     private val initialEmail: String? = savedStateHandle.get<String>("email")
     private val initialName: String? = savedStateHandle.get<String>("name")
@@ -31,7 +30,6 @@ class UserDetailsViewModel @Inject constructor(
     var emailError by mutableStateOf<String?>(null)
         private set
 
-    // ✅ MODIFIED: Phone is now mutable, pre-filled if available
     var phone by mutableStateOf(initialPhone.orEmpty())
         private set
     var phoneError by mutableStateOf<String?>(null)
@@ -39,10 +37,13 @@ class UserDetailsViewModel @Inject constructor(
 
     var gender by mutableStateOf("Male")
         private set
+
     var birthday by mutableStateOf("")
         private set
+    // ✅ ADDED: Error state for birthday from previous step
+    var birthdayError by mutableStateOf<String?>(null)
+        private set
 
-    // ✅ MODIFIED: Flags to control UI editability
     val isPhoneFromMobileAuth: Boolean = !initialPhone.isNullOrBlank()
     val isEmailFromGoogle: Boolean = !initialEmail.isNullOrBlank()
 
@@ -57,7 +58,6 @@ class UserDetailsViewModel @Inject constructor(
     }
 
     fun onEmailChange(value: String) {
-        // Only allow change if email is not from Google
         if (!isEmailFromGoogle) {
             email = value
             if (emailError != null) {
@@ -66,9 +66,7 @@ class UserDetailsViewModel @Inject constructor(
         }
     }
 
-    // ✅ ADDED: Handler for Phone change
     fun onPhoneChange(value: String) {
-        // Only allow change if phone is NOT from mobile auth
         if (!isPhoneFromMobileAuth) {
             if (value.all { it.isDigit() } && value.length <= 10) {
                 phone = value
@@ -79,15 +77,16 @@ class UserDetailsViewModel @Inject constructor(
         }
     }
 
-
     fun onGenderChange(value: String) {
         gender = value
     }
 
     fun onBirthdayChange(value: String) {
         birthday = value
+        if (birthdayError != null) {
+            validateBirthday()
+        }
     }
-
 
     // --- Validation Functions ---
 
@@ -101,12 +100,10 @@ class UserDetailsViewModel @Inject constructor(
     }
 
     private fun validateEmail(): Boolean {
-        // If email is optional (not from Google) and blank, it's valid
         if (!isEmailFromGoogle && email.isBlank()) {
             emailError = null
             return true
         }
-        // If it's not blank (or from Google), it must match the pattern
         if (email.isNotBlank() && !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             emailError = "Invalid email format"
             return false
@@ -115,7 +112,6 @@ class UserDetailsViewModel @Inject constructor(
         return true
     }
 
-    // ✅ ADDED: Validation for Phone
     private fun validatePhone(): Boolean {
         if (phone.isBlank()) {
             phoneError = "Phone number is required"
@@ -129,19 +125,29 @@ class UserDetailsViewModel @Inject constructor(
         return true
     }
 
-    fun onSaveClicked(onNavigate: (phone: String, email: String?) -> Unit) {
-        // MODIFIED: Run all validations
+    // ✅ ADDED: Validation for Birthday from previous step
+    private fun validateBirthday(): Boolean {
+        if (birthday.isBlank()) {
+            birthdayError = "Date of Birth cannot be empty"
+            return false
+        }
+        birthdayError = null
+        return true
+    }
+
+    // ✅ MODIFIED: Updated the lambda to include 'name', 'gender', and 'birthday'
+    fun onSaveClicked(onNavigate: (phone: String, email: String?, name: String, gender: String, birthday: String) -> Unit) {
         val isNameValid = validateName()
         val isEmailValid = validateEmail()
-        val isPhoneValid = validatePhone() // Always validate phone
+        val isPhoneValid = validatePhone()
+        val isBirthdayValid = validateBirthday() // ✅ ADDED
 
-        if (isNameValid && isEmailValid && isPhoneValid) {
-            // TODO: Implement logic to save all user details
+        // ✅ MODIFIED: Check all validations
+        if (isNameValid && isEmailValid && isPhoneValid && isBirthdayValid) {
             println("Saving user details: Name=$name, Email=$email, Phone=$phone, Gender=$gender, Birthday=$birthday")
 
-            // Navigate to the next screen (OTP)
-            // ✅ This now correctly uses the mutable 'phone' state
-            onNavigate(phone, email.takeIf { it.isNotBlank() })
+            // ✅ MODIFIED: Pass all 5 pieces of data
+            onNavigate(phone, email.takeIf { it.isNotBlank() }, name, gender, birthday)
         }
     }
 }

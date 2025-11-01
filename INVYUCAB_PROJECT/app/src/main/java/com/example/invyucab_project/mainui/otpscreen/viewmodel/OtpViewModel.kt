@@ -13,30 +13,32 @@ class OtpViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    // ✅ MODIFIED: Retrieve both phone and the new optional email
+    // ✅ MODIFIED: Retrieve all 5 user details
     val fullPhoneNumber: String = savedStateHandle.get<String>("phone") ?: ""
     val email: String? = savedStateHandle.get<String>("email")
+    val name: String? = savedStateHandle.get<String>("name")       // ✅ ADDED
+    val gender: String? = savedStateHandle.get<String>("gender")   // ✅ ADDED
+    val dob: String? = savedStateHandle.get<String>("dob")         // ✅ ADDED
 
-    // ✅ ADDED: Read the 'isSignUp' flag from the navigation route
     private val isSignUp: Boolean = savedStateHandle.get<Boolean>("isSignUp") ?: false
 
     var otp by mutableStateOf("")
         private set
 
-    var error by mutableStateOf<String?>(null) // Error state
+    var error by mutableStateOf<String?>(null)
         private set
 
     fun onOtpChange(value: String) {
         if (value.length <= 4 && value.all { it.isDigit() }) {
             otp = value
-            error = null // Clear error on change
+            error = null
         }
     }
 
-    // ✅ MODIFIED: Added an onSuccess callback to handle navigation
+    // ✅ MODIFIED: Callback now includes all user details
     fun onVerifyClicked(
-        onNavigateToHome: () -> Unit,
-        onNavigateToDetails: () -> Unit
+        onNavigateToRoleSelection: (phone: String, email: String?, name: String?, gender: String?, dob: String?) -> Unit,
+        onNavigateToHome: () -> Unit
     ) {
         if (otp.length != 4) {
             error = "OTP must be 4 digits"
@@ -44,25 +46,19 @@ class OtpViewModel @Inject constructor(
         }
 
         // TODO: Implement real OTP verification logic
-        // if (api.verify(otp) == true) {
         if (true) { // Simulating success
             println("Verification successful for OTP: $otp on number: $fullPhoneNumber")
             error = null
 
-            // --- THIS IS THE NEW LOGIC ---
             if (isSignUp) {
-                // User is SIGNING UP -> Go to UserDetails
-                onNavigateToDetails()
+                // NEW USER -> Navigate to RoleSelectionScreen with all data
+                onNavigateToRoleSelection(fullPhoneNumber, email, name, gender, dob)
             } else {
-                // User is SIGNING IN -> Go to Home
+                // EXISTING USER -> Navigate directly to Home
                 onNavigateToHome()
             }
-            // -----------------------------
-
         } else {
-            // else { // Simulating failure
-            //    error = "The OTP entered is incorrect"
-            // }
+            error = "The OTP entered is incorrect"
         }
     }
 }
