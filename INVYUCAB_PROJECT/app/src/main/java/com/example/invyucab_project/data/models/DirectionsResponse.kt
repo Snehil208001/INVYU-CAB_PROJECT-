@@ -20,13 +20,20 @@ data class OverviewPolyline(
     @Json(name = "points") val points: String
 )
 
-// ✅ ADD Leg, Duration classes
+// ✅ ADD Leg, Duration, Distance classes
 @JsonClass(generateAdapter = true)
 data class Leg(
-    @Json(name = "duration") val duration: DurationInfo
+    @Json(name = "duration") val duration: DurationInfo,
+    @Json(name = "distance") val distance: DistanceInfo // ✅ ADDED
 )
 
 @JsonClass(generateAdapter = true)
 data class DurationInfo(
     @Json(name = "value") val value: Int // Duration in seconds
+)
+
+// ✅ ADDED
+@JsonClass(generateAdapter = true)
+data class DistanceInfo(
+    @Json(name = "value") val value: Int // Distance in meters
 )

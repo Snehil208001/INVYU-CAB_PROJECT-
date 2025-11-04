@@ -289,6 +289,8 @@ fun LocationTopBar(
 @Composable
 fun BoxScope.RideOptionsBottomSheet(rideOptions: List<RideOption>) {
     var selectedRideId by remember { mutableStateOf(1) }
+    // ✅ ADDED: Check if any price is still null
+    val arePricesCalculated = rideOptions.isNotEmpty() && rideOptions.all { it.price != null }
 
     BottomSheetScaffold(
         scaffoldState = rememberBottomSheetScaffoldState(),
@@ -344,7 +346,7 @@ fun BoxScope.RideOptionsBottomSheet(rideOptions: List<RideOption>) {
                     onClick = { /* TODO */ },
                     modifier = Modifier.fillMaxWidth().padding(horizontal=16.dp).height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
-                    enabled = rideOptions.isNotEmpty()
+                    enabled = arePricesCalculated // ✅ MODIFIED: Button enabled only when prices are ready
                 ) {
                     val selectedRideName = rideOptions.find { it.id == selectedRideId }?.name ?: "Ride"
                     Text("Book $selectedRideName", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -406,7 +408,23 @@ fun RideOptionItem(ride: RideOption, isSelected: Boolean, onClick: () -> Unit) {
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        Text("₹${ride.price}", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        // ✅ MODIFIED: Price and Distance Column
+        Column(horizontalAlignment = Alignment.End) {
+            // ✅ MODIFIED: Show "---" if price is null, else show price
+            Text(
+                text = ride.price?.let { "₹$it" } ?: "---",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
+            )
+            ride.estimatedDistanceKm?.let {
+                Text(
+                    text = it,
+                    fontSize = 13.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+        }
     }
 }
 
