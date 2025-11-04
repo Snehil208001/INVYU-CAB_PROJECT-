@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,6 +19,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -34,9 +36,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +51,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.core.navigations.Screen
+import com.example.invyucab_project.mainui.locationsearchscreen.viewmodel.EditingField
 import com.example.invyucab_project.mainui.locationsearchscreen.viewmodel.LocationSearchViewModel
 import com.example.invyucab_project.mainui.locationsearchscreen.viewmodel.SearchLocation
 import com.example.invyucab_project.ui.theme.CabMintGreen
@@ -58,21 +63,25 @@ fun LocationSearchScreen(
     navController: NavController,
     viewModel: LocationSearchViewModel = hiltViewModel()
 ) {
+    // ✅ MODIFIED: Get all new state from ViewModel
     val focusRequester = remember { FocusRequester() }
     val searchResults by viewModel.searchResults.collectAsState()
+    val searchQuery = viewModel.searchQuery
+    val pickupDescription = viewModel.pickupDescription
+    val dropDescription = viewModel.dropDescription
+    val activeField = viewModel.activeField
     val context = LocalContext.current
 
-    // ✅ START: Corrected Permission Handling Logic
-
     // State to hold the location we want to navigate to *after* permission is granted
-    var pendingLocationToNavigate by remember { mutableStateOf<SearchLocation?>(null) }
+    // ✅ MODIFIED: This now holds both pickup and drop info
+    data class PendingNavigation(val pickupId: String?, val pickupDesc: String, val dropId: String, val dropDesc: String)
+    var pendingLocationToNavigate by remember { mutableStateOf<PendingNavigation?>(null) }
 
     val locationPermissions = arrayOf(
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.ACCESS_COARSE_LOCATION
     )
 
-    // This launcher's 'onResult' block will run AFTER the user responds to the permission dialog
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
         onResult = { permissions ->
@@ -80,33 +89,35 @@ fun LocationSearchScreen(
                 permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
             ) {
                 // Permission was granted!
-                // Now, check if we have a location waiting and navigate to it.
-                pendingLocationToNavigate?.let { location ->
+                pendingLocationToNavigate?.let {
                     navController.navigate(
                         Screen.RideSelectionScreen.createRoute(
-                            placeId = location.placeId,
-                            description = location.address
+                            pickupPlaceId = it.pickupId,
+                            pickupDescription = it.pickupDesc,
+                            dropPlaceId = it.dropId,
+                            dropDescription = it.dropDesc
                         )
                     )
-                    pendingLocationToNavigate = null // Clear the pending location
+                    pendingLocationToNavigate = null // Clear
                 }
             } else {
                 // Permission was denied
                 Toast.makeText(context, "Location permission is required to find rides.", Toast.LENGTH_LONG).show()
-                pendingLocationToNavigate = null // Clear the pending location
+                pendingLocationToNavigate = null // Clear
             }
         }
     )
-    // ✅ END: Corrected Permission Handling Logic
 
-    LaunchedEffect(Unit) {
+    // ✅ MODIFIED: Focus the search box when the activeField changes
+    LaunchedEffect(activeField) {
         focusRequester.requestFocus()
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Drop", fontWeight = FontWeight.Bold) },
+                // ✅ MODIFIED: Title
+                title = { Text("Set Route", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -129,69 +140,132 @@ fun LocationSearchScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
+            // ✅ MODIFIED: This section now shows both fields
             SearchInputSection(
-                searchQuery = viewModel.searchQuery,
-                onSearchQueryChange = { viewModel.onSearchQueryChange(it) },
-                focusRequester = focusRequester
+                pickupDescription = pickupDescription,
+                dropDescription = dropDescription,
+                activeField = activeField,
+                onFieldActivated = viewModel::onFieldActivated
             )
 
-            Row(
+            // ✅ ADDED: This is the single, real search box
+            BasicTextField(
+                value = searchQuery,
+                onValueChange = viewModel::onSearchQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+                    .padding(top = 16.dp)
+                    .height(48.dp)
+                    .focusRequester(focusRequester)
+                    .background(LightSlateGray, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 12.dp),
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(
+                    color = Color.Black,
+                    fontSize = 16.sp
+                ),
+                cursorBrush = SolidColor(CabMintGreen),
+                decorationBox = { innerTextField ->
+                    Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.fillMaxWidth()) {
+                        if (searchQuery.isEmpty()) {
+                            Text(
+                                text = if (activeField == EditingField.PICKUP) "Enter pickup location" else "Enter drop location",
+                                color = Color.Gray,
+                                fontSize = 16.sp
+                            )
+                        }
+                        innerTextField()
+                        if (searchQuery.isNotEmpty()) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Clear",
+                                tint = Color.Gray,
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .clickable { viewModel.onSearchQueryChange("") }
+                            )
+                        }
+                    }
+                }
+            )
+
+            // ✅ MODIFIED: This logic is now simpler
+            if (searchResults.isNotEmpty()) {
+                Divider(color = LightSlateGray, modifier = Modifier.padding(top = 16.dp))
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(searchResults) { location ->
+                        RecentSearchItem(
+                            location = location,
+                            onLocationClick = {
+                                // This click now just updates the ViewModel state
+                                viewModel.onSearchResultClicked(location)
+                            }
+                        )
+                    }
+                }
+            } else {
+                // ✅ MODIFIED: Show "Set on map" and "Confirm"
+                Spacer(modifier = Modifier.height(16.dp))
                 SearchButton(
                     text = "Select on map",
                     icon = Icons.Default.GpsFixed,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth()
                 )
-                SearchButton(
-                    text = "Add stops",
-                    icon = Icons.Default.Add,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+                Spacer(modifier = Modifier.weight(1f))
+                Button(
+                    onClick = {
+                        // ✅ MODIFIED: Navigation logic
+                        val pickupId = viewModel.pickupPlaceId
+                        val dropId = viewModel.dropPlaceId
+                        val pickupDesc = viewModel.pickupDescription
+                        val dropDesc = viewModel.dropDescription
 
-            Divider(color = LightSlateGray)
-
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(searchResults) { location ->
-                    RecentSearchItem(
-                        location = location,
-                        onLocationClick = {
-                            // ✅ START: Updated Click Logic
-                            // Check if permission is already granted
-                            val hasCoarsePermission = ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.ACCESS_COARSE_LOCATION
-                            ) == PackageManager.PERMISSION_GRANTED
-
-                            val hasFinePermission = ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.ACCESS_FINE_LOCATION
-                            ) == PackageManager.PERMISSION_GRANTED
-
-                            if (hasCoarsePermission || hasFinePermission) {
-                                // Permission is already granted, navigate immediately
-                                navController.navigate(
-                                    Screen.RideSelectionScreen.createRoute(
-                                        placeId = location.placeId,
-                                        description = location.address
-                                    )
-                                )
-                            } else {
-                                // Permission is NOT granted
-                                // 1. Set the pending location
-                                pendingLocationToNavigate = location
-                                // 2. Launch the permission request. The 'onResult' block will handle navigation.
-                                permissionLauncher.launch(locationPermissions)
-                            }
-                            // ✅ END: Updated Click Logic
+                        if (dropId == null || dropDesc.isEmpty()) {
+                            Toast.makeText(context, "Please select a drop location", Toast.LENGTH_SHORT).show()
+                            return@Button
                         }
-                    )
+                        if (pickupId == null || pickupDesc.isEmpty()) {
+                            Toast.makeText(context, "Please select a pickup location", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+
+                        val pendingNav = PendingNavigation(pickupId, pickupDesc, dropId, dropDesc)
+
+                        // Check if permission is already granted
+                        val hasCoarsePermission = ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.ACCESS_COARSE_LOCATION
+                        ) == PackageManager.PERMISSION_GRANTED
+                        val hasFinePermission = ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.ACCESS_FINE_LOCATION
+                        ) == PackageManager.PERMISSION_GRANTED
+
+                        if (hasCoarsePermission || hasFinePermission) {
+                            // Permission granted, navigate immediately
+                            navController.navigate(
+                                Screen.RideSelectionScreen.createRoute(
+                                    pickupPlaceId = pickupId,
+                                    pickupDescription = pickupDesc,
+                                    dropPlaceId = dropId,
+                                    dropDescription = dropDesc
+                                )
+                            )
+                        } else {
+                            // Permission NOT granted, set pending and launch
+                            pendingLocationToNavigate = pendingNav
+                            permissionLauncher.launch(locationPermissions)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp)
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
+                    // Enable only if both fields are set
+                    enabled = viewModel.pickupPlaceId != null && viewModel.dropPlaceId != null
+                ) {
+                    Text("Confirm Locations", color = Color.White, fontSize = 16.sp)
                 }
             }
         }
@@ -200,9 +274,10 @@ fun LocationSearchScreen(
 
 @Composable
 fun SearchInputSection(
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    focusRequester: FocusRequester
+    pickupDescription: String,
+    dropDescription: String,
+    activeField: EditingField,
+    onFieldActivated: (EditingField) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -215,42 +290,54 @@ fun SearchInputSection(
                 .weight(1f)
                 .padding(start = 12.dp)
         ) {
+            // ✅ MODIFIED: Pickup Field
+            val pickupIsActive = activeField == EditingField.PICKUP
+            val pickupColor = if (pickupIsActive) CabMintGreen else Color.Gray.copy(alpha = 0.5f)
+            val pickupTextColor = if (pickupDescription == "Your Current Location") CabMintGreen else Color.Black
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
+                    .border(1.dp, pickupColor, RoundedCornerShape(8.dp))
                     .background(LightSlateGray, RoundedCornerShape(8.dp))
+                    .clickable { onFieldActivated(EditingField.PICKUP) }
                     .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
-                Text("Your Current Location", color = Color.Black, fontWeight = FontWeight.Medium)
+                Text(
+                    text = pickupDescription.ifEmpty { "Enter pickup location" },
+                    color = if (pickupDescription.isEmpty()) Color.Gray else pickupTextColor,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            BasicTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
+            // ✅ MODIFIED: Drop Field
+            val dropIsActive = activeField == EditingField.DROP
+            val dropColor = if (dropIsActive) CabMintGreen else Color.Gray.copy(alpha = 0.5f)
+
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
-                    .focusRequester(focusRequester)
+                    .border(1.dp, dropColor, RoundedCornerShape(8.dp))
                     .background(LightSlateGray, RoundedCornerShape(8.dp))
+                    .clickable { onFieldActivated(EditingField.DROP) }
                     .padding(horizontal = 12.dp),
-                singleLine = true,
-                textStyle = LocalTextStyle.current.copy(
-                    color = Color.Black,
-                    fontSize = 16.sp
-                ),
-                decorationBox = { innerTextField ->
-                    Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.fillMaxWidth()) {
-                        if (searchQuery.isEmpty()) {
-                            Text("Drop location", color = Color.Gray, fontSize = 16.sp)
-                        }
-                        innerTextField()
-                    }
-                }
-            )
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Text(
+                    text = dropDescription.ifEmpty { "Enter drop location" },
+                    color = if (dropDescription.isEmpty()) Color.Gray else Color.Black,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }

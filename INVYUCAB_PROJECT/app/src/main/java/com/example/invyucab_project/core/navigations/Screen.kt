@@ -65,10 +65,18 @@ sealed class Screen(val route: String) {
     object PaymentMethodScreen : Screen("payment_method_screen")
     object LocationSearchScreen : Screen("location_search_screen")
 
-    object RideSelectionScreen : Screen("ride_selection_screen/{placeId}/{description}") {
-        fun createRoute(placeId: String, description: String): String {
-            val encodedDescription = URLEncoder.encode(description, StandardCharsets.UTF_8.toString())
-            return "ride_selection_screen/$placeId/$encodedDescription"
+    // ✅ MODIFIED: Route now accepts pickupPlaceId and pickupDescription as optional query params
+    object RideSelectionScreen : Screen("ride_selection_screen/{dropPlaceId}/{dropDescription}?pickupPlaceId={pickupPlaceId}&pickupDescription={pickupDescription}") {
+        fun createRoute(
+            dropPlaceId: String,
+            dropDescription: String,
+            pickupPlaceId: String?,
+            pickupDescription: String
+        ): String {
+            val encodedDropDesc = URLEncoder.encode(dropDescription, StandardCharsets.UTF_8.toString())
+            val encodedPickupId = pickupPlaceId?.let { URLEncoder.encode(it, StandardCharsets.UTF_8.toString()) } ?: "current_location"
+            val encodedPickupDesc = URLEncoder.encode(pickupDescription, StandardCharsets.UTF_8.toString())
+            return "ride_selection_screen/$dropPlaceId/$encodedDropDesc?pickupPlaceId=$encodedPickupId&pickupDescription=$encodedPickupDesc"
         }
     }
 }

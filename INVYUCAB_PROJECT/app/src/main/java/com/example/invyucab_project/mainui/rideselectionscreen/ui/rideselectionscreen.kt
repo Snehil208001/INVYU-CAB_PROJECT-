@@ -35,9 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -62,8 +60,6 @@ import com.google.maps.android.compose.*
 import java.text.SimpleDateFormat
 import java.util.*
 import java.lang.Exception
-import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
-import androidx.compose.ui.unit.LayoutDirection
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,16 +88,18 @@ fun RideSelectionScreen(
         }
     }
 
-    // ✅✅✅ START FIX: Use the new helper function with drawable IDs
-    val pickupIcon = bitmapDescriptorFromDrawable(
-        context = context,
-        drawableResId = R.drawable.ic_pickup_marker
-    )
-    val dropIcon = bitmapDescriptorFromDrawable(
-        context = context,
-        drawableResId = R.drawable.ic_dropoff_marker
-    )
-    // ✅✅✅ END FIX
+    // ✅✅✅ START: THIS IS THE FIX ✅✅✅
+    // Create the BitmapDescriptors inside the composable, using remember.
+    // The lambda block for 'remember' is NOT a composable context, so
+    // we can safely do our bitmap conversion here.
+    val pickupIcon = remember(context) {
+        bitmapDescriptorFromDrawable(context, R.drawable.ic_pickup_marker)
+    }
+
+    val dropIcon = remember(context) {
+        bitmapDescriptorFromDrawable(context, R.drawable.ic_dropoff_marker)
+    }
+    // ✅✅✅ END: THIS IS THE FIX ✅✅✅
 
     LaunchedEffect(uiState.pickupLocation, uiState.dropLocation, uiState.routePolyline) {
         val pickup = uiState.pickupLocation
@@ -163,18 +161,20 @@ fun RideSelectionScreen(
                 }
 
                 uiState.pickupLocation?.let { pickupLatLng ->
+                    // ✅ MODIFIED: Pass the remembered 'icon'
                     Marker(
                         state = MarkerState(position = pickupLatLng),
                         title = "Pickup",
-                        icon = pickupIcon
+                        icon = pickupIcon // Use the remembered BitmapDescriptor
                     )
                 }
 
                 uiState.dropLocation?.let { dropLatLng ->
+                    // ✅ MODIFIED: Pass the remembered 'icon'
                     Marker(
                         state = MarkerState(position = dropLatLng),
                         title = "Drop",
-                        icon = dropIcon
+                        icon = dropIcon // Use the remembered BitmapDescriptor
                     )
                 }
             }
@@ -212,32 +212,31 @@ fun RideSelectionScreen(
     }
 }
 
-// ✅✅✅ START: Corrected bitmap helper function
-// This function correctly converts a Drawable XML resource into a BitmapDescriptor
-@Composable
+// ✅✅✅ NEW HELPER FUNCTION ✅✅✅
+// This is now a regular (non-composable) function.
+// It contains the logic to convert a vector drawable to a BitmapDescriptor.
 private fun bitmapDescriptorFromDrawable(
     context: Context,
     @DrawableRes drawableResId: Int
-): BitmapDescriptor? { // Return nullable in case of error
-    return remember(drawableResId) {
-        try {
-            val drawable = ContextCompat.getDrawable(context, drawableResId) ?: return@remember null
-            val bitmap = Bitmap.createBitmap(
-                drawable.intrinsicWidth,
-                drawable.intrinsicHeight,
-                Bitmap.Config.ARGB_8888
-            )
-            val canvas = Canvas(bitmap)
-            drawable.setBounds(0, 0, canvas.width, canvas.height)
-            drawable.draw(canvas)
-            BitmapDescriptorFactory.fromBitmap(bitmap)
-        } catch (e: Exception) {
-            e.printStackTrace() // Log the error
-            null
-        }
+): BitmapDescriptor? {
+    return try {
+        // .mutate() is still crucial to prevent tint bleeding
+        val drawable = ContextCompat.getDrawable(context, drawableResId)?.mutate() ?: return null
+
+        val bitmap = Bitmap.createBitmap(
+            drawable.intrinsicWidth,
+            drawable.intrinsicHeight,
+            Bitmap.Config.ARGB_8888
+        )
+        val canvas = Canvas(bitmap)
+        drawable.setBounds(0, 0, canvas.width, canvas.height)
+        drawable.draw(canvas)
+        BitmapDescriptorFactory.fromBitmap(bitmap)
+    } catch (e: Exception) {
+        e.printStackTrace() // Log the error
+        null
     }
 }
-// ✅✅✅ END: Corrected bitmap helper function
 
 
 @Composable

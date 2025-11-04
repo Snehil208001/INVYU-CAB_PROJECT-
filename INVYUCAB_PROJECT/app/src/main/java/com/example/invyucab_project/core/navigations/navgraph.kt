@@ -124,14 +124,30 @@ fun NavGraph() {
         composable(Screen.LocationSearchScreen.route) {
             LocationSearchScreen(navController = navController)
         }
+
+        // ✅✅✅ START: THIS IS THE FIX ✅✅✅
         composable(
             route = Screen.RideSelectionScreen.route,
             arguments = listOf(
-                navArgument("placeId") { type = NavType.StringType },
-                navArgument("description") { type = NavType.StringType }
+                // Path arguments (from the route string)
+                navArgument("dropPlaceId") { type = NavType.StringType },
+                navArgument("dropDescription") { type = NavType.StringType },
+
+                // Query arguments (from the route string)
+                navArgument("pickupPlaceId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = "current_location" // Default value if not provided
+                },
+                navArgument("pickupDescription") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = "Your Current Location" // Default value if not provided
+                }
             )
         ) {
             RideSelectionScreen(navController = navController)
         }
+        // ✅✅✅ END: THIS IS THE FIX ✅✅✅
     }
 }

@@ -58,42 +58,15 @@ fun HomeScreen(
         bottomBar = { AppBottomNavigation(navController = navController) },
         containerColor = Color.White
     ) { padding ->
-        LazyColumn(
+        // ✅ MODIFIED: Replaced LazyColumn with an empty Box
+        // This keeps the background color but removes all dummy items.
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .background(CabVeryLightMint.copy(alpha = 0.3f))
         ) {
-            // ... (rest of LazyColumn is unchanged) ...
-            // --- Recent Locations ---
-            items(viewModel.recentLocations) { location ->
-                RecentLocationItem(location = location)
-            }
-
-            item { Divider(color = Color.Gray.copy(alpha = 0.1f)) }
-
-            // --- Explore Section ---
-            item {
-                ExploreSection(exploreItems = viewModel.exploreItems)
-            }
-
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
-            // --- Go Places Section ---
-            item {
-                GoPlacesSection(placeItems = viewModel.placeItems)
-            }
-
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-
-            // --- Banner Card ---
-            item {
-                BannerCard(
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-
-            item { Spacer(modifier = Modifier.height(16.dp)) }
+            // Content area is now empty
         }
     }
 }
@@ -124,236 +97,19 @@ fun SearchAppBar(onClick: () -> Unit) {
     }
 }
 
-// ... (RecentLocationItem is unchanged) ...
-@Composable
-fun RecentLocationItem(location: RecentLocation) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White)
-            .clickable { /* TODO: Handle click */ }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Default.History,
-            contentDescription = "Recent",
-            tint = Color.Gray,
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(LightSlateGray)
-                .padding(8.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = location.name,
-                fontWeight = FontWeight.Medium,
-                fontSize = 15.sp,
-                color = Color.Black
-            )
-            Text(
-                text = location.address,
-                fontSize = 13.sp,
-                color = Color.Gray,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        Spacer(modifier = Modifier.width(16.dp))
-        Icon(
-            imageVector = Icons.Outlined.FavoriteBorder,
-            contentDescription = "Favorite",
-            tint = Color.Gray
-        )
-    }
-}
+// ✅
+// ✅ The previous Composable functions for dummy items were here.
+// ✅ They have been removed as requested to clean up the UI.
+// ✅
+// ✅ RecentLocationItem (Removed)
+// ✅ ExploreSection (Removed)
+// ✅ ExploreItem (Removed)
+// ✅ GoPlacesSection (Removed)
+// ✅ PlaceItem (Removed)
+// ✅ BannerCard (Removed)
+// ✅ SectionHeader (Removed)
+// ✅
 
-// ... (ExploreSection is unchanged) ...
-@Composable
-fun ExploreSection(exploreItems: List<ExploreItem>) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White)
-            .padding(top = 16.dp, bottom = 8.dp)
-    ) {
-        SectionHeader(title = "Explore", onViewAll = { /* TODO */ })
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(exploreItems) { item ->
-                ExploreItem(item = item)
-            }
-        }
-    }
-}
-
-
-// ... (ExploreItem is unchanged) ...
-@Composable
-fun ExploreItem(item: ExploreItem) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(80.dp).clickable { /* TODO */ }
-    ) {
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(LightSlateGray),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = item.icon,
-                contentDescription = item.label,
-                modifier = Modifier.size(32.dp),
-                tint = CabMintGreen
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = item.label,
-            fontSize = 12.sp,
-            color = Color.Black.copy(alpha = 0.9f),
-            textAlign = TextAlign.Center,
-            maxLines = 2
-        )
-    }
-}
-
-// ... (GoPlacesSection is unchanged) ...
-@Composable
-fun GoPlacesSection(placeItems: List<PlaceItem>) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White)
-            .padding(vertical = 16.dp)
-    ) {
-        SectionHeader(title = "Go Places with INVYU") // Changed from Rapido
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(placeItems) { item ->
-                PlaceItem(item = item)
-            }
-        }
-    }
-}
-
-// ... (PlaceItem is unchanged) ...
-@Composable
-fun PlaceItem(item: PlaceItem) {
-    Card(
-        modifier = Modifier.width(150.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.2f))
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(90.dp)
-                    .background(LightSlateGray),
-                contentAlignment = Alignment.Center
-            ) {
-                // Placeholder Icon
-                Icon(
-                    imageVector = item.icon,
-                    contentDescription = item.label,
-                    modifier = Modifier.size(40.dp),
-                    tint = CabMintGreen
-                )
-                // TODO: Replace Box with Image(painter = painterResource(id = R.drawable.img_airport), ...)
-            }
-            Text(
-                text = item.label,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(12.dp),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-// ... (BannerCard is unchanged) ...
-@Composable
-fun BannerCard(modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CabVeryLightMint),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min)
-                .padding(start = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 16.dp)
-            ) {
-                Text(
-                    "Pick up line of the day.",
-                    fontSize = 13.sp,
-                    color = Color.Gray
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "Parcel pick up\nin 5 minutes!",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black,
-                    lineHeight = 22.sp
-                )
-            }
-            // You need to add an image to your drawable folder for this
-            // e.g., R.drawable.parcel_delivery_man
-            /*
-            Image(
-                painter = painterResource(id = R.drawable.logo_auth), // Placeholder
-                contentDescription = "Parcel Delivery",
-                modifier = Modifier.fillMaxHeight().width(130.dp),
-                contentScale = ContentScale.Crop
-            )
-            */
-        }
-    }
-}
-
-
-// ... (SectionHeader is unchanged) ...
-@Composable
-fun SectionHeader(title: String, onViewAll: () -> Unit = {}) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = title,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold
-        )
-        TextButton(onClick = onViewAll) {
-            Text("View All", color = CabMintGreen, fontWeight = FontWeight.Bold)
-        }
-    }
-}
 
 // ... (AppBottomNavigation is unchanged) ...
 @Composable
