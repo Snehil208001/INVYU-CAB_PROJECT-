@@ -10,11 +10,30 @@ data class CheckUserRequest(
     @Json(name = "phone_number") val phoneNumber: String
 )
 
+// ✅✅✅ START OF FIX ✅✅✅
+
+// This data class matches the 'existing_user' object in the API response
+@JsonClass(generateAdapter = true)
+data class ExistingUser(
+    @Json(name = "user_id") val userId: Int,
+    @Json(name = "full_name") val fullName: String?,
+    @Json(name = "phone_number") val phoneNumber: String,
+    @Json(name = "user_role") val userRole: String?,
+    @Json(name = "gender") val gender: String?,
+    @Json(name = "dob") val dob: String?,
+    @Json(name = "status") val status: String?
+    // Add other fields from the log if needed, but keep them nullable
+)
+
+// Modified CheckUserResponse to use 'existingUser' (nullable)
+// instead of 'userExists' (boolean)
 @JsonClass(generateAdapter = true)
 data class CheckUserResponse(
     @Json(name = "message") val message: String,
-    @Json(name = "user_exists") val userExists: Boolean
+    @Json(name = "existing_user") val existingUser: ExistingUser?
 )
+// ✅✅✅ END OF FIX ✅✅✅
+
 
 // --- Create User ---
 

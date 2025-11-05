@@ -115,7 +115,10 @@ object NetworkModule {
         return Retrofit.Builder()
             .baseUrl(CUSTOM_API_BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            // ✅✅✅ START OF FIX ✅✅✅
+            // The correct method is .withNullSerialization()
+            .addConverterFactory(MoshiConverterFactory.create(moshi).withNullSerialization())
+            // ✅✅✅ END OF FIX ✅✅✅
             .build()
     }
 

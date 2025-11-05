@@ -29,7 +29,20 @@ import retrofit2.HttpException // ✅ ADD THIS IMPORT
 import java.net.SocketTimeoutException // ✅ ADD THIS IMPORT
 import javax.inject.Inject
 
-// ... (AuthTab and GoogleSignInState enums are unchanged) ...
+// Represents the selected tab in the UI
+enum class AuthTab {
+    SIGN_UP,
+    SIGN_IN
+}
+
+// Represents the state of the Google Sign-In flow
+sealed class GoogleSignInState {
+    object Idle : GoogleSignInState()
+    object Loading : GoogleSignInState()
+    data class Success(val user: FirebaseUser, val isNewUser: Boolean) : GoogleSignInState()
+    data class Error(val message: String) : GoogleSignInState()
+}
+
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
@@ -121,7 +134,7 @@ class AuthViewModel @Inject constructor(
     }
 
 
-    // ✅✅✅ START OF API FIX ✅✅✅
+    // ✅✅✅ START OF LOGIC FIX ✅✅✅
     fun onSignUpClicked(onNavigate: (String) -> Unit) {
         if (!validateSignUpPhone()) return
 
@@ -132,7 +145,8 @@ class AuthViewModel @Inject constructor(
                 val request = CheckUserRequest(phoneNumber = "+91${signUpPhone}")
                 val response = customApiService.checkUser(request)
 
-                if (response.isSuccessful && response.body()?.userExists == true) {
+                // ✅ MODIFIED: Check if 'existingUser' object is present
+                if (response.isSuccessful && response.body()?.existingUser != null) {
                     // User already exists
                     apiError = "This phone number is already registered. Please Sign In."
                 } else {
@@ -156,7 +170,8 @@ class AuthViewModel @Inject constructor(
                         }
                     }
                     else -> {
-                        apiError = "Network error. Please try again."
+                        // This will catch the MoshiJsonDataException if the model is still wrong
+                        apiError = "Network error. Please try again. (${e.message})"
                     }
                 }
             } finally {
@@ -175,7 +190,8 @@ class AuthViewModel @Inject constructor(
                 val request = CheckUserRequest(phoneNumber = "+91${signInPhone}")
                 val response = customApiService.checkUser(request)
 
-                if (response.isSuccessful && response.body()?.userExists == true) {
+                // ✅ MODIFIED: Check if 'existingUser' object is present
+                if (response.isSuccessful && response.body()?.existingUser != null) {
                     // User exists, proceed to OTP
                     apiError = null
                     onNavigate(signInPhone)
@@ -190,10 +206,12 @@ class AuthViewModel @Inject constructor(
                         apiError = "Network timeout. Please check your connection."
                     }
                     is HttpException -> {
+                        // 404 from server means user not found
                         apiError = "User not found. Please Register."
                     }
                     else -> {
-                        apiError = "Network error. Please try again."
+                        // This will catch the MoshiJsonDataException if the model is still wrong
+                        apiError = "Network error. Please try again. (${e.message})"
                     }
                 }
             } finally {
@@ -201,7 +219,7 @@ class AuthViewModel @Inject constructor(
             }
         }
     }
-    // ✅✅✅ END OF API FIX ✅✅✅
+    // ✅✅✅ END OF LOGIC FIX ✅✅✅
 
     // --- Google Sign-In Logic (Commented out as per previous request) ---
     fun resetGoogleSignInState() {

@@ -12,6 +12,10 @@ import com.example.invyucab_project.data.api.CustomApiService
 import com.example.invyucab_project.data.models.CreateUserRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+// ✅✅✅ START OF FIX: Import URLDecoder ✅✅✅
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+// ✅✅✅ END OF FIX ✅✅✅
 import java.text.SimpleDateFormat
 import java.util.Locale
 import javax.inject.Inject
@@ -27,7 +31,18 @@ class RoleSelectionViewModel @Inject constructor(
     val email: String? = savedStateHandle.get<String>("email")
     val name: String? = savedStateHandle.get<String>("name")
     val gender: String? = savedStateHandle.get<String>("gender")
-    private val rawDob: String? = savedStateHandle.get<String>("dob")
+
+    // ✅✅✅ START OF FIX: Decode the raw DOB string ✅✅✅
+    private val rawDob: String? = try {
+        // Get the encoded string from navigation
+        val encodedDob: String? = savedStateHandle.get<String>("dob")
+        // Decode it to fix "November+1,+2025" -> "November 1, 2025"
+        encodedDob?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
+    } catch (e: Exception) {
+        Log.e("RoleSelectionViewModel", "Failed to decode DOB", e)
+        savedStateHandle.get<String>("dob") // Fallback to the original (potentially broken) string
+    }
+    // ✅✅✅ END OF FIX ✅✅✅
 
     // ✅ ADDED: State for loading and errors
     var isLoading by mutableStateOf(false)
@@ -43,6 +58,7 @@ class RoleSelectionViewModel @Inject constructor(
     private fun formatDobForApi(dobString: String?): String? {
         if (dobString.isNullOrBlank()) return null
         return try {
+            // This parser will now receive the *decoded* date string
             val parser = SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH)
             val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
             val date = parser.parse(dobString)
@@ -69,7 +85,9 @@ class RoleSelectionViewModel @Inject constructor(
                     email = email,
                     name = name,
                     gender = gender,
-                    dob = rawDob // Pass the raw DOB string
+                    // ✅✅✅ START OF FIX: Pass the decoded DOB string to the next screen ✅✅✅
+                    dob = rawDob
+                    // ✅✅✅ END OF FIX ✅✅✅
                 )
             )
             return

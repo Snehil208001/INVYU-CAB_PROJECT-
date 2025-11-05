@@ -138,9 +138,11 @@ class OtpViewModel @Inject constructor(
         signInWithCredential(credential, onNavigateToRoleSelection, onNavigateToHome)
     }
 
+    // ✅✅✅ START OF FIX ✅✅✅
     /**
-     * ✅ MODIFIED: This function NO LONGER calls create_user.
-     * It only verifies with Firebase, updates the user status, and then navigates.
+     * This function now correctly handles the logic for Sign-Up vs Sign-In.
+     * - Sign-Up: Just verifies with Firebase and navigates to Role Selection.
+     * - Sign-In: Verifies with Firebase, updates status on your backend, and navigates to Home.
      */
     private fun signInWithCredential(
         credential: PhoneAuthCredential,
@@ -153,23 +155,27 @@ class OtpViewModel @Inject constructor(
                 auth.signInWithCredential(credential).await()
                 Log.d(TAG, "Firebase sign-in successful.")
 
-                // Step 2: Update status on our custom backend
-                // This is safe for both sign-in and sign-up, as it activates the user
-                val statusRequest = UpdateUserStatusRequest(
-                    phoneNumber = "+91$fullPhoneNumber",
-                    status = "active",
-                    email = email.takeIf { isSignUp } // Only send email if signing up
-                )
-                customApiService.updateUserStatus(statusRequest)
-                Log.d(TAG, "Custom API user status updated to active.")
-
-                // Step 3: Navigate
+                // Step 2: Navigate OR Update Status
                 isLoading = false
                 if (isSignUp) {
-                    // Go to Role Selection
+                    // THIS IS SIGN-UP
+                    // DO NOT call any API. The user will be created in the
+                    // RoleSelectionScreen, which is the next step.
+                    Log.d(TAG, "Sign-up flow: Navigating to Role Selection.")
                     onNavigateToRoleSelection(fullPhoneNumber, email, name, gender, dob)
                 } else {
-                    // Go to Home
+                    // THIS IS SIGN-IN
+                    // The user already exists, so we update their status to 'active'.
+                    Log.d(TAG, "Sign-in flow: Updating user status to active.")
+                    val statusRequest = UpdateUserStatusRequest(
+                        phoneNumber = "+91$fullPhoneNumber",
+                        status = "active",
+                        email = null // Not needed for sign-in
+                    )
+                    customApiService.updateUserStatus(statusRequest)
+                    Log.d(TAG, "Custom API user status updated to active.")
+
+                    // Navigate to Home
                     onNavigateToHome()
                 }
 
@@ -179,10 +185,11 @@ class OtpViewModel @Inject constructor(
                 if (e is FirebaseException) {
                     error = "Verification failed. Please check the OTP."
                 } else {
-                    // This error is more critical as it's our backend
-                    error = "Failed to activate user: ${e.message}"
+                    // This error is more critical as it's our backend (on Sign-In)
+                    error = "Failed to sign in: ${e.message}"
                 }
             }
         }
     }
+    // ✅✅✅ END OF FIX ✅✅✅
 }
