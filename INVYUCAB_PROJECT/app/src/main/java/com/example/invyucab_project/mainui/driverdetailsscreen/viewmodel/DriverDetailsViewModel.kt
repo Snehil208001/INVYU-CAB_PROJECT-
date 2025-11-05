@@ -11,6 +11,8 @@ import com.example.invyucab_project.data.api.CustomApiService
 import com.example.invyucab_project.data.models.CreateUserRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -24,7 +26,7 @@ class DriverDetailsViewModel @Inject constructor(
     val email: String = savedStateHandle.get<String>("email") ?: ""
     val phone: String = savedStateHandle.get<String>("phone") ?: ""
     val gender: String = savedStateHandle.get<String>("gender") ?: ""
-    val dob: String = savedStateHandle.get<String>("dob") ?: ""
+    val rawDob: String = savedStateHandle.get<String>("dob") ?: "" // ✅ Use rawDob
 
     // New driver-specific fields
     var aadhaarNumber by mutableStateOf("")
@@ -47,6 +49,20 @@ class DriverDetailsViewModel @Inject constructor(
         private set
     var apiError by mutableStateOf<String?>(null)
         private set
+
+    // ✅ ADDED: Helper to convert date format
+    private fun formatDobForApi(dobString: String?): String? {
+        if (dobString.isNullOrBlank()) return null
+        return try {
+            val parser = SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH)
+            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
+            val date = parser.parse(dobString)
+            formatter.format(date!!)
+        } catch (e: Exception) {
+            Log.e("DriverDetailsViewModel", "Could not parse date: $dobString", e)
+            null // Return null if parsing fails
+        }
+    }
 
     fun onAadhaarChange(value: String) {
         if (value.all { it.isDigit() } && value.length <= 12) {
@@ -106,13 +122,15 @@ class DriverDetailsViewModel @Inject constructor(
                     // Save complete account
                     Log.d("DriverDetailsViewModel", "Saving Driver Details...")
 
+                    val formattedDob = formatDobForApi(rawDob) // ✅ Format the date
+
                     val request = CreateUserRequest(
                         fullName = name,
                         phoneNumber = "+91$phone",
                         userRole = "driver",
                         profilePhotoUrl = null,
                         gender = gender.lowercase(),
-                        dob = dob, // Assuming "YYYY-MM-DD" format
+                        dob = formattedDob, // ✅ Use formatted date
                         licenseNumber = licenceNumber,
                         vehicleId = vehicleNumber, // Using vehicleNumber for vehicle_id
                         isVerified = true,

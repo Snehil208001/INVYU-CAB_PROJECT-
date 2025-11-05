@@ -33,6 +33,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.R
 import com.example.invyucab_project.core.navigations.Screen
+// ✅✅✅ THIS IS THE FIX for "Unresolved reference 'AuthTab'" ✅✅✅
 import com.example.invyucab_project.mainui.authscreen.viewmodel.AuthTab
 import com.example.invyucab_project.mainui.authscreen.viewmodel.AuthViewModel
 import com.example.invyucab_project.mainui.authscreen.viewmodel.GoogleSignInState
@@ -115,26 +116,36 @@ fun AuthScreen(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
-                Column(modifier = Modifier.padding(24.dp)) {
-                    AuthTabs(
-                        selectedTab = viewModel.selectedTab,
-                        onTabSelected = { viewModel.onTabSelected(it) }
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
+                // Box for loading indicator overlay
+                Box(
+                    modifier = Modifier.padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column {
+                        AuthTabs(
+                            selectedTab = viewModel.selectedTab,
+                            onTabSelected = { viewModel.onTabSelected(it) },
+                            isLoading = viewModel.isLoading // Pass isLoading state
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
 
-                    Crossfade(targetState = viewModel.selectedTab, label = "AuthFormCrossfade") { tab ->
-                        when (tab) {
-                            AuthTab.SIGN_UP -> SignUpForm(viewModel, navController, googleSignInState)
-                            AuthTab.SIGN_IN -> SignInForm(viewModel, navController)
+                        Crossfade(targetState = viewModel.selectedTab, label = "AuthFormCrossfade") { tab ->
+                            when (tab) {
+                                AuthTab.SIGN_UP -> SignUpForm(viewModel, navController, googleSignInState)
+                                AuthTab.SIGN_IN -> SignInForm(viewModel, navController)
+                            }
                         }
+                    }
+
+                    // Loading Indicator
+                    if (viewModel.isLoading) {
+                        CircularProgressIndicator(color = CabMintGreen)
                     }
                 }
             }
         }
     }
 }
-
-// ... (AuthHeader, AuthTabs, AuthTabItem, and SignUpForm are unchanged) ...
 
 @Composable
 fun AuthHeader() {
@@ -154,7 +165,11 @@ fun AuthHeader() {
 }
 
 @Composable
-fun AuthTabs(selectedTab: AuthTab, onTabSelected: (AuthTab) -> Unit) {
+fun AuthTabs(
+    selectedTab: AuthTab,
+    onTabSelected: (AuthTab) -> Unit,
+    isLoading: Boolean // Accept isLoading state
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
@@ -162,12 +177,12 @@ fun AuthTabs(selectedTab: AuthTab, onTabSelected: (AuthTab) -> Unit) {
         AuthTabItem(
             text = "Register",
             isSelected = selectedTab == AuthTab.SIGN_UP,
-            onClick = { onTabSelected(AuthTab.SIGN_UP) }
+            onClick = { if (!isLoading) onTabSelected(AuthTab.SIGN_UP) } // Use isLoading
         )
         AuthTabItem(
             text = "Sign In",
             isSelected = selectedTab == AuthTab.SIGN_IN,
-            onClick = { onTabSelected(AuthTab.SIGN_IN) }
+            onClick = { if (!isLoading) onTabSelected(AuthTab.SIGN_IN) } // Use isLoading
         )
     }
 }
@@ -204,8 +219,6 @@ fun SignUpForm(
     navController: NavController,
     googleSignInState: GoogleSignInState
 ) {
-    val activityContext = LocalContext.current
-
     Column {
         OutlinedTextField(
             value = viewModel.signUpPhone,
@@ -217,10 +230,14 @@ fun SignUpForm(
             leadingIcon = {
                 Icon(Icons.Default.Phone, contentDescription = "Phone Icon")
             },
-            isError = viewModel.signUpPhoneError != null,
+            readOnly = viewModel.isLoading,
+            isError = viewModel.signUpPhoneError != null || (viewModel.apiError != null && viewModel.selectedTab == AuthTab.SIGN_UP),
             supportingText = {
                 if (viewModel.signUpPhoneError != null) {
                     Text(viewModel.signUpPhoneError!!, color = MaterialTheme.colorScheme.error)
+                }
+                if (viewModel.apiError != null && viewModel.selectedTab == AuthTab.SIGN_UP) {
+                    Text(viewModel.apiError!!, color = MaterialTheme.colorScheme.error)
                 }
             }
         )
@@ -240,58 +257,13 @@ fun SignUpForm(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
+            enabled = !viewModel.isLoading,
             colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen)
         ) {
             Text("Register", fontSize = 16.sp)
         }
 
-        /* // COMMENTED OUT: Google Auth UI
-        Spacer(modifier = Modifier.height(24.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Divider(modifier = Modifier.weight(1f))
-            Text(" OR ", color = Color.Gray, modifier = Modifier.padding(horizontal = 8.dp))
-            Divider(modifier = Modifier.weight(1f))
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-
-        OutlinedButton(
-            onClick = {
-                if (googleSignInState != GoogleSignInState.Loading) {
-                    viewModel.onGoogleSignInClicked(activityContext)
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(8.dp),
-            border = BorderStroke(1.dp, Color.LightGray),
-            enabled = googleSignInState != GoogleSignInState.Loading
-        ) {
-            if (googleSignInState == GoogleSignInState.Loading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
-                    color = CabMintGreen
-                )
-            } else {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_google),
-                    contentDescription = "Google Logo",
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Connect with Google",
-                    fontSize = 16.sp,
-                    color = Color.Black.copy(alpha = 0.8f)
-                )
-            }
-        }
-        */ // END OF COMMENTED OUT: Google Auth UI
-
+        /* // COMMENTED OUT: Google Auth UI ... */
 
         Spacer(modifier = Modifier.height(16.dp))
         Text(
@@ -324,10 +296,14 @@ fun SignInForm(viewModel: AuthViewModel, navController: NavController) {
             leadingIcon = {
                 Icon(Icons.Default.Phone, contentDescription = "Phone Icon")
             },
-            isError = viewModel.signInPhoneError != null,
+            readOnly = viewModel.isLoading,
+            isError = viewModel.signInPhoneError != null || (viewModel.apiError != null && viewModel.selectedTab == AuthTab.SIGN_IN),
             supportingText = {
                 if (viewModel.signInPhoneError != null) {
                     Text(viewModel.signInPhoneError!!, color = MaterialTheme.colorScheme.error)
+                }
+                if (viewModel.apiError != null && viewModel.selectedTab == AuthTab.SIGN_IN) {
+                    Text(viewModel.apiError!!, color = MaterialTheme.colorScheme.error)
                 }
             }
         )
@@ -335,16 +311,14 @@ fun SignInForm(viewModel: AuthViewModel, navController: NavController) {
         Button(
             onClick = {
                 viewModel.onSignInClicked { phone ->
-                    // ✅✅✅ THIS IS THE FIX ✅✅✅
-                    // Added missing gender and dob parameters as null
                     navController.navigate(
                         Screen.OtpScreen.createRoute(
                             phone = phone,
                             isSignUp = false,
                             email = null,
                             name = null,
-                            gender = null, // ✅ ADDED
-                            dob = null     // ✅ ADDED
+                            gender = null,
+                            dob = null
                         )
                     )
                 }
@@ -352,6 +326,7 @@ fun SignInForm(viewModel: AuthViewModel, navController: NavController) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
+            enabled = !viewModel.isLoading,
             colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen)
         ) {
             Text("Next", fontSize = 16.sp)
