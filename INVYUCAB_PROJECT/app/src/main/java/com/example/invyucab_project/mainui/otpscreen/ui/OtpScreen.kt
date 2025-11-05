@@ -1,5 +1,6 @@
 package com.example.invyucab_project.mainui.otpscreen.ui
 
+import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -17,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -37,6 +39,14 @@ fun OtpScreen(
     navController: NavController,
     viewModel: OtpViewModel = hiltViewModel()
 ) {
+    // ✅ Get the activity from context
+    val activity = LocalContext.current as Activity
+
+    // ✅ Send the OTP as soon as the screen is composed
+    LaunchedEffect(Unit) {
+        viewModel.sendOtp(activity)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -55,84 +65,95 @@ fun OtpScreen(
         },
         containerColor = CabVeryLightMint
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.height(40.dp))
-            Text(
-                "Enter your OTP code here",
-                fontSize = 18.sp,
-                color = Color.Gray
-            )
-            Text(
-                "Sent to ${viewModel.fullPhoneNumber}",
-                fontSize = 14.sp,
-                color = Color.Gray,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-            Spacer(modifier = Modifier.height(40.dp))
-            OtpTextField(
-                otpText = viewModel.otp,
-                onOtpTextChange = { value -> viewModel.onOtpChange(value) }
-            )
-
-            if (viewModel.error != null) {
-                Spacer(modifier = Modifier.height(12.dp))
+        Box(modifier = Modifier.fillMaxSize()) { // ✅ Box for loading overlay
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.height(40.dp))
                 Text(
-                    text = viewModel.error!!,
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 14.sp
+                    "Enter your OTP code here",
+                    fontSize = 18.sp,
+                    color = Color.Gray
                 )
+                Text(
+                    "Sent to +91 ${viewModel.fullPhoneNumber}", // ✅ Added +91
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+                Spacer(modifier = Modifier.height(40.dp))
+                OtpTextField(
+                    otpText = viewModel.otp,
+                    onOtpTextChange = { value -> viewModel.onOtpChange(value) }
+                )
+
+                if (viewModel.error != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = viewModel.error!!,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(40.dp))
+                Button(
+                    onClick = {
+                        // ✅ MODIFIED: Call the renamed 'onVerifyClicked' function
+                        viewModel.onVerifyClicked(
+                            // Path 1: (Sign Up) Navigate to Role Selection
+                            onNavigateToRoleSelection = { phone, email, name, gender, dob ->
+                                navController.navigate(
+                                    Screen.RoleSelectionScreen.createRoute(
+                                        phone = phone,
+                                        email = email,
+                                        name = name,
+                                        gender = gender,
+                                        dob = dob
+                                    )
+                                ) {
+                                    popUpTo(Screen.AuthScreen.route) { inclusive = true }
+                                }
+                            },
+                            // Path 2: (Sign In) Navigate to Home
+                            onNavigateToHome = {
+                                navController.navigate(Screen.HomeScreen.route) {
+                                    popUpTo(Screen.AuthScreen.route) { inclusive = true }
+                                }
+                            }
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
+                    enabled = viewModel.otp.length == 6 && !viewModel.isLoading // ✅ Check for 6 digits
+                ) {
+                    Text("Verify Now", fontSize = 16.sp, color = Color.White)
+                }
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
-            Button(
-                onClick = {
-                    viewModel.onVerifyClicked(
-                        // ✅ MODIFIED: Pass all 5 details to the Role Selection route
-                        onNavigateToRoleSelection = { phone, email, name, gender, dob ->
-                            navController.navigate(
-                                Screen.RoleSelectionScreen.createRoute(
-                                    phone = phone,
-                                    email = email,
-                                    name = name,
-                                    gender = gender,
-                                    dob = dob
-                                )
-                            ) {
-                                popUpTo(Screen.AuthScreen.route) { inclusive = true }
-                            }
-                        },
-                        // Path 2: (Sign In) Navigate to Home
-                        onNavigateToHome = {
-                            navController.navigate(Screen.HomeScreen.route) {
-                                popUpTo(Screen.AuthScreen.route) { inclusive = true }
-                            }
-                        }
-                    )
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
-                enabled = viewModel.otp.length == 4
-            ) {
-                Text("Verify Now", fontSize = 16.sp, color = Color.White)
+            // ✅ ADDED: Loading indicator
+            if (viewModel.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = CabMintGreen
+                )
             }
         }
     }
 }
 
-// ... (OtpTextField and OtpChar composables are unchanged) ...
 @Composable
 fun OtpTextField(
     modifier: Modifier = Modifier,
     otpText: String,
-    otpCount: Int = 4,
+    otpCount: Int = 6, // ✅ Changed to 6
     onOtpTextChange: (String) -> Unit
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -160,7 +181,7 @@ fun OtpTextField(
                         isFocused = isFocused
                     )
                     if (index < otpCount - 1) {
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(12.dp)) // ✅ Reduced space
                     }
                 }
             }
@@ -176,7 +197,7 @@ private fun OtpChar(
     val borderColor = if (isFocused) CabMintGreen else Color.LightGray
     Box(
         modifier = Modifier
-            .size(50.dp)
+            .size(48.dp) // ✅ Reduced size
             .border(
                 width = 1.dp,
                 color = borderColor,

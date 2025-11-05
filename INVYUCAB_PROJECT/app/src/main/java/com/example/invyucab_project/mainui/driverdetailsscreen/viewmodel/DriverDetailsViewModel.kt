@@ -6,22 +6,27 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.invyucab_project.data.api.CustomApiService
+import com.example.invyucab_project.data.models.CreateUserRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class DriverDetailsViewModel @Inject constructor(
+    private val customApiService: CustomApiService, // ✅ INJECTED
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    // 5.3.3: Auto-filled data
+    // Auto-filled data
     val name: String = savedStateHandle.get<String>("name") ?: ""
     val email: String = savedStateHandle.get<String>("email") ?: ""
     val phone: String = savedStateHandle.get<String>("phone") ?: ""
     val gender: String = savedStateHandle.get<String>("gender") ?: ""
     val dob: String = savedStateHandle.get<String>("dob") ?: ""
 
-    // 5.3.4: New driver-specific fields
+    // New driver-specific fields
     var aadhaarNumber by mutableStateOf("")
         private set
     var vehicleNumber by mutableStateOf("")
@@ -35,6 +40,12 @@ class DriverDetailsViewModel @Inject constructor(
     var vehicleError by mutableStateOf<String?>(null)
         private set
     var licenceError by mutableStateOf<String?>(null)
+        private set
+
+    // ✅ ADDED
+    var isLoading by mutableStateOf(false)
+        private set
+    var apiError by mutableStateOf<String?>(null)
         private set
 
     fun onAadhaarChange(value: String) {
@@ -64,7 +75,6 @@ class DriverDetailsViewModel @Inject constructor(
     }
 
     private fun validateVehicle(): Boolean {
-        // Basic validation, can be improved with regex
         if (vehicleNumber.isBlank()) {
             vehicleError = "Vehicle number is required"
             return false
@@ -74,7 +84,6 @@ class DriverDetailsViewModel @Inject constructor(
     }
 
     private fun validateLicence(): Boolean {
-        // Basic validation
         if (licenceNumber.isBlank()) {
             licenceError = "Licence number is required"
             return false
@@ -83,22 +92,46 @@ class DriverDetailsViewModel @Inject constructor(
         return true
     }
 
-    // 5.3.5: Action
+    // ✅ MODIFIED: Calls createUser API
     fun onSubmitClicked(onNavigate: () -> Unit) {
         val isAadhaarValid = validateAadhaar()
         val isVehicleValid = validateVehicle()
         val isLicenceValid = validateLicence()
 
         if (isAadhaarValid && isVehicleValid && isLicenceValid) {
-            // 5.3.7: Save complete account
-            Log.d("DriverDetailsViewModel", "Saving Driver Details:")
-            Log.d("DriverDetailsViewModel", "Personal: $name, $phone, $email, $gender, $dob")
-            Log.d("DriverDetailsViewModel", "Driver: $aadhaarNumber, $vehicleNumber, $licenceNumber")
+            viewModelScope.launch {
+                isLoading = true
+                apiError = null
+                try {
+                    // Save complete account
+                    Log.d("DriverDetailsViewModel", "Saving Driver Details...")
 
-            // TODO: Implement API call to save all details
+                    val request = CreateUserRequest(
+                        fullName = name,
+                        phoneNumber = "+91$phone",
+                        userRole = "driver",
+                        profilePhotoUrl = null,
+                        gender = gender.lowercase(),
+                        dob = dob, // Assuming "YYYY-MM-DD" format
+                        licenseNumber = licenceNumber,
+                        vehicleId = vehicleNumber, // Using vehicleNumber for vehicle_id
+                        isVerified = true,
+                        status = "active"
+                    )
 
-            // 5.3.6: Navigation
-            onNavigate()
+                    customApiService.createUser(request)
+                    Log.d("DriverDetailsViewModel", "Driver user created successfully.")
+
+                    // Navigation
+                    onNavigate()
+
+                } catch (e: Exception) {
+                    Log.e("DriverDetailsViewModel", "Failed to create driver: ${e.message}", e)
+                    apiError = "Registration failed: ${e.message}"
+                } finally {
+                    isLoading = false
+                }
+            }
         }
     }
 }

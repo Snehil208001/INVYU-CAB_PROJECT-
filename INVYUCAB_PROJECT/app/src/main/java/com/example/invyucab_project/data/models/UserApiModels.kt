@@ -1,0 +1,55 @@
+package com.example.invyucab_project.data.models
+
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
+
+// --- Check User ---
+
+@JsonClass(generateAdapter = true)
+data class CheckUserRequest(
+    @Json(name = "phone_number") val phoneNumber: String
+)
+
+@JsonClass(generateAdapter = true)
+data class CheckUserResponse(
+    @Json(name = "message") val message: String,
+    @Json(name = "user_exists") val userExists: Boolean
+)
+
+// --- Create User ---
+
+@JsonClass(generateAdapter = true)
+data class CreateUserRequest(
+    @Json(name = "full_name") val fullName: String,
+    @Json(name = "phone_number") val phoneNumber: String, // e.g., "+919876543210"
+    @Json(name = "user_role") val userRole: String, // "rider", "driver", or "admin"
+    @Json(name = "profile_photo_url") val profilePhotoUrl: String? = null,
+    @Json(name = "gender") val gender: String?,
+    @Json(name = "dob") val dob: String?, // e.g., "1999-07-21"
+    @Json(name = "license_number") val licenseNumber: String? = null,
+    @Json(name = "vehicle_id") val vehicleId: String? = null,
+    @Json(name = "rating") val rating: Double? = 4.5, // Default rating
+    @Json(name = "wallet_balance") val walletBalance: Double? = 0.0,
+    @Json(name = "is_verified") val isVerified: Boolean? = false,
+    @Json(name = "status") val status: String? = "pending"
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateUserResponse(
+    @Json(name = "user_id") val userId: String,
+    @Json(name = "message") val message: String
+)
+
+// --- Update User Status ---
+
+@JsonClass(generateAdapter = true)
+data class UpdateUserStatusRequest(
+    @Json(name = "phone_number") val phoneNumber: String,
+    @Json(name = "status") val status: String, // e.g., "active"
+    @Json(name = "email") val email: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class UpdateUserStatusResponse(
+    @Json(name = "message") val message: String
+)

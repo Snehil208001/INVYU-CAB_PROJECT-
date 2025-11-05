@@ -2,7 +2,6 @@ package com.example.invyucab_project.mainui.authscreen.viewmodel
 
 import android.content.Context
 import android.util.Log
-// import android.util.Patterns // Import for email validation // REMOVED
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -12,13 +11,14 @@ import androidx.credentials.GetCredentialResponse
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.invyucab_project.data.api.CustomApiService
+import com.example.invyucab_project.data.models.CheckUserRequest
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
-// import dagger.hilt.android.qualifiers.ApplicationContext // <-- REMOVED
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,9 +32,6 @@ enum class AuthTab {
     SIGN_IN
 }
 
-/**
- * Represents the state of the Google Sign-In flow.
- */
 sealed class GoogleSignInState {
     data object Idle : GoogleSignInState()
     data object Loading : GoogleSignInState()
@@ -45,17 +42,14 @@ sealed class GoogleSignInState {
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val credentialManager: CredentialManager
-    // REMOVED: @ApplicationContext private val context: Context
+    private val credentialManager: CredentialManager,
+    private val customApiService: CustomApiService // ✅ INJECTED
 ) : ViewModel() {
 
     private val TAG = "AuthViewModel"
 
     var selectedTab by mutableStateOf(AuthTab.SIGN_UP)
         private set
-
-    // REMOVED signUpEmail
-    // REMOVED signUpEmailError
 
     var signUpPhone by mutableStateOf("")
         private set
@@ -67,27 +61,30 @@ class AuthViewModel @Inject constructor(
     var signInPhoneError by mutableStateOf<String?>(null)
         private set
 
-    // StateFlow to expose Google Sign-In state to the UI
+    // ✅ ADDED: Loading state for API calls
+    var isLoading by mutableStateOf(false)
+        private set
+    // ✅ ADDED: General error message
+    var apiError by mutableStateOf<String?>(null)
+        private set
+
     private val _googleSignInState = MutableStateFlow<GoogleSignInState>(GoogleSignInState.Idle)
     val googleSignInState: StateFlow<GoogleSignInState> = _googleSignInState.asStateFlow()
 
     fun onTabSelected(tab: AuthTab) {
         selectedTab = tab
-        // Clear errors when switching tabs
-        // REMOVED signUpEmailError = null
         signUpPhoneError = null
         signInPhoneError = null
-        // Also reset Google sign in state if it was in an error state
+        apiError = null // ✅ Clear API error
         if (_googleSignInState.value is GoogleSignInState.Error) {
             resetGoogleSignInState()
         }
     }
 
-    // REMOVED onSignUpEmailChange
-
     fun onSignUpPhoneChange(value: String) {
         if (value.all { it.isDigit() } && value.length <= 10) {
             signUpPhone = value
+            apiError = null
             if (signUpPhoneError != null) {
                 validateSignUpPhone()
             }
@@ -97,15 +94,12 @@ class AuthViewModel @Inject constructor(
     fun onSignInPhoneChange(value: String) {
         if (value.all { it.isDigit() } && value.length <= 10) {
             signInPhone = value
+            apiError = null
             if (signInPhoneError != null) {
                 validateSignInPhone()
             }
         }
     }
-
-    // --- Validation Functions ---
-
-    // REMOVED validateSignUpEmail
 
     private fun validateSignUpPhone(): Boolean {
         if (signUpPhone.isBlank()) {
@@ -133,138 +127,68 @@ class AuthViewModel @Inject constructor(
         return true
     }
 
-    // --- Click Handlers with Validation ---
+    // --- Click Handlers with API Validation ---
 
+    // ✅ MODIFIED: Calls checkUser API
     fun onSignUpClicked(onNavigate: (String) -> Unit) {
-        // REMOVED val isEmailValid = validateSignUpEmail()
-        val isPhoneValid = validateSignUpPhone()
+        if (!validateSignUpPhone()) return
 
-        if (isPhoneValid) { // MODIFIED
-            // TODO: Implement actual Sign Up API call and OTP sending
-            Log.d(TAG, "Sign up validation passed. Phone: $signUpPhone")
-            onNavigate(signUpPhone)
-        }
-    }
-
-    fun onSignInClicked(onNavigate: (String) -> Unit) {
-        if (validateSignInPhone()) {
-            // TODO: Implement actual Sign In API call and OTP sending
-            Log.d(TAG, "Sign in validation passed. Phone: $signInPhone")
-            onNavigate(signInPhone)
-        }
-    }
-
-    // --- Google Sign-In Logic ---
-
-    // ✅ *** CHANGED HERE (added parameter) ***
-    fun onGoogleSignInClicked(activityContext: Context) {
-        // Make sure this ID is correct and is your WEB client ID
-        val serverClientId = "4006876917-onht2bdb8l3vjbvg8eranfceuapk8efc.apps.googleusercontent.com"
-
-        // 1. Configure Google One Tap
-        val googleIdTokenRequest = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)
-            .setServerClientId(serverClientId)
-            .build()
-
-        // 2. Build the Credential Manager Request
-        val request = GetCredentialRequest.Builder()
-            .addCredentialOption(googleIdTokenRequest)
-            .build()
-
-        // 3. Launch coroutine to get credential
         viewModelScope.launch {
-            _googleSignInState.value = GoogleSignInState.Loading
-            Log.i(TAG, "Initiating Google Sign-In with Credential Manager...")
+            isLoading = true
+            apiError = null
             try {
-                // Add a 15-second timeout for the credential manager
-                val result: GetCredentialResponse? = withTimeoutOrNull(15000L) {
-                    Log.d(TAG, "Calling credentialManager.getCredential...")
-                    credentialManager.getCredential(
-                        context = activityContext, // ✅ *** CHANGED HERE ***
-                        request = request
-                    )
-                }
+                val request = CheckUserRequest(phoneNumber = "+91${signUpPhone}")
+                val response = customApiService.checkUser(request)
 
-                // Check if result is null (which means it timed out)
-                if (result == null) {
-                    Log.w(TAG, "getCredential timed out after 15 seconds. Check device/emulator Google Play Services status and internet connection.")
-                    _googleSignInState.value = GoogleSignInState.Error(
-                        "Google Sign-In timed out. Check emulator connection and ensure it has Google Play."
-                    )
-                    return@launch
-                }
-
-                // 5. Handle the result
-                Log.d(TAG, "getCredential call successful.")
-                val credential = result.credential
-                Log.d(TAG, "Credential type received: ${credential.type}")
-
-
-                // ✅✅✅ START: THE FIX ✅✅✅
-                // Check the credential's TYPE, not its CLASS
-                if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                    try {
-                        // Manually create the GoogleIdTokenCredential from the response data
-                        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-
-                        // 6. Got the ID token, now sign in with Firebase
-                        val idToken = googleIdTokenCredential.idToken
-                        Log.i(TAG, "Successfully created GoogleIdTokenCredential. Proceeding to Firebase sign-in.")
-                        firebaseSignInWithGoogle(idToken)
-
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to create GoogleIdTokenCredential from data: ${e.message}", e)
-                        _googleSignInState.value = GoogleSignInState.Error(e.message ?: "Failed to parse Google credential")
-                    }
+                if (response.isSuccessful && response.body()?.userExists == true) {
+                    // User already exists
+                    apiError = "This phone number is already registered. Please Sign In."
                 } else {
-                    // This is now the correct "else" block
-                    Log.e(TAG, "Sign-In failed: Unexpected credential type: ${credential.type}")
-                    _googleSignInState.value = GoogleSignInState.Error("Sign-In failed: Unexpected credential type.")
+                    // User does not exist (or 404), proceed to Sign Up
+                    onNavigate(signUpPhone)
                 }
-                // ✅✅✅ END: THE FIX ✅✅✅
-
-            }
-            catch (e: GetCredentialException) {
-                // Handle credential-specific exceptions (e.g., user cancelled, or no accounts found)
-                Log.e(TAG, "GetCredentialException occurred: Type: ${e::class.java.simpleName}, Message: ${e.message}", e)
-                _googleSignInState.value = GoogleSignInState.Error(e.message ?: "Google Sign-In failed or was cancelled.")
-            }
-            catch (e: Exception) {
-                // Handle other generic exceptions
-                Log.e(TAG, "General Exception in getCredential: ${e.message}", e)
-                _googleSignInState.value = GoogleSignInState.Error(e.message ?: "An unknown error occurred.")
+            } catch (e: Exception) {
+                Log.e(TAG, "checkUser for Sign Up failed", e)
+                // Assume 404 (user not found) is an exception, which is good for sign up
+                onNavigate(signUpPhone)
+            } finally {
+                isLoading = false
             }
         }
     }
 
-    private suspend fun firebaseSignInWithGoogle(idToken: String) {
-        try {
-            Log.d(TAG, "Attempting Firebase sign-in with Google ID token...")
-            val credential = GoogleAuthProvider.getCredential(idToken, null)
-            val authResult = auth.signInWithCredential(credential).await()
-            val user = authResult.user
-            val isNewUser = authResult.additionalUserInfo?.isNewUser ?: false
+    // ✅ MODIFIED: Calls checkUser API
+    fun onSignInClicked(onNavigate: (String) -> Unit) {
+        if (!validateSignInPhone()) return
 
-            if (user != null) {
-                // 7. Success! Update the state
-                Log.i(TAG, "Firebase sign-in success. User: ${user.uid}, IsNew: $isNewUser")
-                _googleSignInState.value = GoogleSignInState.Success(user, isNewUser)
-            } else {
-                Log.e(TAG, "Firebase sign-in failed: User is null after await.")
-                _googleSignInState.value = GoogleSignInState.Error("Firebase sign-in failed: User is null")
+        viewModelScope.launch {
+            isLoading = true
+            apiError = null
+            try {
+                val request = CheckUserRequest(phoneNumber = "+91${signInPhone}")
+                val response = customApiService.checkUser(request)
+
+                if (response.isSuccessful && response.body()?.userExists == true) {
+                    // User exists, proceed to OTP
+                    onNavigate(signInPhone)
+                } else {
+                    // User does not exist
+                    apiError = "This phone number is not registered. Please Register."
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "checkUser for Sign In failed", e)
+                apiError = "User not found. Please Register."
+            } finally {
+                isLoading = false
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "FirebaseSignInWithGoogle Exception: ${e.message}", e)
-            _googleSignInState.value = GoogleSignInState.Error(e.message ?: "Firebase sign-in failed")
         }
     }
 
-    /**
-     * Resets the Google Sign-In state to Idle, e.g., after handling a Success or Error.
-     */
+    // --- Google Sign-In Logic (Commented out as per previous request) ---
+
+    // fun onGoogleSignInClicked(activityContext: Context) { ... }
+    // private suspend fun firebaseSignInWithGoogle(idToken: String) { ... }
     fun resetGoogleSignInState() {
-        Log.d(TAG, "Resetting Google Sign-In state to Idle.")
         _googleSignInState.value = GoogleSignInState.Idle
     }
 }
