@@ -48,6 +48,7 @@ fun AuthScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
+    /* // COMMENTED OUT: Google Sign-In LaunchedEffect
     LaunchedEffect(googleSignInState) {
         when (val state = googleSignInState) {
             is GoogleSignInState.Success -> {
@@ -92,6 +93,7 @@ fun AuthScreen(
             GoogleSignInState.Idle -> { }
         }
     }
+    */ // END OF COMMENTED OUT: Google Sign-In LaunchedEffect
 
 
     Scaffold(
@@ -243,6 +245,7 @@ fun SignUpForm(
             Text("Register", fontSize = 16.sp)
         }
 
+        /* // COMMENTED OUT: Google Auth UI
         Spacer(modifier = Modifier.height(24.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -287,6 +290,7 @@ fun SignUpForm(
                 )
             }
         }
+        */ // END OF COMMENTED OUT: Google Auth UI
 
 
         Spacer(modifier = Modifier.height(16.dp))

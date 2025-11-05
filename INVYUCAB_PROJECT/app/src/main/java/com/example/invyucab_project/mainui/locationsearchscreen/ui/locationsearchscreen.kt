@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -160,7 +161,8 @@ fun LocationSearchScreen(
                     .background(LightSlateGray, RoundedCornerShape(8.dp))
                     .padding(horizontal = 12.dp),
                 singleLine = true,
-                textStyle = LocalTextStyle.current.copy(
+                // ✅ ENHANCED: Added text style and cursor brush
+                textStyle = TextStyle(
                     color = Color.Black,
                     fontSize = 16.sp
                 ),
@@ -300,7 +302,7 @@ fun SearchInputSection(
                     .fillMaxWidth()
                     .height(48.dp)
                     .border(1.dp, pickupColor, RoundedCornerShape(8.dp))
-                    .background(LightSlateGray, RoundedCornerShape(8.dp))
+                    .background(Color.White, RoundedCornerShape(8.dp)) // ✅ Changed background
                     .clickable { onFieldActivated(EditingField.PICKUP) }
                     .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.CenterStart
@@ -325,7 +327,7 @@ fun SearchInputSection(
                     .fillMaxWidth()
                     .height(48.dp)
                     .border(1.dp, dropColor, RoundedCornerShape(8.dp))
-                    .background(LightSlateGray, RoundedCornerShape(8.dp))
+                    .background(Color.White, RoundedCornerShape(8.dp)) // ✅ Changed background
                     .clickable { onFieldActivated(EditingField.DROP) }
                     .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.CenterStart

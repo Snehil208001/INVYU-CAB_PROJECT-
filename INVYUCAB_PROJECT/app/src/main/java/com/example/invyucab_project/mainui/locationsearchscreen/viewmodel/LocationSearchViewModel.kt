@@ -66,18 +66,18 @@ class LocationSearchViewModel @Inject constructor(
     private var searchJob: Job? = null
     private var sessionToken: String = UUID.randomUUID().toString() // For Places API billing
 
-    // ✅ MODIFIED: This now updates the central searchQuery
+    // ✅✅✅ THIS IS THE CORRECTION ✅✅✅
+    // This now only updates the search query, not the description fields.
     fun onSearchQueryChange(query: String) {
         searchQuery = query
         searchJob?.cancel() // Cancel previous job
 
-        // Update the description of the active field as the user types
-        if (activeField == EditingField.PICKUP) {
-            pickupDescription = query
-            pickupPlaceId = null // Clear placeId as they are typing
-        } else {
-            dropDescription = query
-            dropPlaceId = null // Clear placeId as they are typing
+        // ✅ ADDED: Clear the placeId if the user starts typing again,
+        // indicating they are changing their selection.
+        if (activeField == EditingField.PICKUP && query != pickupDescription) {
+            pickupPlaceId = null
+        } else if (activeField == EditingField.DROP && query != dropDescription) {
+            dropPlaceId = null
         }
 
         if (query.length < 3) {
@@ -111,24 +111,24 @@ class LocationSearchViewModel @Inject constructor(
         _searchResults.value = emptyList() // Clear results when switching
     }
 
-    // ✅ ADDED: Function to handle when a search result is clicked
+    // ✅ MODIFIED: Function to handle when a search result is clicked
     fun onSearchResultClicked(location: SearchLocation) {
         if (activeField == EditingField.PICKUP) {
             pickupDescription = location.name
             pickupPlaceId = location.placeId
             // Move focus to DROP field next
             activeField = EditingField.DROP
-            searchQuery = ""
+            searchQuery = "" // ✅ ADDED: Clear search query
         } else {
             dropDescription = location.name
             dropPlaceId = location.placeId
             // Move focus to PICKUP field if it's not set
             if (pickupPlaceId == null) {
                 activeField = EditingField.PICKUP
-                searchQuery = ""
+                searchQuery = "" // ✅ ADDED: Clear search query
             } else {
                 // Both fields are set, just clear search query
-                searchQuery = ""
+                searchQuery = "" // ✅ ADDED: Clear search query
             }
         }
         _searchResults.value = emptyList() // Clear results

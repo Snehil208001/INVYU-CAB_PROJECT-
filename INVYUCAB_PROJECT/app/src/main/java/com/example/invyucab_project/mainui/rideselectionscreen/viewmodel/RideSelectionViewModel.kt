@@ -23,13 +23,13 @@ import javax.inject.Inject
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-// ✅ MODIFIED RideOption: price is now nullable
+// ✅ MODIFIED RideOption: price is now removed
 data class RideOption(
     val id: Int,
     val icon: ImageVector,
     val name: String,
     val description: String, // ETA like "2 mins away"
-    val price: Int?, // ✅ CHANGED: Was Int, now Int?
+    // val price: Int?, // ✅ REMOVED
     val subtitle: String? = null,
     val estimatedDurationMinutes: Int? = null, // Trip duration
     val estimatedDistanceKm: String? = null
@@ -75,10 +75,10 @@ class RideSelectionViewModel @Inject constructor(
 
     // ✅ MODIFIED: Removed hardcoded prices
     private val initialRideOptions = listOf(
-        RideOption(1, Icons.Default.TwoWheeler, "Bike", "2 mins away", null, subtitle = "Quick Bike rides"),
-        RideOption(2, Icons.Default.ElectricRickshaw, "Auto", "2 mins away", null, subtitle = "Affordable Auto rides"),
-        RideOption(3, Icons.Default.LocalTaxi, "Cab Economy", "2 mins away", null, subtitle = "Comfy, economical"),
-        RideOption(4, Icons.Default.Stars, "Cab Premium", "5 mins away", null, subtitle = "Spacious & top-rated")
+        RideOption(1, Icons.Default.TwoWheeler, "Bike", "2 mins away", subtitle = "Quick Bike rides"),
+        RideOption(2, Icons.Default.ElectricRickshaw, "Auto", "2 mins away", subtitle = "Affordable Auto rides"),
+        RideOption(3, Icons.Default.LocalTaxi, "Cab Economy", "2 mins away", subtitle = "Comfy, economical"),
+        RideOption(4, Icons.Default.Stars, "Cab Premium", "5 mins away", subtitle = "Spacious & top-rated")
     )
 
     // StateFlow to hold ride options, allowing updates with duration
@@ -253,7 +253,7 @@ class RideSelectionViewModel @Inject constructor(
                         tripDurationSeconds = 0,
                         tripDistanceMeters = 0 // ✅ ADDED
                     )
-                    calculateRideFares(0, 0) // ✅ MODIFIED
+                    updateRideDetails(0, 0) // ✅ MODIFIED
                     return@launch
                 }
 
@@ -278,7 +278,7 @@ class RideSelectionViewModel @Inject constructor(
                         isLoading = false,
                         errorMessage = null
                     )
-                    calculateRideFares(durationSeconds, distanceMeters) // ✅ MODIFIED
+                    updateRideDetails(durationSeconds, distanceMeters) // ✅ MODIFIED
                 } else {
                     _uiState.value = _uiState.value.copy(
                         errorMessage = "Could not get directions: ${directionsResponse.status}",
@@ -295,53 +295,18 @@ class RideSelectionViewModel @Inject constructor(
         }
     }
 
-    // ✅ NEW: Merged duration and distance updates and added fare calculation
-    private fun calculateRideFares(durationSeconds: Int?, distanceMeters: Int?) {
+    // ✅ MODIFIED: Renamed from calculateRideFares and removed price calculation
+    private fun updateRideDetails(durationSeconds: Int?, distanceMeters: Int?) {
         val durationMinutes = durationSeconds?.let { (it / 60.0).roundToInt() }
         val distanceKm = (distanceMeters ?: 0) / 1000.0
         val distanceString = "%.1f km".format(distanceKm)
 
-        // Calculate fares
-        var economyFare = 0.0
         _rideOptions.update { currentOptions ->
             currentOptions.map { ride ->
-                val calculatedPrice: Int = when (ride.name) { // ✅ Type is Int
-                    "Bike" -> {
-                        // Base fare ~ ₹15 for the first segment, then ~ ₹3 per km
-                        (15.0 + (distanceKm * 3.0)).roundToInt()
-                    }
-                    "Auto" -> {
-                        // minimum fare ₹30 for first 2 km, then ~ ₹15 per km afterwards
-                        val fare = if (distanceKm <= 2.0) 30.0 else 30.0 + ((distanceKm - 2.0) * 15.0)
-                        fare.roundToInt()
-                    }
-                    "Cab Economy" -> {
-                        // ₹37 for first 1.5 km, then ₹25 per km thereafter
-                        val fare = if (distanceKm <= 1.5) 37.0 else 37.0 + ((distanceKm - 1.5) * 25.0)
-                        economyFare = fare // Save for premium calculation
-                        fare.roundToInt()
-                    }
-                    "Cab Premium" -> {
-                        // No rule given, let's make it 1.5x economy fare
-                        // Ensure economyFare is calculated first (it is, in this list order)
-                        val fare = if (economyFare == 0.0) {
-                            // Fallback if order is wrong
-                            val tempEconomyFare = if (distanceKm <= 1.5) 37.0 else 37.0 + ((distanceKm - 1.5) * 25.0)
-                            tempEconomyFare * 1.5
-                        } else {
-                            economyFare * 1.5
-                        }
-                        fare.roundToInt()
-                    }
-                    // ✅✅✅ THIS IS THE FIX ✅✅✅
-                    // Return a non-nullable Int (0) instead of a nullable Int?
-                    else -> 0
-                }
-                // Return the updated ride option
+                // Return the updated ride option, without price
                 ride.copy(
                     estimatedDurationMinutes = durationMinutes,
-                    estimatedDistanceKm = distanceString,
-                    price = max(calculatedPrice, 0) // ✅ Now compares two Ints
+                    estimatedDistanceKm = distanceString
                 )
             }
         }

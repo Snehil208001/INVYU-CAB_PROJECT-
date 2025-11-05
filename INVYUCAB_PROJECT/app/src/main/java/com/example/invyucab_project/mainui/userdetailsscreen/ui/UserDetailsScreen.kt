@@ -152,7 +152,7 @@ fun UserDetailsScreen(
             OutlinedTextField(
                 value = viewModel.email,
                 onValueChange = { viewModel.onEmailChange(it) },
-                label = { Text("Email") },
+                label = { Text("Email(Optional)") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 shape = RoundedCornerShape(8.dp),
