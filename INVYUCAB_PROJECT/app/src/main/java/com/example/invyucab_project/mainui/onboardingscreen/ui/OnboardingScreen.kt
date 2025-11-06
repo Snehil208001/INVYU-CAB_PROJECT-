@@ -24,9 +24,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel // ✅ ADDED Import
 import androidx.navigation.NavController
 import com.example.invyucab_project.R
 import com.example.invyucab_project.core.navigations.Screen
+// ✅ ADDED Import
+import com.example.invyucab_project.mainui.onboardingscreen.viewmodel.OnboardingViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
 
@@ -62,7 +65,10 @@ val onboardingPages = listOf(
 )
 
 @Composable
-fun OnboardingScreen(navController: NavController) {
+fun OnboardingScreen(
+    navController: NavController,
+    viewModel: OnboardingViewModel = hiltViewModel() // ✅ INJECTED ViewModel
+) {
     val pagerState = rememberPagerState { onboardingPages.size }
 
     Scaffold(
@@ -92,6 +98,9 @@ fun OnboardingScreen(navController: NavController) {
                     AnimatedVisibility(visible = pagerState.currentPage == onboardingPages.size - 1) {
                         Button(
                             onClick = {
+                                // ✅✅✅ START OF FIX ✅✅✅
+                                viewModel.onGetStartedClicked() // Save the flag
+                                // ✅✅✅ END OF FIX ✅✅✅
                                 navController.navigate(Screen.AuthScreen.route) {
                                     popUpTo(Screen.OnboardingScreen.route) { inclusive = true }
                                 }

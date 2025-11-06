@@ -7,6 +7,9 @@ sealed class Screen(val route: String) {
     object OnboardingScreen : Screen("onboarding_screen")
     object AuthScreen : Screen("auth_screen")
 
+    // ✅ ADDED: New screen for logged-in users
+    object SplashScreenLoggedIn : Screen("splash_screen_logged_in")
+
     // ✅ MODIFIED: Added 'name', 'gender' and 'dob'
     object OtpScreen : Screen("otp_screen/{phone}/{isSignUp}?email={email}&name={name}&gender={gender}&dob={dob}") {
         fun createRoute(phone: String, isSignUp: Boolean, email: String?, name: String?, gender: String?, dob: String?): String {

@@ -66,7 +66,11 @@ fun ProfileScreen(
 
             // Options Section - Use options from ViewModel
             items(profileOptions) { option ->
-                ProfileOptionItem(option = option, navController = navController)
+                ProfileOptionItem(
+                    option = option,
+                    navController = navController,
+                    viewModel = viewModel // ✅ PASS ViewModel
+                )
             }
         }
     }
@@ -111,20 +115,36 @@ fun ProfileHeader(name: String, phone: String) {
 
 // Composable for each item in the profile options list
 @Composable
-fun ProfileOptionItem(option: ProfileOption, navController: NavController) {
+fun ProfileOptionItem(
+    option: ProfileOption,
+    navController: NavController,
+    viewModel: ProfileViewModel // ✅ ACCEPT ViewModel
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.White)
             .clickable(onClick = {
+                // ✅✅✅ START OF MODIFICATION ✅✅✅
                 // Handle navigation directly
                 when (option.title) {
                     "Edit Profile" -> navController.navigate(Screen.EditProfileScreen.route)
-                    "Payment Methods" -> navController.navigate(Screen.PaymentMethodScreen.route) // Add this case
+                    "Payment Methods" -> navController.navigate(Screen.PaymentMethodScreen.route)
                     // "Ride History" -> navController.navigate(Screen.RideHistoryScreen.route) // Example
-                    // "Logout" -> { /* TODO: Call viewModel.logout() */ }
-                    else -> option.onClick() // Fallback to VM placeholder
+                    "Logout" -> {
+                        viewModel.logout() // Call the logout function
+                        // ✅ MODIFIED: Navigate to OnboardingScreen instead of AuthScreen
+                        navController.navigate(Screen.OnboardingScreen.route) {
+                            // Clear the entire back stack
+                            popUpTo(navController.graph.id) {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
+                        }
+                    }
+                    else -> option.onClick() // Fallback for other clicks
                 }
+                // ✅✅✅ END OF MODIFICATION ✅✅✅
             })
             .padding(horizontal = 20.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically

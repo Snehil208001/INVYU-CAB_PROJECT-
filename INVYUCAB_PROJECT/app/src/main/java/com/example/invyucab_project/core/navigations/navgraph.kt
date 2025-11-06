@@ -14,24 +14,33 @@ import com.example.invyucab_project.mainui.onboardingscreen.ui.OnboardingScreen
 import com.example.invyucab_project.mainui.otpscreen.ui.OtpScreen
 import com.example.invyucab_project.mainui.profilescreen.ui.ProfileScreen
 import com.example.invyucab_project.mainui.rideselectionscreen.ui.RideSelectionScreen
+// ✅ ADDED Import
+import com.example.invyucab_project.mainui.splashscreen_loggedin.ui.SplashScreenLoggedIn
 import com.example.invyucab_project.mainui.travelscreen.ui.TravelScreen
 import com.example.invyucab_project.mainui.userdetailsscreen.ui.UserDetailsScreen
 import com.example.invyucab_project.mainui.profilescreen.editprofilescreen.ui.EditProfileScreen
 import com.example.invyucab_project.mainui.profilescreen.memberlevelscreen.ui.MemberLevelScreen
 import com.example.invyucab_project.mainui.profilescreen.paymentmethodscreen.ui.PaymentMethodScreen
-// ✅ ADDED: Imports for all new screens
 import com.example.invyucab_project.mainui.adminscreen.ui.AdminScreen
 import com.example.invyucab_project.mainui.driverdetailsscreen.ui.DriverDetailsScreen
 import com.example.invyucab_project.mainui.driverscreen.ui.DriverScreen
 import com.example.invyucab_project.mainui.roleselectionscreen.ui.RoleSelectionScreen
 
 @Composable
-fun NavGraph() {
+fun NavGraph(
+    startDestination: String // ✅ MODIFIED: Accept startDestination as a parameter
+) {
     val navController = rememberNavController()
     NavHost(
         navController = navController,
-        startDestination = Screen.OnboardingScreen.route
+        startDestination = startDestination // ✅ MODIFIED: Use the parameter here
     ) {
+        // ✅✅✅ NEW COMPOSABLE ADDED ✅✅✅
+        composable(Screen.SplashScreenLoggedIn.route) {
+            SplashScreenLoggedIn(navController = navController)
+        }
+        // ✅✅✅ END OF NEW COMPOSABLE ✅✅✅
+
         composable(Screen.OnboardingScreen.route) {
             OnboardingScreen(navController = navController)
         }

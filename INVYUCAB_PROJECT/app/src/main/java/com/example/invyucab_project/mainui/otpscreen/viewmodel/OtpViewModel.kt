@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.data.api.CustomApiService
 import com.example.invyucab_project.data.models.UpdateUserStatusRequest
+import com.example.invyucab_project.data.preferences.UserPreferencesRepository // ✅ ADDED Import
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
@@ -25,6 +26,7 @@ import javax.inject.Inject
 class OtpViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val customApiService: CustomApiService, // ✅ INJECTED
+    private val userPreferencesRepository: UserPreferencesRepository, // ✅ INJECTED
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -138,11 +140,12 @@ class OtpViewModel @Inject constructor(
         signInWithCredential(credential, onNavigateToRoleSelection, onNavigateToHome)
     }
 
-    // ✅✅✅ START OF FIX ✅✅✅
+    // ✅✅✅ START OF MODIFICATION ✅✅✅
     /**
      * This function now correctly handles the logic for Sign-Up vs Sign-In.
      * - Sign-Up: Just verifies with Firebase and navigates to Role Selection.
-     * - Sign-In: Verifies with Firebase, updates status on your backend, and navigates to Home.
+     * - Sign-In: Verifies with Firebase, updates status on your backend,
+     * SAVES TO PREFS, and navigates to Home.
      */
     private fun signInWithCredential(
         credential: PhoneAuthCredential,
@@ -175,6 +178,11 @@ class OtpViewModel @Inject constructor(
                     customApiService.updateUserStatus(statusRequest)
                     Log.d(TAG, "Custom API user status updated to active.")
 
+                    // ✅✅✅ NEW: Save status to SharedPreferences ✅✅✅
+                    userPreferencesRepository.saveUserStatus("active")
+                    Log.d(TAG, "User status 'active' saved to SharedPreferences.")
+                    // ✅✅✅ END OF NEW CODE ✅✅✅
+
                     // Navigate to Home
                     onNavigateToHome()
                 }
@@ -191,5 +199,5 @@ class OtpViewModel @Inject constructor(
             }
         }
     }
-    // ✅✅✅ END OF FIX ✅✅✅
+    // ✅✅✅ END OF MODIFICATION ✅✅✅
 }

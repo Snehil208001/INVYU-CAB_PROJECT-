@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.data.api.CustomApiService
 import com.example.invyucab_project.data.models.CreateUserRequest
+import com.example.invyucab_project.data.preferences.UserPreferencesRepository // ✅ ADDED Import
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -18,6 +19,7 @@ import javax.inject.Inject
 @HiltViewModel
 class DriverDetailsViewModel @Inject constructor(
     private val customApiService: CustomApiService, // ✅ INJECTED
+    private val userPreferencesRepository: UserPreferencesRepository, // ✅ INJECTED
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -139,6 +141,11 @@ class DriverDetailsViewModel @Inject constructor(
 
                     customApiService.createUser(request)
                     Log.d("DriverDetailsViewModel", "Driver user created successfully.")
+
+                    // ✅✅✅ NEW: Save status to SharedPreferences ✅✅✅
+                    userPreferencesRepository.saveUserStatus("active")
+                    Log.d("DriverDetailsViewModel", "Driver status 'active' saved to SharedPreferences.")
+                    // ✅✅✅ END OF NEW CODE ✅✅✅
 
                     // Navigation
                     onNavigate()

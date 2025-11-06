@@ -6,6 +6,8 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.ViewModel
+import com.example.invyucab_project.data.preferences.UserPreferencesRepository // ✅ ADDED Import
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +28,10 @@ data class UserProfile(
 )
 
 @HiltViewModel
-class ProfileViewModel @Inject constructor() : ViewModel() {
+class ProfileViewModel @Inject constructor(
+    private val firebaseAuth: FirebaseAuth, // ✅ INJECTED FirebaseAuth
+    private val userPreferencesRepository: UserPreferencesRepository // ✅ INJECTED
+) : ViewModel() {
 
     // StateFlow to hold user profile information (can be loaded from repository later)
     private val _userProfile = MutableStateFlow(UserProfile())
@@ -34,19 +39,23 @@ class ProfileViewModel @Inject constructor() : ViewModel() {
 
     // Define the list of profile options
     val profileOptions = listOf(
-        ProfileOption(Icons.Default.AccountCircle, "Edit Profile") { /* TODO: Navigate/Action */ },
-        ProfileOption(Icons.Default.CreditCard, "Payment Methods") { /* TODO: Navigate/Action */ },
+        ProfileOption(Icons.Default.AccountCircle, "Edit Profile") { /* Handled in UI */ },
+        ProfileOption(Icons.Default.CreditCard, "Payment Methods") { /* Handled in UI */ },
         ProfileOption(Icons.Default.History, "Ride History") { /* TODO: Navigate/Action */ },
         ProfileOption(Icons.Default.Settings, "Settings") { /* TODO: Navigate/Action */ },
         ProfileOption(Icons.AutoMirrored.Filled.HelpOutline, "Help & Support") { /* TODO: Navigate/Action */ },
-        ProfileOption(Icons.AutoMirrored.Filled.Logout, "Logout") { /* TODO: Handle Logout */ }
-        // Add more options as needed
+        ProfileOption(Icons.AutoMirrored.Filled.Logout, "Logout") { }
     )
 
-    // Function to handle logout (example)
+    // ✅ MODIFIED: Implement actual logout logic
     fun logout() {
-        // TODO: Implement actual logout logic (clear tokens, navigate to AuthScreen)
-        println("Logout clicked")
+        firebaseAuth.signOut()
+        println("Logout clicked and user signed out")
+
+        // ✅✅✅ NEW: Clear status from SharedPreferences ✅✅✅
+        userPreferencesRepository.clearUserStatus()
+        println("User status cleared from SharedPreferences")
+        // ✅✅✅ END OF NEW CODE ✅✅✅
     }
 
     // You might add functions here later to load user data from a repository
