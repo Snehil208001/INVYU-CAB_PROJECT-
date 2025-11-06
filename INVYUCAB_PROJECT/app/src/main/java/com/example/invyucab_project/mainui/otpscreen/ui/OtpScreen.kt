@@ -15,10 +15,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -33,7 +35,7 @@ import com.example.invyucab_project.mainui.otpscreen.viewmodel.OtpViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun OtpScreen(
     navController: NavController,
@@ -41,6 +43,7 @@ fun OtpScreen(
 ) {
     // ✅ Get the activity from context
     val activity = LocalContext.current as Activity
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     // ✅ Send the OTP as soon as the screen is composed
     LaunchedEffect(Unit) {
@@ -88,7 +91,8 @@ fun OtpScreen(
                 Spacer(modifier = Modifier.height(40.dp))
                 OtpTextField(
                     otpText = viewModel.otp,
-                    onOtpTextChange = { value -> viewModel.onOtpChange(value) }
+                    onOtpTextChange = { value -> viewModel.onOtpChange(value) },
+                    keyboardController = keyboardController
                 )
 
                 if (viewModel.error != null) {
@@ -117,12 +121,20 @@ fun OtpScreen(
                                         dob = dob
                                     )
                                 ) {
-                                    popUpTo(Screen.AuthScreen.route) { inclusive = true }
+                                    // ✅✅✅ THIS IS THE FIX ✅✅✅
+                                    // This removes OtpScreen from the back stack,
+                                    // so pressing back on RoleSelectionScreen
+                                    // will go to UserDetailsScreen.
+                                    popUpTo(Screen.OtpScreen.route) {
+                                        inclusive = true
+                                    }
                                 }
                             },
                             // Path 2: (Sign In) Navigate to Home
                             onNavigateToHome = {
                                 navController.navigate(Screen.HomeScreen.route) {
+                                    // This is correct for Sign-In, it
+                                    // clears the whole auth flow.
                                     popUpTo(Screen.AuthScreen.route) { inclusive = true }
                                 }
                             }
@@ -134,27 +146,30 @@ fun OtpScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
                     enabled = viewModel.otp.length == 6 && !viewModel.isLoading // ✅ Check for 6 digits
                 ) {
-                    Text("Verify Now", fontSize = 16.sp, color = Color.White)
+                    // ✅ MODIFIED: Show loader or text
+                    if (viewModel.isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 3.dp
+                        )
+                    } else {
+                        Text("Verify Now", fontSize = 16.sp, color = Color.White)
+                    }
                 }
-            }
-
-            // ✅ ADDED: Loading indicator
-            if (viewModel.isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                    color = CabMintGreen
-                )
             }
         }
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun OtpTextField(
     modifier: Modifier = Modifier,
     otpText: String,
     otpCount: Int = 6, // ✅ Changed to 6
-    onOtpTextChange: (String) -> Unit
+    onOtpTextChange: (String) -> Unit,
+    keyboardController: androidx.compose.ui.platform.SoftwareKeyboardController?
 ) {
     val focusRequester = remember { FocusRequester() }
 
@@ -168,6 +183,10 @@ fun OtpTextField(
         onValueChange = {
             if (it.text.length <= otpCount) {
                 onOtpTextChange.invoke(it.text)
+                // ✅ ADDED: Hide keyboard when 6 digits are entered
+                if (it.text.length == otpCount) {
+                    keyboardController?.hide()
+                }
             }
         },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),

@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas // ✅ ADDED Import
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,13 +34,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset // ✅ ADDED Import
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect // ✅ ADDED Import
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.sp // ✅ ADDED Import
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -179,11 +182,15 @@ fun RideSelectionScreen(
                 }
             }
 
+            // ✅ MODIFIED: Call to LocationTopBar updated
             LocationTopBar(
                 pickup = uiState.pickupDescription,
                 drop = uiState.dropDescription,
                 onBack = { navController.navigateUp() },
-                onAddStop = { /* TODO */ }
+                onFieldsClick = {
+                    // Navigate back to LocationSearchScreen to change locations
+                    navController.popBackStack()
+                }
             )
 
             RideOptionsBottomSheet(
@@ -239,48 +246,100 @@ private fun bitmapDescriptorFromDrawable(
 }
 
 
+// ✅ MODIFIED: This Composable is completely replaced
 @Composable
 fun LocationTopBar(
     pickup: String,
     drop: String,
     onBack: () -> Unit,
-    onAddStop: () -> Unit
+    onFieldsClick: () -> Unit // Replaced onAddStop
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(CabMintGreen)
-            .padding(top = 16.dp, start = 8.dp, end = 16.dp, bottom = 8.dp),
+            .padding(top = 16.dp, start = 8.dp, end = 16.dp, bottom = 16.dp), // Added bottom padding
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
         }
 
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 8.dp)) {
-            Icon(
-                imageVector = Icons.Default.GpsFixed,
-                contentDescription = "Pickup",
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
-            Box(modifier = Modifier.width(1.dp).height(20.dp).background(Color.White.copy(alpha = 0.5f)))
-            Icon(
-                imageVector = Icons.Default.LocationOn,
-                contentDescription = "Drop",
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
+        // This is the graphic from LocationSearchScreen, styled for the TopBar
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(18.dp) // Smaller
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp) // Smaller
+                        .clip(CircleShape)
+                        .background(Color.White)
+                )
+            }
+            val pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
+            Canvas(
+                modifier = Modifier
+                    .height(24.dp) // Shorter
+                    .width(1.dp)
+            ) {
+                drawLine(
+                    color = Color.White,
+                    start = Offset(0f, 0f),
+                    end = Offset(0f, size.height),
+                    strokeWidth = 2f,
+                    pathEffect = pathEffect,
+                    alpha = 0.7f
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(18.dp) // Smaller
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp) // Smaller
+                        .clip(CircleShape)
+                        .background(Color.White)
+                )
+            }
         }
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(pickup, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium, color = Color.White)
-            Divider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.3f))
-            Text(drop, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium, color = Color.White)
+        // Clickable Column for both text fields
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clickable(onClick = onFieldsClick) // Clickable area
+        ) {
+            Text(
+                text = pickup,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontWeight = FontWeight.Medium,
+                color = Color.White,
+                fontSize = 15.sp // Slightly smaller
+            )
+            Divider(modifier = Modifier.padding(vertical = 10.dp), color = Color.White.copy(alpha = 0.3f))
+            Text(
+                text = drop,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontWeight = FontWeight.Medium,
+                color = Color.White,
+                fontSize = 15.sp // Slightly smaller
+            )
         }
-        IconButton(onClick = onAddStop) {
-            Icon(Icons.Default.Add, contentDescription = "Add stop", tint = Color.Black, modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.8f)).padding(4.dp))
-        }
+        // "Add Stop" button removed
     }
 }
 

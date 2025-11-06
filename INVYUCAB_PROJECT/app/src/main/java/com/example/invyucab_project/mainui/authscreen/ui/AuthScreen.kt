@@ -18,11 +18,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController // ✅ ADDED Import
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -48,6 +50,7 @@ fun AuthScreen(
     val googleSignInState by viewModel.googleSignInState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current // ✅ ADDED Keyboard Controller
 
     /* // COMMENTED OUT: Google Sign-In LaunchedEffect
     LaunchedEffect(googleSignInState) {
@@ -131,15 +134,12 @@ fun AuthScreen(
 
                         Crossfade(targetState = viewModel.selectedTab, label = "AuthFormCrossfade") { tab ->
                             when (tab) {
-                                AuthTab.SIGN_UP -> SignUpForm(viewModel, navController, googleSignInState)
-                                AuthTab.SIGN_IN -> SignInForm(viewModel, navController)
+                                // ✅ MODIFIED: Pass keyboardController
+                                AuthTab.SIGN_UP -> SignUpForm(viewModel, navController, googleSignInState, keyboardController)
+                                // ✅ MODIFIED: Pass keyboardController
+                                AuthTab.SIGN_IN -> SignInForm(viewModel, navController, keyboardController)
                             }
                         }
-                    }
-
-                    // Loading Indicator
-                    if (viewModel.isLoading) {
-                        CircularProgressIndicator(color = CabMintGreen)
                     }
                 }
             }
@@ -213,16 +213,24 @@ fun AuthTabItem(text: String, isSelected: Boolean, onClick: () -> Unit) {
 }
 
 
+@OptIn(ExperimentalComposeUiApi::class) // ✅ ADDED Import
 @Composable
 fun SignUpForm(
     viewModel: AuthViewModel,
     navController: NavController,
-    googleSignInState: GoogleSignInState
+    googleSignInState: GoogleSignInState,
+    keyboardController: androidx.compose.ui.platform.SoftwareKeyboardController? // ✅ ADDED Parameter
 ) {
     Column {
         OutlinedTextField(
             value = viewModel.signUpPhone,
-            onValueChange = { viewModel.onSignUpPhoneChange(it) },
+            // ✅ MODIFIED: Added keyboard hide logic
+            onValueChange = {
+                viewModel.onSignUpPhoneChange(it)
+                if (it.length == 10) {
+                    keyboardController?.hide()
+                }
+            },
             label = { Text("Mobile Number") },
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -260,7 +268,15 @@ fun SignUpForm(
             enabled = !viewModel.isLoading,
             colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen)
         ) {
-            Text("Register", fontSize = 16.sp)
+            if (viewModel.isLoading && viewModel.selectedTab == AuthTab.SIGN_UP) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = Color.White,
+                    strokeWidth = 3.dp
+                )
+            } else {
+                Text("Register", fontSize = 16.sp, color = Color.White)
+            }
         }
 
         /* // COMMENTED OUT: Google Auth UI ... */
@@ -277,8 +293,13 @@ fun SignUpForm(
 }
 
 
+@OptIn(ExperimentalComposeUiApi::class) // ✅ ADDED Import
 @Composable
-fun SignInForm(viewModel: AuthViewModel, navController: NavController) {
+fun SignInForm(
+    viewModel: AuthViewModel,
+    navController: NavController,
+    keyboardController: androidx.compose.ui.platform.SoftwareKeyboardController? // ✅ ADDED Parameter
+) {
     Column {
         Text(
             "Login with your phone number",
@@ -288,7 +309,13 @@ fun SignInForm(viewModel: AuthViewModel, navController: NavController) {
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
             value = viewModel.signInPhone,
-            onValueChange = { viewModel.onSignInPhoneChange(it) },
+            // ✅ MODIFIED: Added keyboard hide logic
+            onValueChange = {
+                viewModel.onSignInPhoneChange(it)
+                if (it.length == 10) {
+                    keyboardController?.hide()
+                }
+            },
             label = { Text("Mobile Number") },
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -329,7 +356,15 @@ fun SignInForm(viewModel: AuthViewModel, navController: NavController) {
             enabled = !viewModel.isLoading,
             colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen)
         ) {
-            Text("Next", fontSize = 16.sp)
+            if (viewModel.isLoading && viewModel.selectedTab == AuthTab.SIGN_IN) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = Color.White,
+                    strokeWidth = 3.dp
+                )
+            } else {
+                Text("Next", fontSize = 16.sp, color = Color.White)
+            }
         }
     }
 }

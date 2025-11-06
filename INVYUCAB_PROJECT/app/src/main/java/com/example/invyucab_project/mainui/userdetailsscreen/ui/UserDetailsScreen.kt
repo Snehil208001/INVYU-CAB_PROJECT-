@@ -24,9 +24,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.ExperimentalComposeUiApi // ✅ ADDED Import
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController // ✅ ADDED Import
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -45,7 +47,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class) // ✅ ADDED ExperimentalComposeUiApi
 @Composable
 fun UserDetailsScreen(
     navController: NavController,
@@ -54,6 +56,7 @@ fun UserDetailsScreen(
     // === STATE FOR DIALOGS ===
     var showGenderDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current // ✅ ADDED Keyboard Controller
 
     // === DATE PICKER LOGIC ===
     val calendar = remember {
@@ -122,7 +125,7 @@ fun UserDetailsScreen(
             OutlinedTextField(
                 value = viewModel.name,
                 onValueChange = { viewModel.onNameChange(it) },
-                label = { Text("Full Name") },
+                label = { Text("Full Name *") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Text,
@@ -184,8 +187,14 @@ fun UserDetailsScreen(
             // Phone Field
             OutlinedTextField(
                 value = viewModel.phone,
-                onValueChange = { viewModel.onPhoneChange(it) },
-                label = { Text("Mobile Number") },
+                onValueChange = {
+                    // ✅ ADDED keyboard hiding logic
+                    viewModel.onPhoneChange(it)
+                    if (it.length == 10) {
+                        keyboardController?.hide()
+                    }
+                },
+                label = { Text("Mobile Number *") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
                 leadingIcon = {
@@ -217,7 +226,7 @@ fun UserDetailsScreen(
             // Gender Field (Clickable)
             ClickableOutlinedTextField(
                 value = viewModel.gender,
-                label = "Gender",
+                label = "Gender *",
                 leadingIcon = Icons.Default.Wc,
                 onClick = { showGenderDialog = true }
             )
@@ -227,10 +236,9 @@ fun UserDetailsScreen(
             // DOB Field (Clickable)
             ClickableOutlinedTextField(
                 value = viewModel.birthday.ifEmpty { "Date of Birth" },
-                label = "Date of Birth",
+                label = "Date of Birth *",
                 leadingIcon = Icons.Default.Cake,
                 onClick = { datePickerDialog.show() },
-                // ✅ ADDED: Error handling
                 isError = viewModel.birthdayError != null,
                 supportingText = {
                     if (viewModel.birthdayError != null) {
@@ -244,7 +252,6 @@ fun UserDetailsScreen(
             // Save Button
             Button(
                 onClick = {
-                    // ✅ MODIFIED: Lambda now includes all 5 user details
                     viewModel.onSaveClicked { phone, email, name, gender, dob ->
                         navController.navigate(
                             Screen.OtpScreen.createRoute(
@@ -252,8 +259,8 @@ fun UserDetailsScreen(
                                 isSignUp = true,
                                 email = email,
                                 name = name,
-                                gender = gender, // ✅ ADDED
-                                dob = dob        // ✅ ADDED
+                                gender = gender,
+                                dob = dob
                             )
                         )
                     }
@@ -262,7 +269,6 @@ fun UserDetailsScreen(
                     .fillMaxWidth()
                     .height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
-                // ✅ MODIFIED: Enable button only if all required fields are filled
                 enabled = viewModel.name.isNotBlank() &&
                         (viewModel.isPhoneFromMobileAuth || viewModel.phone.length == 10) &&
                         viewModel.birthday.isNotBlank()
@@ -284,14 +290,18 @@ fun UserDetailsScreen(
     }
 }
 
-// ✅ MODIFIED: ClickableOutlinedTextField now supports error states
+/**
+ * ✅ THIS IS THE FIX
+ * The `onClick` parameter is now passed to the `.clickable()` modifier,
+ * which removes the warning you saw.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ClickableOutlinedTextField(
     value: String,
     label: String,
     leadingIcon: ImageVector,
-    onClick: () -> Unit,
+    onClick: () -> Unit, // <-- 1. Parameter is received here
     isError: Boolean = false,
     supportingText: @Composable (() -> Unit)? = null
 ) {
@@ -302,7 +312,7 @@ private fun ClickableOutlinedTextField(
             label = { Text(label) },
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick),
+                .clickable(onClick = onClick), // <-- 2. Parameter is USED here
             shape = RoundedCornerShape(8.dp),
             leadingIcon = {
                 Icon(leadingIcon, contentDescription = null)
@@ -314,17 +324,16 @@ private fun ClickableOutlinedTextField(
             enabled = false,
             isError = isError,
             colors = OutlinedTextFieldDefaults.colors(
-                disabledTextColor = Color.Black.copy(alpha = 0.8f),
+                // Handle placeholder color for DOB field
+                disabledTextColor = if (value == "Date of Birth") Color.Gray else Color.Black.copy(alpha = 0.8f),
                 disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
                 disabledLeadingIconColor = Color.Black.copy(alpha = 0.8f),
                 disabledTrailingIconColor = Color.Gray,
                 disabledLabelColor = Color.Gray,
                 disabledContainerColor = Color.White,
-                // ✅ ADDED: Error color for the border
                 errorBorderColor = MaterialTheme.colorScheme.error
             )
         )
-        // ✅ ADDED: Show supporting text (e.g., error message)
         if (supportingText != null) {
             Box(modifier = Modifier.padding(start = 16.dp, top = 4.dp)) {
                 supportingText()

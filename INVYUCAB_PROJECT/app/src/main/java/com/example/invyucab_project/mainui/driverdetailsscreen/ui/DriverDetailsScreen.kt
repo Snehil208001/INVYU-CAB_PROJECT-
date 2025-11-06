@@ -263,15 +263,26 @@ fun DriverDetailsScreen(
                             .height(50.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen)
                     ) {
-                        Text("Submit", fontSize = 16.sp, color = Color.White)
+                        // ✅ MODIFIED: Show loader or text
+                        if (viewModel.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White,
+                                strokeWidth = 3.dp
+                            )
+                        } else {
+                            Text("Submit", fontSize = 16.sp, color = Color.White)
+                        }
                     }
                 }
             }
 
-            // ✅ ADDED: Loading Indicator
+            // ✅ MODIFIED: Removed the central loading indicator
+            /*
             if (viewModel.isLoading) {
                 CircularProgressIndicator(color = CabMintGreen)
             }
+            */
         }
     }
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -45,6 +46,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,17 +66,15 @@ fun LocationSearchScreen(
     navController: NavController,
     viewModel: LocationSearchViewModel = hiltViewModel()
 ) {
-    // ✅ MODIFIED: Get all new state from ViewModel
-    val focusRequester = remember { FocusRequester() }
     val searchResults by viewModel.searchResults.collectAsState()
-    val searchQuery = viewModel.searchQuery
     val pickupDescription = viewModel.pickupDescription
     val dropDescription = viewModel.dropDescription
     val activeField = viewModel.activeField
     val context = LocalContext.current
 
-    // State to hold the location we want to navigate to *after* permission is granted
-    // ✅ MODIFIED: This now holds both pickup and drop info
+    val pickupFocusRequester = remember { FocusRequester() }
+    val dropFocusRequester = remember { FocusRequester() }
+
     data class PendingNavigation(val pickupId: String?, val pickupDesc: String, val dropId: String, val dropDesc: String)
     var pendingLocationToNavigate by remember { mutableStateOf<PendingNavigation?>(null) }
 
@@ -89,7 +89,6 @@ fun LocationSearchScreen(
             if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
                 permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
             ) {
-                // Permission was granted!
                 pendingLocationToNavigate?.let {
                     navController.navigate(
                         Screen.RideSelectionScreen.createRoute(
@@ -102,22 +101,24 @@ fun LocationSearchScreen(
                     pendingLocationToNavigate = null // Clear
                 }
             } else {
-                // Permission was denied
                 Toast.makeText(context, "Location permission is required to find rides.", Toast.LENGTH_LONG).show()
                 pendingLocationToNavigate = null // Clear
             }
         }
     )
 
-    // ✅ MODIFIED: Focus the search box when the activeField changes
+    // Focus the correct text field when the activeField changes
     LaunchedEffect(activeField) {
-        focusRequester.requestFocus()
+        if (activeField == EditingField.PICKUP) {
+            pickupFocusRequester.requestFocus()
+        } else {
+            dropFocusRequester.requestFocus()
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                // ✅ MODIFIED: Title
                 title = { Text("Set Route", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
@@ -141,57 +142,18 @@ fun LocationSearchScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
-            // ✅ MODIFIED: This section now shows both fields
             SearchInputSection(
                 pickupDescription = pickupDescription,
                 dropDescription = dropDescription,
                 activeField = activeField,
-                onFieldActivated = viewModel::onFieldActivated
+                onFieldActivated = viewModel::onFieldActivated,
+                onFieldFocusLost = viewModel::onFieldFocusLost, // ✅ PASSED new function
+                onQueryChanged = viewModel::onQueryChanged,
+                onClearField = viewModel::onClearField,
+                pickupFocusRequester = pickupFocusRequester,
+                dropFocusRequester = dropFocusRequester
             )
 
-            // ✅ ADDED: This is the single, real search box
-            BasicTextField(
-                value = searchQuery,
-                onValueChange = viewModel::onSearchQueryChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp)
-                    .height(48.dp)
-                    .focusRequester(focusRequester)
-                    .background(LightSlateGray, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 12.dp),
-                singleLine = true,
-                // ✅ ENHANCED: Added text style and cursor brush
-                textStyle = TextStyle(
-                    color = Color.Black,
-                    fontSize = 16.sp
-                ),
-                cursorBrush = SolidColor(CabMintGreen),
-                decorationBox = { innerTextField ->
-                    Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.fillMaxWidth()) {
-                        if (searchQuery.isEmpty()) {
-                            Text(
-                                text = if (activeField == EditingField.PICKUP) "Enter pickup location" else "Enter drop location",
-                                color = Color.Gray,
-                                fontSize = 16.sp
-                            )
-                        }
-                        innerTextField()
-                        if (searchQuery.isNotEmpty()) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Clear",
-                                tint = Color.Gray,
-                                modifier = Modifier
-                                    .align(Alignment.CenterEnd)
-                                    .clickable { viewModel.onSearchQueryChange("") }
-                            )
-                        }
-                    }
-                }
-            )
-
-            // ✅ MODIFIED: This logic is now simpler
             if (searchResults.isNotEmpty()) {
                 Divider(color = LightSlateGray, modifier = Modifier.padding(top = 16.dp))
                 LazyColumn(
@@ -201,14 +163,12 @@ fun LocationSearchScreen(
                         RecentSearchItem(
                             location = location,
                             onLocationClick = {
-                                // This click now just updates the ViewModel state
                                 viewModel.onSearchResultClicked(location)
                             }
                         )
                     }
                 }
             } else {
-                // ✅ MODIFIED: Show "Set on map" and "Confirm"
                 Spacer(modifier = Modifier.height(16.dp))
                 SearchButton(
                     text = "Select on map",
@@ -218,7 +178,6 @@ fun LocationSearchScreen(
                 Spacer(modifier = Modifier.weight(1f))
                 Button(
                     onClick = {
-                        // ✅ MODIFIED: Navigation logic
                         val pickupId = viewModel.pickupPlaceId
                         val dropId = viewModel.dropPlaceId
                         val pickupDesc = viewModel.pickupDescription
@@ -235,7 +194,6 @@ fun LocationSearchScreen(
 
                         val pendingNav = PendingNavigation(pickupId, pickupDesc, dropId, dropDesc)
 
-                        // Check if permission is already granted
                         val hasCoarsePermission = ContextCompat.checkSelfPermission(
                             context, Manifest.permission.ACCESS_COARSE_LOCATION
                         ) == PackageManager.PERMISSION_GRANTED
@@ -244,7 +202,6 @@ fun LocationSearchScreen(
                         ) == PackageManager.PERMISSION_GRANTED
 
                         if (hasCoarsePermission || hasFinePermission) {
-                            // Permission granted, navigate immediately
                             navController.navigate(
                                 Screen.RideSelectionScreen.createRoute(
                                     pickupPlaceId = pickupId,
@@ -254,7 +211,6 @@ fun LocationSearchScreen(
                                 )
                             )
                         } else {
-                            // Permission NOT granted, set pending and launch
                             pendingLocationToNavigate = pendingNav
                             permissionLauncher.launch(locationPermissions)
                         }
@@ -264,7 +220,6 @@ fun LocationSearchScreen(
                         .padding(bottom = 24.dp)
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
-                    // Enable only if both fields are set
                     enabled = viewModel.pickupPlaceId != null && viewModel.dropPlaceId != null
                 ) {
                     Text("Confirm Locations", color = Color.White, fontSize = 16.sp)
@@ -274,12 +229,78 @@ fun LocationSearchScreen(
     }
 }
 
+// ✅ MODIFIED: StyledTextField now takes an `onFocusChanged` lambda that passes a Boolean
+@Composable
+fun StyledTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    focusRequester: FocusRequester,
+    onFocusChanged: (isFocused: Boolean) -> Unit, // ✅ MODIFIED
+    onClear: () -> Unit,
+    isFocused: Boolean
+) {
+    val borderColor = if (isFocused) CabMintGreen else Color.Gray.copy(alpha = 0.5f)
+    val pickupTextColor = if (value == "Your Current Location") CabMintGreen else Color.Black
+
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .focusRequester(focusRequester)
+            .onFocusChanged { onFocusChanged(it.isFocused) } // ✅ MODIFIED
+            .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+            .background(Color.White, RoundedCornerShape(8.dp))
+            .padding(horizontal = 12.dp),
+        singleLine = true,
+        textStyle = TextStyle(
+            color = pickupTextColor,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium
+        ),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        cursorBrush = SolidColor(CabMintGreen),
+        decorationBox = { innerTextField ->
+            Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.fillMaxWidth()) {
+                if (value.isEmpty()) {
+                    Text(
+                        text = placeholder,
+                        color = Color.Gray,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                innerTextField()
+                if (value.isNotEmpty() && isFocused) {
+                    Icon(
+                        imageVector = Icons.Default.Clear,
+                        contentDescription = "Clear",
+                        tint = Color.Gray,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .clickable { onClear() }
+                    )
+                }
+            }
+        }
+    )
+}
+
+
+// ✅ MODIFIED: SearchInputSection now takes `onFieldFocusLost`
 @Composable
 fun SearchInputSection(
     pickupDescription: String,
     dropDescription: String,
     activeField: EditingField,
-    onFieldActivated: (EditingField) -> Unit
+    onFieldActivated: (EditingField) -> Unit,
+    onFieldFocusLost: (EditingField) -> Unit, // ✅ ADDED
+    onQueryChanged: (String) -> Unit,
+    onClearField: (EditingField) -> Unit,
+    pickupFocusRequester: FocusRequester,
+    dropFocusRequester: FocusRequester
 ) {
     Row(
         modifier = Modifier
@@ -292,54 +313,41 @@ fun SearchInputSection(
                 .weight(1f)
                 .padding(start = 12.dp)
         ) {
-            // ✅ MODIFIED: Pickup Field
-            val pickupIsActive = activeField == EditingField.PICKUP
-            val pickupColor = if (pickupIsActive) CabMintGreen else Color.Gray.copy(alpha = 0.5f)
-            val pickupTextColor = if (pickupDescription == "Your Current Location") CabMintGreen else Color.Black
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .border(1.dp, pickupColor, RoundedCornerShape(8.dp))
-                    .background(Color.White, RoundedCornerShape(8.dp)) // ✅ Changed background
-                    .clickable { onFieldActivated(EditingField.PICKUP) }
-                    .padding(horizontal = 12.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Text(
-                    text = pickupDescription.ifEmpty { "Enter pickup location" },
-                    color = if (pickupDescription.isEmpty()) Color.Gray else pickupTextColor,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            // ✅ MODIFIED: Pickup Field now uses onFieldFocusLost
+            StyledTextField(
+                value = pickupDescription,
+                onValueChange = onQueryChanged,
+                placeholder = "Enter pickup location",
+                focusRequester = pickupFocusRequester,
+                onFocusChanged = { isFocused ->
+                    if (isFocused) {
+                        onFieldActivated(EditingField.PICKUP)
+                    } else {
+                        onFieldFocusLost(EditingField.PICKUP) // ✅ ADDED
+                    }
+                },
+                onClear = { onClearField(EditingField.PICKUP) },
+                isFocused = activeField == EditingField.PICKUP
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ✅ MODIFIED: Drop Field
-            val dropIsActive = activeField == EditingField.DROP
-            val dropColor = if (dropIsActive) CabMintGreen else Color.Gray.copy(alpha = 0.5f)
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .border(1.dp, dropColor, RoundedCornerShape(8.dp))
-                    .background(Color.White, RoundedCornerShape(8.dp)) // ✅ Changed background
-                    .clickable { onFieldActivated(EditingField.DROP) }
-                    .padding(horizontal = 12.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Text(
-                    text = dropDescription.ifEmpty { "Enter drop location" },
-                    color = if (dropDescription.isEmpty()) Color.Gray else Color.Black,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            // ✅ MODIFIED: Drop Field now uses onFieldFocusLost
+            StyledTextField(
+                value = dropDescription,
+                onValueChange = onQueryChanged,
+                placeholder = "Enter drop location",
+                focusRequester = dropFocusRequester,
+                onFocusChanged = { isFocused ->
+                    if (isFocused) {
+                        onFieldActivated(EditingField.DROP)
+                    } else {
+                        onFieldFocusLost(EditingField.DROP) // ✅ ADDED
+                    }
+                },
+                onClear = { onClearField(EditingField.DROP) },
+                isFocused = activeField == EditingField.DROP
+            )
         }
     }
 }

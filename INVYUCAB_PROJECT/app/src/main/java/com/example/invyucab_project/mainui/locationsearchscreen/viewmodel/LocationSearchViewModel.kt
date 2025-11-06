@@ -39,44 +39,40 @@ class LocationSearchViewModel @Inject constructor(
     private val apiService: GoogleMapsApiService // INJECTED
 ) : ViewModel() {
 
-    // ✅ MODIFIED: State for the search query itself
-    var searchQuery by mutableStateOf("")
-        private set
-
-    // ✅ ADDED: State for pickup field
+    // ✅ State for pickup field
     var pickupDescription by mutableStateOf("Your Current Location")
         private set
     var pickupPlaceId by mutableStateOf<String?>("current_location") // Special key for "current"
         private set
 
-    // ✅ ADDED: State for drop field
+    // ✅ State for drop field
     var dropDescription by mutableStateOf("")
         private set
     var dropPlaceId by mutableStateOf<String?>(null)
         private set
 
-    // ✅ ADDED: State for active field
+    // ✅ State for active field
     var activeField by mutableStateOf(EditingField.DROP)
         private set
 
-    // Replaced Dummy list with a StateFlow for search results
+    // StateFlow for search results
     private val _searchResults = MutableStateFlow<List<SearchLocation>>(emptyList())
     val searchResults = _searchResults.asStateFlow()
 
     private var searchJob: Job? = null
     private var sessionToken: String = UUID.randomUUID().toString() // For Places API billing
 
-    // ✅✅✅ THIS IS THE CORRECTION ✅✅✅
-    // This now only updates the search query, not the description fields.
-    fun onSearchQueryChange(query: String) {
-        searchQuery = query
+    // This now updates the *active field's* description and triggers a search.
+    fun onQueryChanged(query: String) {
         searchJob?.cancel() // Cancel previous job
 
-        // ✅ ADDED: Clear the placeId if the user starts typing again,
-        // indicating they are changing their selection.
-        if (activeField == EditingField.PICKUP && query != pickupDescription) {
-            pickupPlaceId = null
-        } else if (activeField == EditingField.DROP && query != dropDescription) {
+        // Update the correct field's text and clear its ID
+        if (activeField == EditingField.PICKUP) {
+            pickupDescription = query
+            // ✅ MODIFIED: Only clear placeId if the query is not the default text
+            if (query != "Your Current Location") pickupPlaceId = null
+        } else {
+            dropDescription = query
             dropPlaceId = null
         }
 
@@ -100,39 +96,57 @@ class LocationSearchViewModel @Inject constructor(
         }
     }
 
-    // ✅ ADDED: Function to set the active field
+    // ✅ Function to set the active field
     fun onFieldActivated(field: EditingField) {
         activeField = field
-        // Set search query to the field's current content (unless it's the default)
-        searchQuery = when (field) {
-            EditingField.PICKUP -> if (pickupPlaceId == "current_location") "" else pickupDescription
-            EditingField.DROP -> dropDescription
+        // When activating "Current Location", clear text to start a new search
+        if (field == EditingField.PICKUP && pickupPlaceId == "current_location") {
+            pickupDescription = ""
+            pickupPlaceId = null
         }
         _searchResults.value = emptyList() // Clear results when switching
     }
 
-    // ✅ MODIFIED: Function to handle when a search result is clicked
+    // ✅✅✅ NEW FUNCTION ✅✅✅
+    // This is the fix you requested.
+    fun onFieldFocusLost(field: EditingField) {
+        if (field == EditingField.PICKUP) {
+            if (pickupDescription.isBlank()) {
+                pickupDescription = "Your Current Location"
+                pickupPlaceId = "current_location"
+            }
+        }
+    }
+
+    // ✅ Function to handle when a search result is clicked
     fun onSearchResultClicked(location: SearchLocation) {
         if (activeField == EditingField.PICKUP) {
             pickupDescription = location.name
             pickupPlaceId = location.placeId
             // Move focus to DROP field next
             activeField = EditingField.DROP
-            searchQuery = "" // ✅ ADDED: Clear search query
         } else {
             dropDescription = location.name
             dropPlaceId = location.placeId
             // Move focus to PICKUP field if it's not set
             if (pickupPlaceId == null) {
                 activeField = EditingField.PICKUP
-                searchQuery = "" // ✅ ADDED: Clear search query
-            } else {
-                // Both fields are set, just clear search query
-                searchQuery = "" // ✅ ADDED: Clear search query
             }
         }
         _searchResults.value = emptyList() // Clear results
         resetSessionToken() // Reset token after a selection
+    }
+
+    // ✅ New function to clear text from a field
+    fun onClearField(field: EditingField) {
+        if (field == EditingField.PICKUP) {
+            pickupDescription = ""
+            pickupPlaceId = null
+        } else {
+            dropDescription = ""
+            dropPlaceId = null
+        }
+        _searchResults.value = emptyList()
     }
 
 
