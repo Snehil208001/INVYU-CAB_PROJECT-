@@ -134,13 +134,20 @@ fun NavGraph(
             LocationSearchScreen(navController = navController)
         }
 
-        // ✅✅✅ START: THIS IS THE FIX ✅✅✅
+        // ✅✅✅ START OF FIX (Problem 3) ✅✅✅
         composable(
             route = Screen.RideSelectionScreen.route,
             arguments = listOf(
                 // Path arguments (from the route string)
-                navArgument("dropPlaceId") { type = NavType.StringType },
-                navArgument("dropDescription") { type = NavType.StringType },
+                // Made these nullable to prevent Parcel error if navigation fails
+                navArgument("dropPlaceId") {
+                    type = NavType.StringType
+                    nullable = true
+                },
+                navArgument("dropDescription") {
+                    type = NavType.StringType
+                    nullable = true
+                },
 
                 // Query arguments (from the route string)
                 navArgument("pickupPlaceId") {
@@ -157,6 +164,6 @@ fun NavGraph(
         ) {
             RideSelectionScreen(navController = navController)
         }
-        // ✅✅✅ END: THIS IS THE FIX ✅✅✅
+        // ✅✅✅ END OF FIX (Problem 3) ✅✅✅
     }
 }

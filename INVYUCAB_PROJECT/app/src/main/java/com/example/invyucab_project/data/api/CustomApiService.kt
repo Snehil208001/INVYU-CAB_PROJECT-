@@ -16,4 +16,9 @@ interface CustomApiService {
 
     @PUT("riding_app/v1/update_user_status")
     suspend fun updateUserStatus(@Body request: UpdateUserStatusRequest): UpdateUserStatusResponse
+
+    // ✅✅✅ START OF NEW CODE ✅✅✅
+    @POST("riding_app/v1/get_pricing")
+    suspend fun getPricing(@Body request: GetPricingRequest): GetPricingResponse
+    // ✅✅✅ END OF NEW CODE ✅✅✅
 }

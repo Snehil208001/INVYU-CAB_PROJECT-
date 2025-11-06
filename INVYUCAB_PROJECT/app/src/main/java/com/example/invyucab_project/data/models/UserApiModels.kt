@@ -10,8 +10,6 @@ data class CheckUserRequest(
     @Json(name = "phone_number") val phoneNumber: String
 )
 
-// ✅✅✅ START OF FIX ✅✅✅
-
 // This data class matches the 'existing_user' object in the API response
 @JsonClass(generateAdapter = true)
 data class ExistingUser(
@@ -32,7 +30,6 @@ data class CheckUserResponse(
     @Json(name = "message") val message: String,
     @Json(name = "existing_user") val existingUser: ExistingUser?
 )
-// ✅✅✅ END OF FIX ✅✅✅
 
 
 // --- Create User ---
@@ -72,3 +69,29 @@ data class UpdateUserStatusRequest(
 data class UpdateUserStatusResponse(
     @Json(name = "message") val message: String
 )
+
+// --- Get Pricing ---
+
+@JsonClass(generateAdapter = true)
+data class GetPricingRequest(
+    @Json(name = "pickup_lat") val pickupLat: Double,
+    @Json(name = "pickup_lng") val pickupLng: Double,
+    @Json(name = "drop_lat") val dropLat: Double,
+    @Json(name = "drop_lng") val dropLng: Double
+)
+
+// ✅✅✅ START OF FIX (Problem 2) ✅✅✅
+// Updated this class to match the log response
+@JsonClass(generateAdapter = true)
+data class RidePrice(
+    @Json(name = "vehicle_name") val vehicle_name: String?, // Changed from rideType
+    @Json(name = "total_price") val total_price: Double // Changed from price
+)
+
+// Updated this class to match the log response
+@JsonClass(generateAdapter = true)
+data class GetPricingResponse(
+    @Json(name = "success") val success: Boolean, // Changed from status
+    @Json(name = "data") val data: List<RidePrice>? // Changed from prices
+)
+// ✅✅✅ END OF FIX (Problem 2) ✅✅✅

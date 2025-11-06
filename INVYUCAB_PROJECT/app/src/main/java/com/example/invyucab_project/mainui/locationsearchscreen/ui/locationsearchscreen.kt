@@ -75,7 +75,7 @@ fun LocationSearchScreen(
     val pickupFocusRequester = remember { FocusRequester() }
     val dropFocusRequester = remember { FocusRequester() }
 
-    data class PendingNavigation(val pickupId: String?, val pickupDesc: String, val dropId: String, val dropDesc: String)
+    data class PendingNavigation(val pickupId: String?, val pickupDesc: String, val dropId: String?, val dropDesc: String) // Made dropId nullable
     var pendingLocationToNavigate by remember { mutableStateOf<PendingNavigation?>(null) }
 
     val locationPermissions = arrayOf(
@@ -90,11 +90,12 @@ fun LocationSearchScreen(
                 permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
             ) {
                 pendingLocationToNavigate?.let {
+                    // We know dropId is not null here because we check before launching
                     navController.navigate(
                         Screen.RideSelectionScreen.createRoute(
                             pickupPlaceId = it.pickupId,
                             pickupDescription = it.pickupDesc,
-                            dropPlaceId = it.dropId,
+                            dropPlaceId = it.dropId!!,
                             dropDescription = it.dropDesc
                         )
                     )
@@ -134,20 +135,29 @@ fun LocationSearchScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
-        containerColor = Color.White
+        containerColor = Color.White,
+        // ✅✅✅ START OF FIX ✅✅✅
+        // Add systemBarsPadding to the Scaffold to respect the status/navigation bars
+        modifier = Modifier.systemBarsPadding()
+        // ✅✅✅ END OF FIX ✅✅✅
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp)
+                .padding(padding) // Apply padding from Scaffold
+                .padding(horizontal = 16.dp) // Apply original horizontal padding
+                // ✅✅✅ START OF FIX ✅✅✅
+                // Add imePadding() here. This automatically adds padding to the
+                // bottom of the Column when the keyboard is open.
+                .imePadding()
+            // ✅✅✅ END OF FIX ✅✅✅
         ) {
             SearchInputSection(
                 pickupDescription = pickupDescription,
                 dropDescription = dropDescription,
                 activeField = activeField,
                 onFieldActivated = viewModel::onFieldActivated,
-                onFieldFocusLost = viewModel::onFieldFocusLost, // ✅ PASSED new function
+                onFieldFocusLost = viewModel::onFieldFocusLost,
                 onQueryChanged = viewModel::onQueryChanged,
                 onClearField = viewModel::onClearField,
                 pickupFocusRequester = pickupFocusRequester,
@@ -175,7 +185,7 @@ fun LocationSearchScreen(
                     icon = Icons.Default.GpsFixed,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.weight(1f)) // This Spacer pushes the button to the bottom
                 Button(
                     onClick = {
                         val pickupId = viewModel.pickupPlaceId
@@ -192,6 +202,7 @@ fun LocationSearchScreen(
                             return@Button
                         }
 
+                        // We've confirmed dropId is not null, so we can pass it
                         val pendingNav = PendingNavigation(pickupId, pickupDesc, dropId, dropDesc)
 
                         val hasCoarsePermission = ContextCompat.checkSelfPermission(
@@ -217,7 +228,7 @@ fun LocationSearchScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 24.dp)
+                        .padding(bottom = 24.dp) // Add padding to the button itself
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
                     enabled = viewModel.pickupPlaceId != null && viewModel.dropPlaceId != null
@@ -229,14 +240,13 @@ fun LocationSearchScreen(
     }
 }
 
-// ✅ MODIFIED: StyledTextField now takes an `onFocusChanged` lambda that passes a Boolean
 @Composable
 fun StyledTextField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
     focusRequester: FocusRequester,
-    onFocusChanged: (isFocused: Boolean) -> Unit, // ✅ MODIFIED
+    onFocusChanged: (isFocused: Boolean) -> Unit,
     onClear: () -> Unit,
     isFocused: Boolean
 ) {
@@ -250,7 +260,7 @@ fun StyledTextField(
             .fillMaxWidth()
             .height(48.dp)
             .focusRequester(focusRequester)
-            .onFocusChanged { onFocusChanged(it.isFocused) } // ✅ MODIFIED
+            .onFocusChanged { onFocusChanged(it.isFocused) }
             .border(1.dp, borderColor, RoundedCornerShape(8.dp))
             .background(Color.White, RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp),
@@ -289,14 +299,13 @@ fun StyledTextField(
 }
 
 
-// ✅ MODIFIED: SearchInputSection now takes `onFieldFocusLost`
 @Composable
 fun SearchInputSection(
     pickupDescription: String,
     dropDescription: String,
     activeField: EditingField,
     onFieldActivated: (EditingField) -> Unit,
-    onFieldFocusLost: (EditingField) -> Unit, // ✅ ADDED
+    onFieldFocusLost: (EditingField) -> Unit,
     onQueryChanged: (String) -> Unit,
     onClearField: (EditingField) -> Unit,
     pickupFocusRequester: FocusRequester,
@@ -313,7 +322,6 @@ fun SearchInputSection(
                 .weight(1f)
                 .padding(start = 12.dp)
         ) {
-            // ✅ MODIFIED: Pickup Field now uses onFieldFocusLost
             StyledTextField(
                 value = pickupDescription,
                 onValueChange = onQueryChanged,
@@ -323,7 +331,7 @@ fun SearchInputSection(
                     if (isFocused) {
                         onFieldActivated(EditingField.PICKUP)
                     } else {
-                        onFieldFocusLost(EditingField.PICKUP) // ✅ ADDED
+                        onFieldFocusLost(EditingField.PICKUP)
                     }
                 },
                 onClear = { onClearField(EditingField.PICKUP) },
@@ -332,7 +340,6 @@ fun SearchInputSection(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ✅ MODIFIED: Drop Field now uses onFieldFocusLost
             StyledTextField(
                 value = dropDescription,
                 onValueChange = onQueryChanged,
@@ -342,7 +349,7 @@ fun SearchInputSection(
                     if (isFocused) {
                         onFieldActivated(EditingField.DROP)
                     } else {
-                        onFieldFocusLost(EditingField.DROP) // ✅ ADDED
+                        onFieldFocusLost(EditingField.DROP)
                     }
                 },
                 onClear = { onClearField(EditingField.DROP) },

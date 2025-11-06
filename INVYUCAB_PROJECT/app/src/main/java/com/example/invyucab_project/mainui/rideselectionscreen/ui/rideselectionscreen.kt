@@ -5,7 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas // ✅ ADDED Import
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,12 +16,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LocalOffer
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -34,15 +31,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset // ✅ ADDED Import
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect // ✅ ADDED Import
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp // ✅ ADDED Import
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -51,7 +47,6 @@ import com.example.invyucab_project.mainui.rideselectionscreen.viewmodel.RideOpt
 import com.example.invyucab_project.mainui.rideselectionscreen.viewmodel.RideSelectionViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
-import com.example.invyucab_project.ui.theme.LightSlateGray
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
@@ -91,18 +86,13 @@ fun RideSelectionScreen(
         }
     }
 
-    // ✅✅✅ START: THIS IS THE FIX ✅✅✅
-    // Create the BitmapDescriptors inside the composable, using remember.
-    // The lambda block for 'remember' is NOT a composable context, so
-    // we can safely do our bitmap conversion here.
-    val pickupIcon = remember(context) {
-        bitmapDescriptorFromDrawable(context, R.drawable.ic_pickup_marker)
-    }
+    // ✅✅✅ START OF FIX (Problem 1) ✅✅✅
+    // The icons are now initialized *inside* the GoogleMap content lambda.
+    // We remove them from here.
+    // val pickupIcon = remember(context) { ... } // <-- REMOVED
+    // val dropIcon = remember(context) { ... } // <-- REMOVED
+    // ✅✅✅ END OF FIX (Problem 1) ✅✅✅
 
-    val dropIcon = remember(context) {
-        bitmapDescriptorFromDrawable(context, R.drawable.ic_dropoff_marker)
-    }
-    // ✅✅✅ END: THIS IS THE FIX ✅✅✅
 
     LaunchedEffect(uiState.pickupLocation, uiState.dropLocation, uiState.routePolyline) {
         val pickup = uiState.pickupLocation
@@ -154,6 +144,17 @@ fun RideSelectionScreen(
                 uiSettings = MapUiSettings(zoomControlsEnabled = false, compassEnabled = false),
                 properties = MapProperties(mapStyleOptions = mapStyleOptions)
             ) {
+
+                // ✅✅✅ START OF FIX (Problem 1) ✅✅✅
+                // Initialize icons here, inside the map's content scope.
+                val pickupIcon = remember(context) {
+                    bitmapDescriptorFromDrawable(context, R.drawable.ic_pickup_marker)
+                }
+                val dropIcon = remember(context) {
+                    bitmapDescriptorFromDrawable(context, R.drawable.ic_dropoff_marker)
+                }
+                // ✅✅✅ END OF FIX (Problem 1) ✅✅✅
+
                 if (uiState.routePolyline.isNotEmpty()) {
                     Polyline(
                         points = uiState.routePolyline,
@@ -164,31 +165,27 @@ fun RideSelectionScreen(
                 }
 
                 uiState.pickupLocation?.let { pickupLatLng ->
-                    // ✅ MODIFIED: Pass the remembered 'icon'
                     Marker(
                         state = MarkerState(position = pickupLatLng),
                         title = "Pickup",
-                        icon = pickupIcon // Use the remembered BitmapDescriptor
+                        icon = pickupIcon // Use the icon initialized inside the map
                     )
                 }
 
                 uiState.dropLocation?.let { dropLatLng ->
-                    // ✅ MODIFIED: Pass the remembered 'icon'
                     Marker(
                         state = MarkerState(position = dropLatLng),
                         title = "Drop",
-                        icon = dropIcon // Use the remembered BitmapDescriptor
+                        icon = dropIcon // Use the icon initialized inside the map
                     )
                 }
             }
 
-            // ✅ MODIFIED: Call to LocationTopBar updated
             LocationTopBar(
                 pickup = uiState.pickupDescription,
                 drop = uiState.dropDescription,
                 onBack = { navController.navigateUp() },
                 onFieldsClick = {
-                    // Navigate back to LocationSearchScreen to change locations
                     navController.popBackStack()
                 }
             )
@@ -219,15 +216,11 @@ fun RideSelectionScreen(
     }
 }
 
-// ✅✅✅ NEW HELPER FUNCTION ✅✅✅
-// This is now a regular (non-composable) function.
-// It contains the logic to convert a vector drawable to a BitmapDescriptor.
 private fun bitmapDescriptorFromDrawable(
     context: Context,
     @DrawableRes drawableResId: Int
 ): BitmapDescriptor? {
     return try {
-        // .mutate() is still crucial to prevent tint bleeding
         val drawable = ContextCompat.getDrawable(context, drawableResId)?.mutate() ?: return null
 
         val bitmap = Bitmap.createBitmap(
@@ -240,46 +233,44 @@ private fun bitmapDescriptorFromDrawable(
         drawable.draw(canvas)
         BitmapDescriptorFactory.fromBitmap(bitmap)
     } catch (e: Exception) {
-        e.printStackTrace() // Log the error
+        e.printStackTrace()
         null
     }
 }
 
 
-// ✅ MODIFIED: This Composable is completely replaced
 @Composable
 fun LocationTopBar(
     pickup: String,
     drop: String,
     onBack: () -> Unit,
-    onFieldsClick: () -> Unit // Replaced onAddStop
+    onFieldsClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(CabMintGreen)
-            .padding(top = 16.dp, start = 8.dp, end = 16.dp, bottom = 16.dp), // Added bottom padding
+            .padding(top = 16.dp, start = 8.dp, end = 16.dp, bottom = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
         }
 
-        // This is the graphic from LocationSearchScreen, styled for the TopBar
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(horizontal = 8.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(18.dp) // Smaller
+                    .size(18.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.3f)),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp) // Smaller
+                        .size(8.dp)
                         .clip(CircleShape)
                         .background(Color.White)
                 )
@@ -287,7 +278,7 @@ fun LocationTopBar(
             val pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
             Canvas(
                 modifier = Modifier
-                    .height(24.dp) // Shorter
+                    .height(24.dp)
                     .width(1.dp)
             ) {
                 drawLine(
@@ -301,25 +292,24 @@ fun LocationTopBar(
             }
             Box(
                 modifier = Modifier
-                    .size(18.dp) // Smaller
+                    .size(18.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.3f)),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp) // Smaller
+                        .size(8.dp)
                         .clip(CircleShape)
                         .background(Color.White)
                 )
             }
         }
 
-        // Clickable Column for both text fields
         Column(
             modifier = Modifier
                 .weight(1f)
-                .clickable(onClick = onFieldsClick) // Clickable area
+                .clickable(onClick = onFieldsClick)
         ) {
             Text(
                 text = pickup,
@@ -327,7 +317,7 @@ fun LocationTopBar(
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = FontWeight.Medium,
                 color = Color.White,
-                fontSize = 15.sp // Slightly smaller
+                fontSize = 15.sp
             )
             Divider(modifier = Modifier.padding(vertical = 10.dp), color = Color.White.copy(alpha = 0.3f))
             Text(
@@ -336,10 +326,9 @@ fun LocationTopBar(
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = FontWeight.Medium,
                 color = Color.White,
-                fontSize = 15.sp // Slightly smaller
+                fontSize = 15.sp
             )
         }
-        // "Add Stop" button removed
     }
 }
 
@@ -348,8 +337,8 @@ fun LocationTopBar(
 @Composable
 fun BoxScope.RideOptionsBottomSheet(rideOptions: List<RideOption>) {
     var selectedRideId by remember { mutableStateOf(1) }
-    // ✅ MODIFIED: Check if durations are calculated (instead of price)
-    val areDetailsCalculated = rideOptions.isNotEmpty() && rideOptions.all { it.estimatedDurationMinutes != null }
+    // ✅ MODIFIED: Check if prices are still loading
+    val areDetailsCalculated = rideOptions.isNotEmpty() && rideOptions.all { !it.isLoadingPrice }
 
     BottomSheetScaffold(
         scaffoldState = rememberBottomSheetScaffoldState(),
@@ -405,7 +394,7 @@ fun BoxScope.RideOptionsBottomSheet(rideOptions: List<RideOption>) {
                     onClick = { /* TODO */ },
                     modifier = Modifier.fillMaxWidth().padding(horizontal=16.dp).height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
-                    enabled = areDetailsCalculated // ✅ MODIFIED: Button enabled only when details are ready
+                    enabled = areDetailsCalculated
                 ) {
                     val selectedRideName = rideOptions.find { it.id == selectedRideId }?.name ?: "Ride"
                     Text("Book $selectedRideName", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -467,9 +456,24 @@ fun RideOptionItem(ride: RideOption, isSelected: Boolean, onClick: () -> Unit) {
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        // ✅ MODIFIED: Price and Distance Column
         Column(horizontalAlignment = Alignment.End) {
-            // ✅ REMOVED: Price Text composable
+            // ✅✅✅ START OF MODIFIED CODE (Problem 2) ✅✅✅
+            if (ride.isLoadingPrice) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = CabMintGreen
+                )
+            } else if (ride.price != null) {
+                Text(
+                    text = ride.price,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Color.Black
+                )
+            }
+            // ✅✅✅ END OF MODIFIED CODE (Problem 2) ✅✅✅
+
             ride.estimatedDistanceKm?.let {
                 Text(
                     text = it,

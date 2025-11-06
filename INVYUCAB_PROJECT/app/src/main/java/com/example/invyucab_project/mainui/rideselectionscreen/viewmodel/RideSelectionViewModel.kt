@@ -1,7 +1,7 @@
 package com.example.invyucab_project.mainui.rideselectionscreen.viewmodel
 
 import android.annotation.SuppressLint
-import android.location.Location // ✅ ADDED Import
+import android.location.Location
 import android.os.Looper
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -9,7 +9,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.invyucab_project.data.api.CustomApiService
 import com.example.invyucab_project.data.api.GoogleMapsApiService
+import com.example.invyucab_project.data.models.GetPricingRequest
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.PolyUtil
@@ -20,60 +22,58 @@ import kotlinx.coroutines.launch
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import javax.inject.Inject
-import kotlin.math.max
 import kotlin.math.roundToInt
 
-// ✅ MODIFIED RideOption: price is now removed
+// ✅ MODIFIED RideOption: price is now added
 data class RideOption(
     val id: Int,
     val icon: ImageVector,
     val name: String,
     val description: String, // ETA like "2 mins away"
-    // val price: Int?, // ✅ REMOVED
+    val price: String? = null, // ✅ RE-ADDED
     val subtitle: String? = null,
     val estimatedDurationMinutes: Int? = null, // Trip duration
-    val estimatedDistanceKm: String? = null
+    val estimatedDistanceKm: String? = null,
+    val isLoadingPrice: Boolean = true // ✅ ADDED
 )
 
 data class RideSelectionState(
-    val pickupLocation: LatLng? = null, // ✅ Changed to nullable, default is now unknown
+    val pickupLocation: LatLng? = null,
     val dropLocation: LatLng? = null,
-    val pickupDescription: String = "Fetching current location...", // ✅ Updated default
+    val pickupDescription: String = "Fetching current location...",
     val dropDescription: String = "",
     val routePolyline: List<LatLng> = emptyList(),
-    val tripDurationSeconds: Int? = null, // ✅ Added duration state
-    val tripDistanceMeters: Int? = null, // ✅ ADDED
+    val tripDurationSeconds: Int? = null,
+    val tripDistanceMeters: Int? = null,
     val isLoading: Boolean = false,
-    val isFetchingLocation: Boolean = true, // ✅ Added location fetching state
+    val isFetchingLocation: Boolean = true,
     val errorMessage: String? = null
 )
 
 @HiltViewModel
 class RideSelectionViewModel @Inject constructor(
     private val apiService: GoogleMapsApiService,
-    private val fusedLocationClient: FusedLocationProviderClient, // ✅ INJECT Location Client
+    private val customApiService: CustomApiService, // ✅ INJECTED
+    private val fusedLocationClient: FusedLocationProviderClient,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RideSelectionState())
     val uiState = _uiState.asStateFlow()
 
-    // ✅✅✅ START: THIS IS THE FIX ✅✅✅
-    // Read the correct argument names defined in navgraph.kt
-    private val dropPlaceId: String = savedStateHandle.get<String>("dropPlaceId") ?: ""
-    private val encodedDropDescription: String = savedStateHandle.get<String>("dropDescription") ?: ""
-    private val dropDescription: String = decodeUrlString(encodedDropDescription)
+    private val dropPlaceId: String? = savedStateHandle.get<String>("dropPlaceId")
+    private val encodedDropDescription: String? = savedStateHandle.get<String>("dropDescription")
+    private val dropDescription: String = decodeUrlString(encodedDropDescription ?: "")
 
     private val pickupPlaceId: String? = savedStateHandle.get<String>("pickupPlaceId")
     private val encodedPickupDescription: String? = savedStateHandle.get<String>("pickupDescription")
-    // ✅✅✅ END: THIS IS THE FIX ✅✅✅
 
     private val pickupDescription: String = decodeUrlString(encodedPickupDescription ?: "Your Current Location")
 
     private val isPickupCurrentLocation = pickupPlaceId == "current_location" || pickupPlaceId == null
 
 
-    // ✅ MODIFIED: Removed hardcoded prices
+    // ✅ MODIFIED: Price is null and isLoading is true by default from data class
     private val initialRideOptions = listOf(
         RideOption(1, Icons.Default.TwoWheeler, "Bike", "2 mins away", subtitle = "Quick Bike rides"),
         RideOption(2, Icons.Default.ElectricRickshaw, "Auto", "2 mins away", subtitle = "Affordable Auto rides"),
@@ -81,27 +81,31 @@ class RideSelectionViewModel @Inject constructor(
         RideOption(4, Icons.Default.Stars, "Cab Premium", "5 mins away", subtitle = "Spacious & top-rated")
     )
 
-    // StateFlow to hold ride options, allowing updates with duration
     private val _rideOptions = MutableStateFlow(initialRideOptions)
     val rideOptions = _rideOptions.asStateFlow()
 
     init {
-        // ✅ MODIFIED: Set both descriptions from nav args
-        _uiState.value = _uiState.value.copy(
-            dropDescription = dropDescription,
-            pickupDescription = pickupDescription
-        )
-
-        // ✅ MODIFIED: Decide which logic path to take
-        if (isPickupCurrentLocation) {
-            getCurrentLocationAndProceed()
+        // ✅ ADDED: Guard clause to handle potential null navigation arguments
+        if (dropPlaceId == null || encodedDropDescription == null) {
+            _uiState.value = _uiState.value.copy(
+                errorMessage = "Drop location is missing. Please go back.",
+                isLoading = false,
+                isFetchingLocation = false
+            )
         } else {
-            // We have a specific pickup, fetch both locations
-            fetchSpecificLocationsAndRoute()
+            _uiState.value = _uiState.value.copy(
+                dropDescription = dropDescription,
+                pickupDescription = pickupDescription
+            )
+
+            if (isPickupCurrentLocation) {
+                getCurrentLocationAndProceed()
+            } else {
+                fetchSpecificLocationsAndRoute()
+            }
         }
     }
 
-    // ✅ ADDED: Helper to decode URL strings safely
     private fun decodeUrlString(encoded: String): String {
         return try {
             URLDecoder.decode(encoded, StandardCharsets.UTF_8.toString())
@@ -112,7 +116,7 @@ class RideSelectionViewModel @Inject constructor(
 
     // --- Location Fetching ---
 
-    @SuppressLint("MissingPermission") // IMPORTANT: Handle permissions properly!
+    @SuppressLint("MissingPermission")
     private fun getCurrentLocationAndProceed() {
         _uiState.value = _uiState.value.copy(isFetchingLocation = true)
 
@@ -120,7 +124,6 @@ class RideSelectionViewModel @Inject constructor(
             if (location != null) {
                 val currentLatLng = LatLng(location.latitude, location.longitude)
                 _uiState.value = _uiState.value.copy(isFetchingLocation = false)
-                // Got location, now fetch drop details and route
                 fetchRoute(currentLatLng, "place_id:$dropPlaceId")
             } else {
                 requestNewLocation()
@@ -142,7 +145,6 @@ class RideSelectionViewModel @Inject constructor(
                 locationResult.lastLocation?.let { location ->
                     val currentLatLng = LatLng(location.latitude, location.longitude)
                     _uiState.value = _uiState.value.copy(isFetchingLocation = false)
-                    // Got location, now fetch drop details and route
                     fetchRoute(currentLatLng, "place_id:$dropPlaceId")
                 } ?: run {
                     _uiState.value = _uiState.value.copy(
@@ -168,25 +170,25 @@ class RideSelectionViewModel @Inject constructor(
 
     // --- API Calls ---
 
-    // ✅ ADDED: New function to fetch specific pickup/drop coordinates
     private fun fetchSpecificLocationsAndRoute() {
-        if (pickupPlaceId == null) {
-            _uiState.value = _uiState.value.copy(errorMessage = "Missing Pickup Location", isLoading = false, isFetchingLocation = false)
+        if (pickupPlaceId == null || dropPlaceId == null) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Missing Location", isLoading = false, isFetchingLocation = false)
             return
         }
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, isFetchingLocation = false)
             try {
-                // Fetch pickup and drop coordinates in parallel
-                val pickupLatLngDeferred = async { fetchPlaceLatLng(pickupPlaceId) }
-                val dropLatLngDeferred = async { fetchPlaceLatLng(dropPlaceId) }
+                // ✅✅✅ START OF FIX ✅✅✅
+                // Added !! because we already checked for null above
+                val pickupLatLngDeferred = async { fetchPlaceLatLng(pickupPlaceId!!) }
+                val dropLatLngDeferred = async { fetchPlaceLatLng(dropPlaceId!!) }
+                // ✅✅✅ END OF FIX ✅✅✅
 
                 val pickupLatLng = pickupLatLngDeferred.await()
                 val dropLatLng = dropLatLngDeferred.await()
 
                 if (pickupLatLng != null && dropLatLng != null) {
-                    // Both locations fetched, now get the route
                     fetchRoute(pickupLatLng, "place_id:$dropPlaceId")
                 } else {
                     _uiState.value = _uiState.value.copy(
@@ -203,7 +205,6 @@ class RideSelectionViewModel @Inject constructor(
         }
     }
 
-    // ✅ ADDED: Reusable function to fetch LatLng for any placeId
     private suspend fun fetchPlaceLatLng(placeId: String): LatLng? {
         return try {
             val response = apiService.getPlaceDetails(placeId)
@@ -218,18 +219,18 @@ class RideSelectionViewModel @Inject constructor(
         }
     }
 
-    // ✅ MODIFIED: Renamed and generalized this function
     private fun fetchRoute(pickupLatLng: LatLng, destinationString: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
-                // We already have pickup LatLng, now fetch drop LatLng (for marker)
-                // and directions all at once
+                // ✅✅✅ START OF FIX ✅✅✅
+                // Added !! because we check for null in the init block
                 val dropLatLng = if (destinationString.startsWith("place_id:")) {
-                    fetchPlaceLatLng(dropPlaceId)
+                    fetchPlaceLatLng(dropPlaceId!!)
                 } else {
-                    null // Handle other destination types if needed
+                    null
                 }
+                // ✅✅✅ END OF FIX ✅✅✅
 
                 _uiState.value = _uiState.value.copy(
                     pickupLocation = pickupLatLng,
@@ -244,16 +245,15 @@ class RideSelectionViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Check if locations are the same
                 if (areLocationsTooClose(pickupLatLng, dropLatLng)) {
                     _uiState.value = _uiState.value.copy(
                         errorMessage = "Pickup and drop locations are the same.",
                         isLoading = false,
                         routePolyline = emptyList(),
                         tripDurationSeconds = 0,
-                        tripDistanceMeters = 0 // ✅ ADDED
+                        tripDistanceMeters = 0
                     )
-                    updateRideDetails(0, 0) // ✅ MODIFIED
+                    fetchAllRideData(pickupLatLng, dropLatLng, 0, 0)
                     return@launch
                 }
 
@@ -267,18 +267,18 @@ class RideSelectionViewModel @Inject constructor(
                     val route = directionsResponse.routes[0]
                     val points = route.overviewPolyline.points
                     val decodedPolyline = PolyUtil.decode(points)
-                    val leg = route.legs.firstOrNull() // ✅ Get the leg
+                    val leg = route.legs.firstOrNull()
                     val durationSeconds = leg?.duration?.value
-                    val distanceMeters = leg?.distance?.value // ✅ ADDED
+                    val distanceMeters = leg?.distance?.value
 
                     _uiState.value = _uiState.value.copy(
                         routePolyline = decodedPolyline,
                         tripDurationSeconds = durationSeconds,
-                        tripDistanceMeters = distanceMeters, // ✅ ADDED
+                        tripDistanceMeters = distanceMeters,
                         isLoading = false,
                         errorMessage = null
                     )
-                    updateRideDetails(durationSeconds, distanceMeters) // ✅ MODIFIED
+                    fetchAllRideData(pickupLatLng, dropLatLng, durationSeconds, distanceMeters)
                 } else {
                     _uiState.value = _uiState.value.copy(
                         errorMessage = "Could not get directions: ${directionsResponse.status}",
@@ -295,24 +295,62 @@ class RideSelectionViewModel @Inject constructor(
         }
     }
 
-    // ✅ MODIFIED: Renamed from calculateRideFares and removed price calculation
-    private fun updateRideDetails(durationSeconds: Int?, distanceMeters: Int?) {
+    private fun fetchAllRideData(pickup: LatLng, drop: LatLng, durationSeconds: Int?, distanceMeters: Int?) {
         val durationMinutes = durationSeconds?.let { (it / 60.0).roundToInt() }
         val distanceKm = (distanceMeters ?: 0) / 1000.0
         val distanceString = "%.1f km".format(distanceKm)
 
         _rideOptions.update { currentOptions ->
-            currentOptions.map { ride ->
-                // Return the updated ride option, without price
-                ride.copy(
-                    estimatedDurationMinutes = durationMinutes,
-                    estimatedDistanceKm = distanceString
+            currentOptions.map { it.copy(isLoadingPrice = true) }
+        }
+
+        viewModelScope.launch {
+            try {
+                val request = GetPricingRequest(
+                    pickupLat = pickup.latitude,
+                    pickupLng = pickup.longitude,
+                    dropLat = drop.latitude,
+                    dropLng = drop.longitude
                 )
+                val response = customApiService.getPricing(request)
+
+                // Check "success" field and "data" field
+                if (response.success && response.data != null) {
+                    _rideOptions.update { currentOptions ->
+                        currentOptions.map { rideOption ->
+                            val priceInfo = response.data.find {
+                                it.vehicle_name?.equals(rideOption.name, ignoreCase = true) == true ||
+                                        (it.vehicle_name?.equals("car", ignoreCase = true) == true && rideOption.name.contains("Cab"))
+                            }
+
+                            val formattedPrice = priceInfo?.let { "₹${it.total_price.roundToInt()}" } ?: "N/A"
+
+                            rideOption.copy(
+                                estimatedDurationMinutes = durationMinutes,
+                                estimatedDistanceKm = distanceString,
+                                price = formattedPrice,
+                                isLoadingPrice = false
+                            )
+                        }
+                    }
+                } else {
+                    throw Exception("API returned no price data")
+                }
+            } catch (e: Exception) {
+                _rideOptions.update { currentOptions ->
+                    currentOptions.map { rideOption ->
+                        rideOption.copy(
+                            estimatedDurationMinutes = durationMinutes,
+                            estimatedDistanceKm = distanceString,
+                            price = "N/A",
+                            isLoadingPrice = false
+                        )
+                    }
+                }
             }
         }
     }
 
-    // ADDED: Helper function to check distance
     private fun areLocationsTooClose(start: LatLng, end: LatLng, thresholdMeters: Float = 50f): Boolean {
         val results = FloatArray(1)
         Location.distanceBetween(
@@ -323,7 +361,6 @@ class RideSelectionViewModel @Inject constructor(
         return results[0] < thresholdMeters
     }
 
-    // ADDED: Function to dismiss the error message from the UI
     fun dismissError() {
         _uiState.update { it.copy(errorMessage = null) }
     }
