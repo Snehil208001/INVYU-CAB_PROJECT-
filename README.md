@@ -1,3 +1,5 @@
+Here is the updated README file with the backend link removed:
+
 🚖 INVYU Cab Project
 INVYU is a modern, feature-rich cab booking application for Android, built entirely with Kotlin and Jetpack Compose. It demonstrates a complete, end-to-end user flow, from multi-role authentication to live route-drawing and dynamic pricing from a custom backend.
 
@@ -87,7 +89,7 @@ Backend:
 
 Firebase (for OTP verification)
 
-Custom AWS API (for user/ride management & pricing)
+Custom Backend API (for user/ride management & pricing)
 
 ⚙️ Setup Instructions
 To build and run this project, you will need to configure Firebase and Google Maps.
@@ -127,7 +129,7 @@ Properties
 
 MAPS_API_KEY="YOUR_GOOGLE_MAPS_API_KEY_HERE"
 4. Custom Backend Note
-This project is configured to work with a specific custom backend API hosted at https://ovlo8ek40d.execute-api.us-east-1.amazonaws.com/. This backend handles:
+This project is configured to work with a custom backend API (the base URL is defined in core/di/NetworkModule.kt). This backend handles:
 
 Checking if a user exists (checkUser)
 
@@ -137,7 +139,7 @@ Updating user status (updateUserStatus)
 
 Calculating ride prices (getPricing)
 
-Without access to this backend, the authentication and ride-pricing features will not function.
+Without access to this backend or replacing it with your own, the authentication and ride-pricing features will not function.
 
 5. Build & Run
 Open the INVYUCAB_PROJECT directory in Android Studio.
