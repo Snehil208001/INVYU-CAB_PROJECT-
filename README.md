@@ -1,92 +1,119 @@
-🚖 INVYU (CAB_PROJECT)
+Here is the updated README file with the backend link removed:
 
-INVYU is a modern, feature-rich cab booking application built for Android 🚀
-Developed entirely in Kotlin, it leverages Jetpack Compose for a smooth declarative UI and follows a Clean MVVM architecture for scalability and maintainability.
+🚖 INVYU Cab Project
+INVYU is a modern, feature-rich cab booking application for Android, built entirely with Kotlin and Jetpack Compose. It demonstrates a complete, end-to-end user flow, from multi-role authentication to live route-drawing and dynamic pricing from a custom backend.
 
-The app provides a complete ride-booking experience — from authentication and live location tracking to ride selection and route visualization.
+This repository showcases a clean MVVM architecture, extensive use of Google's location-based services, and a custom API-driven system for user and ride management.
 
 ✨ Features
-🧭 Onboarding Flow
+Welcome Onboarding: A skippable, multi-step onboarding flow for first-time users.
 
-Multi-step, welcoming onboarding screens for new users.
+Multi-Role Authentication:
 
-Introduces key features and app benefits before sign-up.
+Phone (OTP) Sign-Up & Sign-In: Secure registration and login using Firebase Phone Authentication.
 
-🔐 Complete Authentication
+Custom User Backend: Verifies user existence (checkUser) and creates new users (createUser) via a custom backend API.
 
-📱 Phone (OTP) Sign-Up & Sign-In — Register/login using mobile number with Firebase OTP verification.
+Role-Based System: Users can register as a Rider, Driver, or Admin, each with a distinct flow.
 
-🔑 Google Sign-In — One-tap sign-in/sign-up with Google credentials (via Firebase).
+Driver-Specific Onboarding: A separate registration path for drivers to collect license, vehicle, and Aadhaar information.
 
-🧍‍♂️ Profile Setup — After registration, users can add name and email easily.
+Complete Ride-Booking Flow:
 
-🏠 Home Dashboard
+Home Screen: A clean dashboard prompting the user to select a destination.
 
-“Where are you going?” search bar to initiate ride booking.
+Location Search: A dedicated search screen using the Google Places Autocomplete API for finding pickup and drop-off locations.
 
-🛺 List of services like Auto, Bike, and Cabs under an “Explore” section.
+Live Map & Routing:
 
-🕒 Displays recently visited locations for quick booking.
+Automatically fetches the user's current location as the default pickup point using FusedLocationProviderClient.
 
-📍 Location Search
+Fetches coordinates for named locations using the Google Places Details API.
 
-Dedicated search screen to find drop-off locations.
+Draws the optimal route on Google Maps using the Google Directions API.
 
-⚡ Integrated with Google Places Autocomplete API for real-time suggestions.
+Dynamic Ride Selection:
 
-🗺️ Live Map & Ride Selection
+A bottom sheet displays available ride types (e.g., Bike, Auto, Cab Economy, Cab Premium).
 
-Fetches current location automatically as pickup.
+Fetches dynamic pricing, ETA, and distance for all ride types from a custom backend API (getPricing).
 
-Retrieves drop-off coordinates using Google Places Details API.
+Comprehensive Profile Management:
 
-Draws the optimal route with Google Directions API and smooth polyline animation.
+User Profile: View and edit user details (name, email, gender, DOB).
 
-Adds custom pickup/drop-off markers on the map.
+Member Levels: A screen displaying the user's current membership tier (e.g., Gold Member).
 
-🚗 Bottom sheet shows available rides with estimated prices and ETAs.
+Payment Methods: A UI to view and manage payment options.
 
-👤 Comprehensive Profile Management
+Persistent Login: Remembers the user's logged-in state (active) using SharedPreferences, guiding them directly to the app or the auth screen.
 
-📄 Main Profile — View name, phone, and basic info.
+Clean Navigation:
 
-✏️ Edit Profile — Update name, email, gender, and birthday.
+A persistent bottom navigation bar for main sections: Ride, All Services, Travel, and Profile.
 
-💳 Payment Methods — Manage cash, UPI, and card payments.
-
-🏅 Member Levels — Track membership tier (Bronze, Silver, Gold).
-
-🧭 Multi-Screen Navigation
-
-Clean tab-based navigation for main sections:
-🚕 Ride | 🧰 All Services | 🌍 Travel | 👤 Profile
+Uses Jetpack Navigation for Compose to manage all screen transitions.
 
 🛠️ Tech Stack & Architecture
-Component	Technology Used
-Language	Kotlin
-UI	Jetpack Compose
-Architecture	MVVM (Model–View–ViewModel)
-DI Framework	Hilt (Dagger-Hilt)
-Navigation	Jetpack Navigation for Compose
-Asynchronous	Kotlin Coroutines & Flow
-Networking	Retrofit 2 + OkHttp 3
-JSON Parsing	Moshi
-Backend	Firebase Authentication (Phone & Google)
-Maps & APIs	Google Maps SDK, Places API, Directions API
-Location Services	FusedLocationProviderClient
+Language: 100% Kotlin
+
+UI: Jetpack Compose
+
+Architecture: MVVM (Model-View-ViewModel)
+
+Dependency Injection: Hilt
+
+Navigation: Jetpack Navigation for Compose
+
+Asynchronous: Kotlin Coroutines & Flow
+
+Networking: Retrofit 2 & OkHttp 3
+
+JSON Parsing: Moshi
+
+Authentication: Firebase Authentication (Phone OTP)
+
+Location & Maps:
+
+Google Maps SDK for Android
+
+Google Places API (Autocomplete & Details)
+
+Google Directions API
+
+FusedLocationProviderClient (for current location)
+
+Local Storage: SharedPreferences (for user session)
+
+Backend:
+
+Firebase (for OTP verification)
+
+Custom Backend API (for user/ride management & pricing)
+
 ⚙️ Setup Instructions
-1️⃣ Clone the Repository
-git clone https://github.com/your-username/INVYU-CAB_PROJECT.git
-cd INVYU-CAB_PROJECT
+To build and run this project, you will need to configure Firebase and Google Maps.
 
-2️⃣ Add Google Maps API Key
+1. Clone the Repository
+Bash
 
-Create a file named local.properties in the root directory:
+git clone https://github.com/your-username/invyu-cab_project.git
+cd invyu-cab_project/INVYUCAB_PROJECT
+2. Configure Firebase
+Go to the Firebase Console and create a new project.
 
-MAPS_API_KEY="YOUR_GOOGLE_MAPS_API_KEY"
+Add an Android app with the package name: com.example.invyucab_project.
 
+Go to the Authentication section and enable the Phone Number sign-in provider.
 
-🗝️ Make sure your key has access to:
+Download the google-services.json file provided by Firebase.
+
+Place the google-services.json file in the INVYUCAB_PROJECT/app/ directory.
+
+3. Configure Google Maps API Key
+Go to the Google Cloud Console and get an API key.
+
+Make sure your key has the following APIs enabled:
 
 Maps SDK for Android
 
@@ -94,43 +121,29 @@ Places API
 
 Directions API
 
-The project automatically reads this key in AndroidManifest.xml and BuildConfig.
+Create a file named local.properties in the root directory of the INVYUCAB_PROJECT (the same directory as settings.gradle.kts).
 
-3️⃣ Configure Firebase
+Add your API key to the local.properties file:
 
-Go to Firebase Console
- → Create a new Android project.
+Properties
 
-Register the app with package name:
+MAPS_API_KEY="YOUR_GOOGLE_MAPS_API_KEY_HERE"
+4. Custom Backend Note
+This project is configured to work with a custom backend API (the base URL is defined in core/di/NetworkModule.kt). This backend handles:
 
-com.example.invyucab_project
+Checking if a user exists (checkUser)
 
+Creating new users (createUser)
 
-Enable Phone Number and Google Sign-In in Firebase Authentication.
+Updating user status (updateUserStatus)
 
-Download the google-services.json file and place it inside:
+Calculating ride prices (getPricing)
 
-INVYU-CAB_PROJECT/app/google-services.json
+Without access to this backend or replacing it with your own, the authentication and ride-pricing features will not function.
 
-4️⃣ Build & Run 🧩
+5. Build & Run
+Open the INVYUCAB_PROJECT directory in Android Studio.
 
-Open the project in Android Studio.
+Let Gradle sync and build the project.
 
-Let Gradle sync dependencies.
-
-Click ▶️ Run on your emulator or physical device.
-
-💡 Future Enhancements
-
-🚕 Real-time driver tracking with Firebase Realtime Database.
-
-💬 In-app chat between driver and rider.
-
-🌎 Multi-language support (English, Hindi, etc.).
-
-💸 Promo codes and referral system.
-
-🧑‍💻 Contributing
-
-Pull requests are welcome! Feel free to open issues for bugs, ideas, or improvements.
-Make sure to follow Kotlin & Jetpack Compose best practices.
+Run the app on an emulator or a physical device.
