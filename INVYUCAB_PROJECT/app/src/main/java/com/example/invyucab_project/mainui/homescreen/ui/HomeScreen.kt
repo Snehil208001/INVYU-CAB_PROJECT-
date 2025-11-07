@@ -125,6 +125,7 @@ fun AppBottomNavigation(navController: NavController) {
     val currentRoute = navBackStackEntry.value?.destination?.route
 
     NavigationBar(
+        modifier = Modifier.navigationBarsPadding(), // ✅ THIS IS THE FIX
         containerColor = Color.White,
         contentColor = Color.Gray,
         tonalElevation = 8.dp

@@ -63,7 +63,8 @@ fun RoleSelectionScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(padding)
+                .navigationBarsPadding(), // ✅ THIS IS THE FIX
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -105,13 +106,15 @@ fun RoleSelectionScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // 5.3: Driver Role
+                // 5.3: Driver Role (Renamed to Pilot)
                 RoleCard(
                     icon = Icons.Default.DirectionsCar,
-                    title = "Driver",
-                    description = "Give rides and earn money.",
-                    enabled = !viewModel.isLoading, // ✅ ADDED
+                    title = "Pilot", // ✅ CHANGED
+                    description = "Pilot rides and earn money.", // ✅ CHANGED
+                    enabled = !viewModel.isLoading,
                     onClick = {
+                        // Note: We still pass "Driver" to the ViewModel
+                        // to avoid breaking the navigation logic.
                         viewModel.onRoleSelected(role = "Driver") { route ->
                             // 5.3.1: Navigate to DriverDetailsScreen
                             navController.navigate(route)
@@ -119,6 +122,8 @@ fun RoleSelectionScreen(
                     }
                 )
 
+                // ✅ REMOVED Admin Role Card
+                /*
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // 5.2: Admin Role
@@ -136,6 +141,7 @@ fun RoleSelectionScreen(
                         }
                     }
                 )
+                */
             }
 
             // ✅ ADDED: Loading Indicator

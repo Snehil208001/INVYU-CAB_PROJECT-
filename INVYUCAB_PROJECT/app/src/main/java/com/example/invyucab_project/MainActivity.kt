@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.SystemBarStyle // ✅ ADD THIS IMPORT
 import com.example.invyucab_project.core.navigations.NavGraph
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
@@ -19,7 +20,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+
+        // ✅✅✅ THIS IS THE FIX ✅✅✅
+        // Force the status bar icons to be dark (for light backgrounds)
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            )
+        )
+        // ✅✅✅ END OF FIX ✅✅✅
 
         // ✅✅✅ START OF MODIFICATION ✅✅✅
         // This logic is now simpler.
