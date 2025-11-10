@@ -3,12 +3,12 @@ package com.example.invyucab_project.domain.usecase
 import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.data.models.CreateUserRequest
 import com.example.invyucab_project.data.models.CreateUserResponse
-import com.example.invyucab_project.data.repository.AppRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
+import com.example.invyucab_project.data.repository.AppRepository
 
 /**
  * This UseCase does ONE thing: It creates a new user.

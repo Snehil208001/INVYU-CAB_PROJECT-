@@ -1,18 +1,18 @@
 package com.example.invyucab_project.mainui.userdetailsscreen.viewmodel
 
-import android.util.Patterns // Import for email validation
+import android.util.Patterns
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModel // ✅ INHERITS FROM standard ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @HiltViewModel
 class UserDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
-) : ViewModel() {
+) : ViewModel() { // ✅ CHANGED
 
     // Retrieve phone and email from navigation arguments
     private val initialPhone: String? = savedStateHandle.get<String>("phone")
@@ -40,7 +40,6 @@ class UserDetailsViewModel @Inject constructor(
 
     var birthday by mutableStateOf("")
         private set
-    // ✅ ADDED: Error state for birthday from previous step
     var birthdayError by mutableStateOf<String?>(null)
         private set
 
@@ -89,7 +88,6 @@ class UserDetailsViewModel @Inject constructor(
     }
 
     // --- Validation Functions ---
-
     private fun validateName(): Boolean {
         if (name.isBlank()) {
             nameError = "Name cannot be empty"
@@ -125,7 +123,6 @@ class UserDetailsViewModel @Inject constructor(
         return true
     }
 
-    // ✅ ADDED: Validation for Birthday from previous step
     private fun validateBirthday(): Boolean {
         if (birthday.isBlank()) {
             birthdayError = "Date of Birth cannot be empty"
@@ -140,13 +137,9 @@ class UserDetailsViewModel @Inject constructor(
         val isNameValid = validateName()
         val isEmailValid = validateEmail()
         val isPhoneValid = validatePhone()
-        val isBirthdayValid = validateBirthday() // ✅ ADDED
+        val isBirthdayValid = validateBirthday()
 
-        // ✅ MODIFIED: Check all validations
         if (isNameValid && isEmailValid && isPhoneValid && isBirthdayValid) {
-            println("Saving user details: Name=$name, Email=$email, Phone=$phone, Gender=$gender, Birthday=$birthday")
-
-            // ✅ MODIFIED: Pass all 5 pieces of data
             onNavigate(phone, email.takeIf { it.isNotBlank() }, name, gender, birthday)
         }
     }

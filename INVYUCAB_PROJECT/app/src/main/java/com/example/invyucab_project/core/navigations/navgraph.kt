@@ -14,7 +14,6 @@ import com.example.invyucab_project.mainui.onboardingscreen.ui.OnboardingScreen
 import com.example.invyucab_project.mainui.otpscreen.ui.OtpScreen
 import com.example.invyucab_project.mainui.profilescreen.ui.ProfileScreen
 import com.example.invyucab_project.mainui.rideselectionscreen.ui.RideSelectionScreen
-// ✅ ADDED Import
 import com.example.invyucab_project.mainui.splashscreen_loggedin.ui.SplashScreenLoggedIn
 import com.example.invyucab_project.mainui.travelscreen.ui.TravelScreen
 import com.example.invyucab_project.mainui.userdetailsscreen.ui.UserDetailsScreen
@@ -28,18 +27,16 @@ import com.example.invyucab_project.mainui.roleselectionscreen.ui.RoleSelectionS
 
 @Composable
 fun NavGraph(
-    startDestination: String // ✅ MODIFIED: Accept startDestination as a parameter
+    startDestination: String
 ) {
     val navController = rememberNavController()
     NavHost(
         navController = navController,
-        startDestination = startDestination // ✅ MODIFIED: Use the parameter here
+        startDestination = startDestination
     ) {
-        // ✅✅✅ NEW COMPOSABLE ADDED ✅✅✅
         composable(Screen.SplashScreenLoggedIn.route) {
             SplashScreenLoggedIn(navController = navController)
         }
-        // ✅✅✅ END OF NEW COMPOSABLE ✅✅✅
 
         composable(Screen.OnboardingScreen.route) {
             OnboardingScreen(navController = navController)
@@ -50,12 +47,20 @@ fun NavGraph(
         composable(
             route = Screen.OtpScreen.route,
             arguments = listOf(
-                navArgument("phone") { type = NavType.StringType },
-                navArgument("isSignUp") { type = NavType.BoolType },
+                // ✅✅✅ THIS IS THE FIX FOR THE "PARCEL" CRASH ✅✅✅
+                navArgument("phone") {
+                    type = NavType.StringType
+                    nullable = true // <-- MUST BE TRUE
+                },
+                navArgument("isSignUp") {
+                    type = NavType.BoolType
+                    defaultValue = false // <-- MUST HAVE A DEFAULT
+                },
+                // ✅✅✅ END OF FIX ✅✅✅
                 navArgument("email") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("name") { type = NavType.StringType; nullable = true; defaultValue = null },
-                navArgument("gender") { type = NavType.StringType; nullable = true; defaultValue = null }, // ✅ ADDED
-                navArgument("dob") { type = NavType.StringType; nullable = true; defaultValue = null }      // ✅ ADDED
+                navArgument("gender") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("dob") { type = NavType.StringType; nullable = true; defaultValue = null }
             )
         ) {
             OtpScreen(navController = navController)
@@ -71,7 +76,6 @@ fun NavGraph(
             UserDetailsScreen(navController = navController)
         }
 
-        // ✅ ADDED: Composable for RoleSelectionScreen
         composable(
             route = Screen.RoleSelectionScreen.route,
             arguments = listOf(
@@ -85,7 +89,6 @@ fun NavGraph(
             RoleSelectionScreen(navController = navController)
         }
 
-        // ✅ ADDED: Composable for DriverDetailsScreen
         composable(
             route = Screen.DriverDetailsScreen.route,
             arguments = listOf(
@@ -99,12 +102,10 @@ fun NavGraph(
             DriverDetailsScreen(navController = navController)
         }
 
-        // ✅ ADDED: Composable for AdminScreen
         composable(Screen.AdminScreen.route) {
             AdminScreen(navController = navController)
         }
 
-        // ✅ ADDED: Composable for DriverScreen
         composable(Screen.DriverScreen.route) {
             DriverScreen(navController = navController)
         }
@@ -134,36 +135,32 @@ fun NavGraph(
             LocationSearchScreen(navController = navController)
         }
 
-        // ✅✅✅ START OF FIX (Problem 3) ✅✅✅
         composable(
             route = Screen.RideSelectionScreen.route,
             arguments = listOf(
-                // Path arguments (from the route string)
-                // Made these nullable to prevent Parcel error if navigation fails
+                // ✅✅✅ THIS IS ALSO PART OF THE "PARCEL" CRASH FIX ✅✅✅
                 navArgument("dropPlaceId") {
                     type = NavType.StringType
-                    nullable = true
+                    nullable = true // <-- MUST BE TRUE
                 },
                 navArgument("dropDescription") {
                     type = NavType.StringType
-                    nullable = true
+                    nullable = true // <-- MUST BE TRUE
                 },
-
-                // Query arguments (from the route string)
+                // ✅✅✅ END OF FIX ✅✅✅
                 navArgument("pickupPlaceId") {
                     type = NavType.StringType
                     nullable = true
-                    defaultValue = "current_location" // Default value if not provided
+                    defaultValue = "current_location"
                 },
                 navArgument("pickupDescription") {
                     type = NavType.StringType
                     nullable = true
-                    defaultValue = "Your Current Location" // Default value if not provided
+                    defaultValue = "Your Current Location"
                 }
             )
         ) {
             RideSelectionScreen(navController = navController)
         }
-        // ✅✅✅ END OF FIX (Problem 3) ✅✅✅
     }
 }

@@ -44,6 +44,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.R
 import com.example.invyucab_project.domain.model.RideOption
+// ✅✅✅ THIS IS THE FIX (Part 1) ✅✅✅
+// Import the new state model
+import com.example.invyucab_project.domain.model.RideSelectionState
 import com.example.invyucab_project.mainui.rideselectionscreen.viewmodel.RideSelectionViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
@@ -67,7 +70,10 @@ fun RideSelectionScreen(
     viewModel: RideSelectionViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val rideOptions by viewModel.rideOptions.collectAsState()
+
+    // ✅✅✅ THIS IS THE FIX (Part 2) ✅✅✅
+    // val rideOptions by viewModel.rideOptions.collectAsState() // <-- REMOVED. It's now inside uiState.
+
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(25.5941, 85.1376), 12f)
     }
@@ -86,14 +92,7 @@ fun RideSelectionScreen(
         }
     }
 
-    // ✅✅✅ START OF FIX (Problem 1) ✅✅✅
-    // The icons are now initialized *inside* the GoogleMap content lambda.
-    // We remove them from here.
-    // val pickupIcon = remember(context) { ... } // <-- REMOVED
-    // val dropIcon = remember(context) { ... } // <-- REMOVED
-    // ✅✅✅ END OF FIX (Problem 1) ✅✅✅
-
-
+    // This LaunchedEffect logic is correct and matches your file
     LaunchedEffect(uiState.pickupLocation, uiState.dropLocation, uiState.routePolyline) {
         val pickup = uiState.pickupLocation
         val drop = uiState.dropLocation
@@ -145,7 +144,6 @@ fun RideSelectionScreen(
                 properties = MapProperties(mapStyleOptions = mapStyleOptions)
             ) {
 
-                // ✅✅✅ START OF FIX (Problem 1) ✅✅✅
                 // Initialize icons here, inside the map's content scope.
                 val pickupIcon = remember(context) {
                     bitmapDescriptorFromDrawable(context, R.drawable.ic_pickup_marker)
@@ -153,7 +151,6 @@ fun RideSelectionScreen(
                 val dropIcon = remember(context) {
                     bitmapDescriptorFromDrawable(context, R.drawable.ic_dropoff_marker)
                 }
-                // ✅✅✅ END OF FIX (Problem 1) ✅✅✅
 
                 if (uiState.routePolyline.isNotEmpty()) {
                     Polyline(
@@ -191,7 +188,9 @@ fun RideSelectionScreen(
             )
 
             RideOptionsBottomSheet(
-                rideOptions = rideOptions
+                // ✅✅✅ THIS IS THE FIX (Part 3) ✅✅✅
+                // Pass the rideOptions list *from* the uiState
+                rideOptions = uiState.rideOptions
             )
 
             if (uiState.isLoading || uiState.isFetchingLocation) {
@@ -337,7 +336,6 @@ fun LocationTopBar(
 @Composable
 fun BoxScope.RideOptionsBottomSheet(rideOptions: List<RideOption>) {
     var selectedRideId by remember { mutableStateOf(1) }
-    // ✅ MODIFIED: Check if prices are still loading
     val areDetailsCalculated = rideOptions.isNotEmpty() && rideOptions.all { !it.isLoadingPrice }
 
     BottomSheetScaffold(
@@ -457,7 +455,6 @@ fun RideOptionItem(ride: RideOption, isSelected: Boolean, onClick: () -> Unit) {
         Spacer(modifier = Modifier.width(16.dp))
 
         Column(horizontalAlignment = Alignment.End) {
-            // ✅✅✅ START OF MODIFIED CODE (Problem 2) ✅✅✅
             if (ride.isLoadingPrice) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
@@ -472,7 +469,6 @@ fun RideOptionItem(ride: RideOption, isSelected: Boolean, onClick: () -> Unit) {
                     color = Color.Black
                 )
             }
-            // ✅✅✅ END OF MODIFIED CODE (Problem 2) ✅✅✅
 
             ride.estimatedDistanceKm?.let {
                 Text(

@@ -1,68 +1,63 @@
 package com.example.invyucab_project.mainui.locationsearchscreen.viewmodel
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.vector.ImageVector // Still needed for Icons
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.invyucab_project.data.api.GoogleMapsApiService
-import com.example.invyucab_project.data.models.Prediction
-// Refactored: UI state classes imported from domain.model
+import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.domain.model.EditingField
 import com.example.invyucab_project.domain.model.SearchLocation
+import com.example.invyucab_project.domain.usecase.GetAutocompletePredictionsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 
-// Note: SearchLocation and EditingField were moved to
-// domain/model/LocationSearchUiState.kt
-
-
 @HiltViewModel
 class LocationSearchViewModel @Inject constructor(
-    private val apiService: GoogleMapsApiService // INJECTED
-) : ViewModel() {
+    private val getAutocompletePredictionsUseCase: GetAutocompletePredictionsUseCase
+) : ViewModel() { // ⬅️ Does not inherit from BaseViewModel, handles its own state
 
-    // ✅ State for pickup field
     var pickupDescription by mutableStateOf("Your Current Location")
         private set
-    var pickupPlaceId by mutableStateOf<String?>("current_location") // Special key for "current"
+    var pickupPlaceId by mutableStateOf<String?>("current_location")
         private set
 
-    // ✅ State for drop field
     var dropDescription by mutableStateOf("")
         private set
     var dropPlaceId by mutableStateOf<String?>(null)
         private set
 
-    // ✅ State for active field
     var activeField by mutableStateOf(EditingField.DROP)
         private set
 
-    // StateFlow for search results
+    // Simple loading/error state for this specific screen
+    var isLoading by mutableStateOf(false)
+        private set
+    var errorMessage by mutableStateOf<String?>(null)
+        private set
+
     private val _searchResults = MutableStateFlow<List<SearchLocation>>(emptyList())
     val searchResults = _searchResults.asStateFlow()
 
-    private var searchJob: Job? =null
-    private var sessionToken: String = UUID.randomUUID().toString() // For Places API billing
+    private var searchJob: Job? = null
+    private var sessionToken: String = UUID.randomUUID().toString()
 
-    // This now updates the *active field's* description and triggers a search.
     fun onQueryChanged(query: String) {
-        searchJob?.cancel() // Cancel previous job
+        searchJob?.cancel()
+        errorMessage = null
 
-        // Update the correct field's text and clear its ID
         if (activeField == EditingField.PICKUP) {
             pickupDescription = query
-            // ✅ MODIFIED: Only clear placeId if the query is not the default text
             if (query != "Your Current Location") pickupPlaceId = null
         } else {
             dropDescription = query
@@ -70,38 +65,46 @@ class LocationSearchViewModel @Inject constructor(
         }
 
         if (query.length < 3) {
-            _searchResults.value = emptyList() // Clear results if query is too short
+            _searchResults.value = emptyList()
             return
         }
 
-        // Start a new coroutine with a 300ms delay (debounce)
         searchJob = viewModelScope.launch {
-            delay(300)
-            try {
-                val response = apiService.getPlaceAutocomplete(query, sessionToken)
-                if (response.status == "OK") {
-                    _searchResults.value = response.predictions.map { it.toSearchLocation() }
+            delay(300) // Debounce
+
+            getAutocompletePredictionsUseCase.invoke(query, sessionToken).onEach { result ->
+                when (result) {
+                    is Resource.Loading -> isLoading = true
+                    is Resource.Success -> {
+                        isLoading = false
+                        _searchResults.value = result.data?.map {
+                            SearchLocation(
+                                name = it.structuredFormatting.mainText,
+                                address = it.structuredFormatting.secondaryText,
+                                icon = Icons.Default.LocationOn,
+                                placeId = it.placeId
+                            )
+                        } ?: emptyList()
+                    }
+                    is Resource.Error -> {
+                        isLoading = false
+                        errorMessage = result.message
+                    }
                 }
-            } catch (e: Exception) {
-                // TODO: Handle error
-                e.printStackTrace()
-            }
+            }.launchIn(viewModelScope)
         }
     }
 
-    // ✅ Function to set the active field
     fun onFieldActivated(field: EditingField) {
         activeField = field
-        // When activating "Current Location", clear text to start a new search
         if (field == EditingField.PICKUP && pickupPlaceId == "current_location") {
             pickupDescription = ""
             pickupPlaceId = null
         }
-        _searchResults.value = emptyList() // Clear results when switching
+        _searchResults.value = emptyList()
+        errorMessage = null
     }
 
-    // ✅✅✅ NEW FUNCTION ✅✅✅
-    // This is the fix you requested.
     fun onFieldFocusLost(field: EditingField) {
         if (field == EditingField.PICKUP) {
             if (pickupDescription.isBlank()) {
@@ -111,26 +114,22 @@ class LocationSearchViewModel @Inject constructor(
         }
     }
 
-    // ✅ Function to handle when a search result is clicked
     fun onSearchResultClicked(location: SearchLocation) {
         if (activeField == EditingField.PICKUP) {
             pickupDescription = location.name
             pickupPlaceId = location.placeId
-            // Move focus to DROP field next
             activeField = EditingField.DROP
         } else {
             dropDescription = location.name
             dropPlaceId = location.placeId
-            // Move focus to PICKUP field if it's not set
             if (pickupPlaceId == null) {
                 activeField = EditingField.PICKUP
             }
         }
-        _searchResults.value = emptyList() // Clear results
-        resetSessionToken() // Reset token after a selection
+        _searchResults.value = emptyList()
+        resetSessionToken()
     }
 
-    // ✅ New function to clear text from a field
     fun onClearField(field: EditingField) {
         if (field == EditingField.PICKUP) {
             pickupDescription = ""
@@ -140,23 +139,10 @@ class LocationSearchViewModel @Inject constructor(
             dropPlaceId = null
         }
         _searchResults.value = emptyList()
+        errorMessage = null
     }
 
-
-    // Helper function to reset the session token when needed
     fun resetSessionToken() {
         sessionToken = UUID.randomUUID().toString()
     }
-}
-
-// Helper to convert API response to our UI model
-// This function stays in the ViewModel file as it's
-// responsible for transforming data (Prediction) to UI state (SearchLocation).
-fun Prediction.toSearchLocation(): SearchLocation {
-    return SearchLocation(
-        name = this.structuredFormatting.mainText,
-        address = this.structuredFormatting.secondaryText,
-        icon = Icons.Default.LocationOn, // Use a standard icon for results
-        placeId = this.placeId
-    )
 }

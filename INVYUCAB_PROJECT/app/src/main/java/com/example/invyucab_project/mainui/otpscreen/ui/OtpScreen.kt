@@ -30,7 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.invyucab_project.core.navigations.Screen // ✅ Import Screen
+import com.example.invyucab_project.core.base.BaseViewModel
+import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.otpscreen.viewmodel.OtpViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
@@ -41,11 +42,32 @@ fun OtpScreen(
     navController: NavController,
     viewModel: OtpViewModel = hiltViewModel()
 ) {
-    // ✅ Get the activity from context
     val activity = LocalContext.current as Activity
     val keyboardController = LocalSoftwareKeyboardController.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    // ✅ Send the OTP as soon as the screen is composed
+    // --- Event Listener for Navigation ---
+    LaunchedEffect(key1 = true) {
+        viewModel.eventFlow.collect { event ->
+            when (event) {
+                is BaseViewModel.UiEvent.Navigate -> {
+                    navController.navigate(event.route) {
+                        // Clear OTP screen from back stack
+                        popUpTo(Screen.OtpScreen.route) { inclusive = true }
+                        // If going to Home, clear everything back to Auth
+                        if (event.route == Screen.HomeScreen.route) {
+                            popUpTo(Screen.AuthScreen.route) { inclusive = true }
+                        }
+                    }
+                }
+                is BaseViewModel.UiEvent.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(event.message)
+                }
+            }
+        }
+    }
+
+    // Send OTP on first load
     LaunchedEffect(Unit) {
         viewModel.sendOtp(activity)
     }
@@ -66,9 +88,10 @@ fun OtpScreen(
                 )
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = CabVeryLightMint
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize()) { // ✅ Box for loading overlay
+        Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -83,7 +106,7 @@ fun OtpScreen(
                     color = Color.Gray
                 )
                 Text(
-                    "Sent to +91 ${viewModel.fullPhoneNumber}", // ✅ Added +91
+                    "Sent to +91 ${viewModel.fullPhoneNumber}",
                     fontSize = 14.sp,
                     color = Color.Gray,
                     modifier = Modifier.padding(top = 8.dp)
@@ -95,10 +118,11 @@ fun OtpScreen(
                     keyboardController = keyboardController
                 )
 
-                if (viewModel.error != null) {
+                // Error Message
+                if (viewModel.apiError.value != null) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = viewModel.error!!,
+                        text = viewModel.apiError.value!!,
                         color = MaterialTheme.colorScheme.error,
                         fontSize = 14.sp,
                         textAlign = TextAlign.Center
@@ -106,48 +130,17 @@ fun OtpScreen(
                 }
 
                 Spacer(modifier = Modifier.height(40.dp))
+
+                // Verify Button
                 Button(
-                    onClick = {
-                        // ✅ MODIFIED: Call the renamed 'onVerifyClicked' function
-                        viewModel.onVerifyClicked(
-                            // Path 1: (Sign Up) Navigate to Role Selection
-                            onNavigateToRoleSelection = { phone, email, name, gender, dob ->
-                                navController.navigate(
-                                    Screen.RoleSelectionScreen.createRoute(
-                                        phone = phone,
-                                        email = email,
-                                        name = name,
-                                        gender = gender,
-                                        dob = dob
-                                    )
-                                ) {
-                                    // ✅✅✅ THIS IS THE FIX ✅✅✅
-                                    // This removes OtpScreen from the back stack,
-                                    // so pressing back on RoleSelectionScreen
-                                    // will go to UserDetailsScreen.
-                                    popUpTo(Screen.OtpScreen.route) {
-                                        inclusive = true
-                                    }
-                                }
-                            },
-                            // Path 2: (Sign In) Navigate to Home
-                            onNavigateToHome = {
-                                navController.navigate(Screen.HomeScreen.route) {
-                                    // This is correct for Sign-In, it
-                                    // clears the whole auth flow.
-                                    popUpTo(Screen.AuthScreen.route) { inclusive = true }
-                                }
-                            }
-                        )
-                    },
+                    onClick = { viewModel.onVerifyClicked() }, // ✅ FIXED: No parameters here
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
-                    enabled = viewModel.otp.length == 6 && !viewModel.isLoading // ✅ Check for 6 digits
+                    enabled = viewModel.otp.length == 6 && !viewModel.isLoading.value
                 ) {
-                    // ✅ MODIFIED: Show loader or text
-                    if (viewModel.isLoading) {
+                    if (viewModel.isLoading.value) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
                             color = Color.White,
@@ -167,7 +160,7 @@ fun OtpScreen(
 fun OtpTextField(
     modifier: Modifier = Modifier,
     otpText: String,
-    otpCount: Int = 6, // ✅ Changed to 6
+    otpCount: Int = 6,
     onOtpTextChange: (String) -> Unit,
     keyboardController: androidx.compose.ui.platform.SoftwareKeyboardController?
 ) {
@@ -183,7 +176,6 @@ fun OtpTextField(
         onValueChange = {
             if (it.text.length <= otpCount) {
                 onOtpTextChange.invoke(it.text)
-                // ✅ ADDED: Hide keyboard when 6 digits are entered
                 if (it.text.length == otpCount) {
                     keyboardController?.hide()
                 }
@@ -200,7 +192,7 @@ fun OtpTextField(
                         isFocused = isFocused
                     )
                     if (index < otpCount - 1) {
-                        Spacer(modifier = Modifier.width(12.dp)) // ✅ Reduced space
+                        Spacer(modifier = Modifier.width(12.dp))
                     }
                 }
             }
@@ -216,7 +208,7 @@ private fun OtpChar(
     val borderColor = if (isFocused) CabMintGreen else Color.LightGray
     Box(
         modifier = Modifier
-            .size(48.dp) // ✅ Reduced size
+            .size(48.dp)
             .border(
                 width = 1.dp,
                 color = borderColor,

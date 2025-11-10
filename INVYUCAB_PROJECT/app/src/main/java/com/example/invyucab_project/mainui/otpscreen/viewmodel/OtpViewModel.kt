@@ -6,17 +6,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.invyucab_project.data.api.CustomApiService
-import com.example.invyucab_project.data.models.UpdateUserStatusRequest
-import com.example.invyucab_project.data.preferences.UserPreferencesRepository // ✅ ADDED Import
+import com.example.invyucab_project.core.base.BaseViewModel
+import com.example.invyucab_project.core.common.Resource
+import com.example.invyucab_project.core.navigations.Screen
+import com.example.invyucab_project.domain.usecase.ActivateUserUseCase
+import com.example.invyucab_project.domain.usecase.SaveUserStatusUseCase
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.concurrent.TimeUnit
@@ -25,10 +28,10 @@ import javax.inject.Inject
 @HiltViewModel
 class OtpViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val customApiService: CustomApiService, // ✅ INJECTED
-    private val userPreferencesRepository: UserPreferencesRepository, // ✅ INJECTED
+    private val activateUserUseCase: ActivateUserUseCase,
+    private val saveUserStatusUseCase: SaveUserStatusUseCase,
     savedStateHandle: SavedStateHandle
-) : ViewModel() {
+) : BaseViewModel() {
 
     private val TAG = "OtpViewModel"
 
@@ -43,50 +46,34 @@ class OtpViewModel @Inject constructor(
     // --- UI State ---
     var otp by mutableStateOf("")
         private set
-    var isLoading by mutableStateOf(false)
-        private set
-    var error by mutableStateOf<String?>(null)
-        private set
 
     // --- Firebase Internal State ---
     private var verificationId: String? by mutableStateOf(null)
     private lateinit var callbacks: PhoneAuthProvider.OnVerificationStateChangedCallbacks
 
     // --- State for Auto-Verification ---
-    // This will hold the nav callbacks if auto-verify finishes
-    private var pendingNavCallbacks: Pair<((String, String?, String?, String?, String?) -> Unit), (() -> Unit)>? = null
+    private var isAutoVerificationRunning = false
 
     init {
         callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
             override fun onCodeSent(id: String, token: PhoneAuthProvider.ForceResendingToken) {
                 Log.d(TAG, "onCodeSent: $id")
-                isLoading = false
+                _isLoading.value = false
                 verificationId = id
-                error = null
+                _apiError.value = null
             }
 
             override fun onVerificationFailed(e: FirebaseException) {
                 Log.e(TAG, "onVerificationFailed: ", e)
-                isLoading = false
-                error = e.message ?: "Verification failed. Please try again."
+                _isLoading.value = false
+                _apiError.value = e.message ?: "Verification failed. Please try again."
             }
 
-            // This is for auto-retrieval
             override fun onVerificationCompleted(credential: PhoneAuthCredential) {
                 Log.d(TAG, "onVerificationCompleted: Auto-retrieval success.")
-                otp = credential.smsCode ?: "" // Pre-fill the OTP box
-                isLoading = true
-
-                // If the nav callbacks are ready, sign in automatically
-                pendingNavCallbacks?.let { (onNavToRole, onNavToHome) ->
-                    Log.d(TAG, "Auto-retrieving and navigating...")
-                    signInWithCredential(credential, onNavToRole, onNavToHome)
-                } ?: run {
-                    // Otherwise, just pre-fill and wait for user to click
-                    Log.d(TAG, "Auto-retrieval complete. Waiting for user to tap Verify.")
-                    isLoading = false
-                    error = "Auto-retrieval complete. Please tap Verify."
-                }
+                otp = credential.smsCode ?: ""
+                isAutoVerificationRunning = true
+                signInWithCredential(credential) // Attempt auto-sign-in
             }
         }
     }
@@ -94,17 +81,17 @@ class OtpViewModel @Inject constructor(
     fun onOtpChange(value: String) {
         if (value.length <= 6 && value.all { it.isDigit() }) {
             otp = value
-            error = null
+            _apiError.value = null
         }
     }
 
     fun sendOtp(activity: Activity) {
         if (fullPhoneNumber.isEmpty()) {
-            error = "Phone number is missing."
+            _apiError.value = "Phone number is missing."
             return
         }
-        isLoading = true
-        error = null
+        _isLoading.value = true
+        _apiError.value = null
         val options = PhoneAuthOptions.newBuilder(auth)
             .setPhoneNumber("+91$fullPhoneNumber")
             .setTimeout(60L, TimeUnit.SECONDS)
@@ -114,44 +101,27 @@ class OtpViewModel @Inject constructor(
         PhoneAuthProvider.verifyPhoneNumber(options)
     }
 
-    /**
-     * ✅ RENAMED: This is the one and only verify function for the UI to call.
-     */
-    fun onVerifyClicked(
-        onNavigateToRoleSelection: (phone: String, email: String?, name: String?, gender: String?, dob: String?) -> Unit,
-        onNavigateToHome: () -> Unit
-    ) {
-        // Store the nav callbacks in case auto-verification is running
-        pendingNavCallbacks = Pair(onNavigateToRoleSelection, onNavigateToHome)
-
+    fun onVerifyClicked() {
         if (otp.length != 6) {
-            error = "OTP must be 6 digits"
+            _apiError.value = "OTP must be 6 digits"
             return
         }
         val currentVerificationId = verificationId
         if (currentVerificationId == null) {
-            error = "Verification process not started. Please try again."
+            _apiError.value = "Verification process not started. Please try again."
             return
         }
 
-        isLoading = true
-        error = null
+        // If auto-verification is already running, don't do it again
+        if (isAutoVerificationRunning) return
+
+        _isLoading.value = true
+        _apiError.value = null
         val credential = PhoneAuthProvider.getCredential(currentVerificationId, otp)
-        signInWithCredential(credential, onNavigateToRoleSelection, onNavigateToHome)
+        signInWithCredential(credential)
     }
 
-    // ✅✅✅ START OF MODIFICATION ✅✅✅
-    /**
-     * This function now correctly handles the logic for Sign-Up vs Sign-In.
-     * - Sign-Up: Just verifies with Firebase and navigates to Role Selection.
-     * - Sign-In: Verifies with Firebase, updates status on your backend,
-     * SAVES TO PREFS, and navigates to Home.
-     */
-    private fun signInWithCredential(
-        credential: PhoneAuthCredential,
-        onNavigateToRoleSelection: (phone: String, email: String?, name: String?, gender: String?, dob: String?) -> Unit,
-        onNavigateToHome: () -> Unit
-    ) {
+    private fun signInWithCredential(credential: PhoneAuthCredential) {
         viewModelScope.launch {
             try {
                 // Step 1: Verify OTP with Firebase
@@ -159,45 +129,57 @@ class OtpViewModel @Inject constructor(
                 Log.d(TAG, "Firebase sign-in successful.")
 
                 // Step 2: Navigate OR Update Status
-                isLoading = false
                 if (isSignUp) {
                     // THIS IS SIGN-UP
-                    // DO NOT call any API. The user will be created in the
-                    // RoleSelectionScreen, which is the next step.
+                    _isLoading.value = false
                     Log.d(TAG, "Sign-up flow: Navigating to Role Selection.")
-                    onNavigateToRoleSelection(fullPhoneNumber, email, name, gender, dob)
+                    sendEvent(UiEvent.Navigate(
+                        Screen.RoleSelectionScreen.createRoute(
+                            phone = fullPhoneNumber,
+                            email = email,
+                            name = name,
+                            gender = gender,
+                            dob = dob
+                        )
+                    ))
                 } else {
                     // THIS IS SIGN-IN
-                    // The user already exists, so we update their status to 'active'.
                     Log.d(TAG, "Sign-in flow: Updating user status to active.")
-                    val statusRequest = UpdateUserStatusRequest(
-                        phoneNumber = "+91$fullPhoneNumber",
-                        status = "active",
-                        email = null // Not needed for sign-in
-                    )
-                    customApiService.updateUserStatus(statusRequest)
-                    Log.d(TAG, "Custom API user status updated to active.")
-
-                    // ✅✅✅ NEW: Save status to SharedPreferences ✅✅✅
-                    userPreferencesRepository.saveUserStatus("active")
-                    Log.d(TAG, "User status 'active' saved to SharedPreferences.")
-                    // ✅✅✅ END OF NEW CODE ✅✅✅
-
-                    // Navigate to Home
-                    onNavigateToHome()
+                    activateUser()
                 }
 
             } catch (e: Exception) {
                 Log.e(TAG, "signInWithCredential failed: ", e)
-                isLoading = false
-                if (e is FirebaseException) {
-                    error = "Verification failed. Please check the OTP."
-                } else {
-                    // This error is more critical as it's our backend (on Sign-In)
-                    error = "Failed to sign in: ${e.message}"
-                }
+                _isLoading.value = false
+                _apiError.value = "Verification failed. Please check the OTP."
+                isAutoVerificationRunning = false // Reset auto-verify flag on failure
             }
         }
     }
-    // ✅✅✅ END OF MODIFICATION ✅✅✅
+
+    private fun activateUser() {
+        activateUserUseCase.invoke(fullPhoneNumber, email).onEach { result ->
+            when (result) {
+                is Resource.Loading -> {
+                    _isLoading.value = true
+                }
+                is Resource.Success -> {
+                    // Backend API call successful, now save to local prefs
+                    saveUserStatusUseCase.invoke("active")
+                    Log.d(TAG, "User status 'active' saved to SharedPreferences.")
+
+                    _isLoading.value = false
+                    isAutoVerificationRunning = false
+
+                    // ✅✅✅ FIX: Navigate to HomeScreen after success ✅✅✅
+                    sendEvent(UiEvent.Navigate(Screen.HomeScreen.route))
+                }
+                is Resource.Error -> {
+                    _isLoading.value = false
+                    _apiError.value = result.message
+                    isAutoVerificationRunning = false
+                }
+            }
+        }.launchIn(viewModelScope)
+    }
 }
