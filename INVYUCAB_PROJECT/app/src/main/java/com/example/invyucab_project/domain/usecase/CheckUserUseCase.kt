@@ -1,57 +1,49 @@
 package com.example.invyucab_project.domain.usecase
 
+import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.data.repository.AppRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import retrofit2.HttpException
+import java.io.IOException
 import javax.inject.Inject
 
 /**
  * This UseCase does ONE thing: It checks if a user exists.
- * It contains the business logic for that check, such as:
- * - Prepending "+91" to the phone number.
- * - Interpreting what a 404 error means (in this case, "Does Not Exist").
+ * It returns a Flow that emits Loading, then Success or Error.
  */
 class CheckUserUseCase @Inject constructor(
     private val repository: AppRepository
 ) {
 
-    /**
-     * The 'invoke' operator lets us call this class as if it's a function.
-     * It returns a Kotlin `Result` object, which cleanly wraps
-     * success (with a `UserCheckStatus`) or failure (with an `Exception`).
-     */
-    suspend operator fun invoke(phoneNumber: String): Result<UserCheckStatus> {
-        return try {
-            // Business logic: Add country code
-            val fullPhone = "+91$phoneNumber"
+    operator fun invoke(phoneNumber: String): Flow<Resource<UserCheckStatus>> = flow {
+        try {
+            emit(Resource.Loading()) // 1. Emit loading
 
-            // Call the repository
+            val fullPhone = "+91$phoneNumber"
             val response = repository.checkUser(fullPhone)
 
-            // Business logic: Interpret the response
             if (response.isSuccessful && response.body()?.existingUser != null) {
-                Result.success(UserCheckStatus.EXISTS)
+                emit(Resource.Success(UserCheckStatus.EXISTS)) // 2. Emit success
             } else {
-                Result.success(UserCheckStatus.DOES_NOT_EXIST)
+                emit(Resource.Success(UserCheckStatus.DOES_NOT_EXIST)) // 2. Emit success
             }
 
         } catch (e: HttpException) {
-            // Business logic: A 404 error from this API means the user does not exist.
             if (e.code() == 404) {
-                Result.success(UserCheckStatus.DOES_NOT_EXIST)
+                // 404 is an expected "success" for sign-up
+                emit(Resource.Success(UserCheckStatus.DOES_NOT_EXIST))
             } else {
-                // Any other HTTP error is a real failure.
-                Result.failure(e)
+                emit(Resource.Error("Server error: ${e.message()}. Please try again."))
             }
+        } catch (e: IOException) {
+            emit(Resource.Error("Network error. Please check your connection."))
         } catch (e: Exception) {
-            // General network errors, etc.
-            Result.failure(e)
+            emit(Resource.Error("An unknown error occurred."))
         }
     }
 }
 
-/**
- * A simple, clear enum to represent the result of this UseCase.
- */
 enum class UserCheckStatus {
     EXISTS,
     DOES_NOT_EXIST

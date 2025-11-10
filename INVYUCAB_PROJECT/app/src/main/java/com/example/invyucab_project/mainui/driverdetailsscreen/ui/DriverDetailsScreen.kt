@@ -1,12 +1,9 @@
 package com.example.invyucab_project.mainui.driverdetailsscreen.ui
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -21,10 +18,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.invyucab_project.core.base.BaseViewModel // ✅ IMPORTED
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.driverdetailsscreen.viewmodel.DriverDetailsViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
-import com.example.invyucab_project.ui.theme.CabVeryLightMint
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,256 +30,156 @@ fun DriverDetailsScreen(
     viewModel: DriverDetailsViewModel = hiltViewModel()
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    val isLoading = viewModel.isLoading.value // ✅ Get state from BaseViewModel
+    val apiError = viewModel.apiError.value   // ✅ Get state from BaseViewModel
 
-    // ✅ ADDED: Show snackbar on API error
-    LaunchedEffect(viewModel.apiError) {
-        viewModel.apiError?.let {
+    // --- Event Collection ---
+    LaunchedEffect(key1 = true) {
+        viewModel.eventFlow.collect { event ->
+            when (event) {
+                is BaseViewModel.UiEvent.Navigate -> {
+                    // Navigate to DriverScreen and clear the auth stack
+                    navController.navigate(event.route) {
+                        popUpTo(Screen.AuthScreen.route) { inclusive = true }
+                    }
+                }
+                is BaseViewModel.UiEvent.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(
+                        message = event.message,
+                        duration = SnackbarDuration.Short
+                    )
+                }
+            }
+        }
+    }
+
+    // --- Error Handling ---
+    LaunchedEffect(apiError) {
+        if (apiError != null) {
             snackbarHostState.showSnackbar(
-                message = it,
+                message = apiError,
                 duration = SnackbarDuration.Short
             )
+            viewModel.clearApiError()
         }
     }
 
     Scaffold(
-        containerColor = CabVeryLightMint,
-        snackbarHost = { SnackbarHost(snackbarHostState) }, // ✅ ADDED
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Driver Registration", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+                title = { Text("Driver Details") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = CabMintGreen,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    titleContentColor = Color.White
                 )
             )
         }
     ) { padding ->
-        // ✅ ADDED: Box for loading indicator
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            contentAlignment = Alignment.Center
+                .padding(padding)
         ) {
-            LazyColumn(
+            Column(
                 modifier = Modifier
-                    .fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                item {
-                    Text(
-                        "Please provide your details to register as a driver.",
-                        fontSize = 16.sp,
-                        color = Color.Gray
-                    )
-                }
+                Text(
+                    "Almost there! Just a few more details.",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(24.dp))
 
-                // 5.3.3: Auto-filled fields
-                item {
-                    OutlinedTextField(
-                        value = viewModel.name,
-                        onValueChange = {},
-                        label = { Text("Full Name") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = false,
-                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            disabledContainerColor = Color.White,
-                            disabledTextColor = Color.Black.copy(alpha = 0.8f),
-                            disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
-                            disabledLeadingIconColor = Color.Black.copy(alpha = 0.8f),
-                            disabledLabelColor = Color.Gray
-                        )
-                    )
-                }
-                item {
-                    OutlinedTextField(
-                        value = viewModel.email,
-                        onValueChange = {},
-                        label = { Text("Email") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = false,
-                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            disabledContainerColor = Color.White,
-                            disabledTextColor = Color.Black.copy(alpha = 0.8f),
-                            disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
-                            disabledLeadingIconColor = Color.Black.copy(alpha = 0.8f),
-                            disabledLabelColor = Color.Gray
-                        )
-                    )
-                }
-                item {
-                    OutlinedTextField(
-                        value = viewModel.phone,
-                        onValueChange = {},
-                        label = { Text("Phone") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = false,
-                        leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            disabledContainerColor = Color.White,
-                            disabledTextColor = Color.Black.copy(alpha = 0.8f),
-                            disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
-                            disabledLeadingIconColor = Color.Black.copy(alpha = 0.8f),
-                            disabledLabelColor = Color.Gray
-                        )
-                    )
-                }
-                item {
-                    OutlinedTextField(
-                        value = viewModel.gender,
-                        onValueChange = {},
-                        label = { Text("Gender") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = false,
-                        leadingIcon = { Icon(Icons.Default.Wc, contentDescription = null) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            disabledContainerColor = Color.White,
-                            disabledTextColor = Color.Black.copy(alpha = 0.8f),
-                            disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
-                            disabledLeadingIconColor = Color.Black.copy(alpha = 0.8f),
-                            disabledLabelColor = Color.Gray
-                        )
-                    )
-                }
-                item {
-                    OutlinedTextField(
-                        value = viewModel.rawDob, // ✅ Show raw DOB
-                        onValueChange = {},
-                        label = { Text("Date of Birth") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = false,
-                        leadingIcon = { Icon(Icons.Default.Cake, contentDescription = null) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            disabledContainerColor = Color.White,
-                            disabledTextColor = Color.Black.copy(alpha = 0.8f),
-                            disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
-                            disabledLeadingIconColor = Color.Black.copy(alpha = 0.8f),
-                            disabledLabelColor = Color.Gray
-                        )
-                    )
-                }
+                // --- Form Fields ---
+                DriverTextField(
+                    value = viewModel.aadhaarNumber,
+                    onValueChange = viewModel::onAadhaarChange,
+                    label = "Aadhaar Number",
+                    keyboardType = KeyboardType.Number,
+                    isError = viewModel.aadhaarError != null,
+                    errorText = viewModel.aadhaarError,
+                    readOnly = isLoading
+                )
+                DriverTextField(
+                    value = viewModel.licenceNumber,
+                    onValueChange = viewModel::onLicenceChange,
+                    label = "Driving Licence Number",
+                    capitalization = KeyboardCapitalization.Characters,
+                    isError = viewModel.licenceError != null,
+                    errorText = viewModel.licenceError,
+                    readOnly = isLoading
+                )
+                DriverTextField(
+                    value = viewModel.vehicleNumber,
+                    onValueChange = viewModel::onVehicleChange,
+                    label = "Vehicle Registration Number",
+                    capitalization = KeyboardCapitalization.Characters,
+                    isError = viewModel.vehicleError != null,
+                    errorText = viewModel.vehicleError,
+                    readOnly = isLoading
+                )
 
-                item { Divider(modifier = Modifier.padding(vertical = 16.dp)) }
+                Spacer(modifier = Modifier.height(32.dp))
 
-                // 5.3.4: New driver-specific fields
-                item {
-                    OutlinedTextField(
-                        value = viewModel.aadhaarNumber,
-                        onValueChange = viewModel::onAadhaarChange,
-                        label = { Text("Aadhaar Number") },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(8.dp),
-                        singleLine = true,
-                        readOnly = viewModel.isLoading, // ✅ ADDED
-                        isError = viewModel.aadhaarError != null,
-                        supportingText = {
-                            if (viewModel.aadhaarError != null) {
-                                Text(viewModel.aadhaarError!!, color = MaterialTheme.colorScheme.error)
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            errorContainerColor = Color.White
+                Button(
+                    onClick = {
+                        viewModel.onSubmitClicked() // ✅ ViewModel handles navigation
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    enabled = !isLoading,
+                    colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen)
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 3.dp
                         )
-                    )
-                }
-                item {
-                    OutlinedTextField(
-                        value = viewModel.licenceNumber,
-                        onValueChange = viewModel::onLicenceChange,
-                        label = { Text("Licence Number") },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
-                        shape = RoundedCornerShape(8.dp),
-                        singleLine = true,
-                        readOnly = viewModel.isLoading, // ✅ ADDED
-                        isError = viewModel.licenceError != null,
-                        supportingText = {
-                            if (viewModel.licenceError != null) {
-                                Text(viewModel.licenceError!!, color = MaterialTheme.colorScheme.error)
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            errorContainerColor = Color.White
-                        )
-                    )
-                }
-                item {
-                    OutlinedTextField(
-                        value = viewModel.vehicleNumber,
-                        onValueChange = viewModel::onVehicleChange,
-                        label = { Text("Vehicle Number (e.g., BR01AB1234)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
-                        shape = RoundedCornerShape(8.dp),
-                        singleLine = true,
-                        readOnly = viewModel.isLoading, // ✅ ADDED
-                        isError = viewModel.vehicleError != null,
-                        supportingText = {
-                            if (viewModel.vehicleError != null) {
-                                Text(viewModel.vehicleError!!, color = MaterialTheme.colorScheme.error)
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            errorContainerColor = Color.White
-                        )
-                    )
-                }
-
-                // 5.3.5: Submit Button
-                item {
-                    Button(
-                        onClick = {
-                            viewModel.onSubmitClicked {
-                                // 5.3.6: Navigate to DriverScreen
-                                navController.navigate(Screen.DriverScreen.route) {
-                                    // 5.3.7: Registration is complete, clear auth stack
-                                    popUpTo(Screen.AuthScreen.route) { inclusive = true }
-                                }
-                            }
-                        },
-                        enabled = !viewModel.isLoading, // ✅ ADDED
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 24.dp)
-                            .height(50.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen)
-                    ) {
-                        // ✅ MODIFIED: Show loader or text
-                        if (viewModel.isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = Color.White,
-                                strokeWidth = 3.dp
-                            )
-                        } else {
-                            Text("Submit", fontSize = 16.sp, color = Color.White)
-                        }
+                    } else {
+                        Text("Submit & Start Driving", fontSize = 16.sp, color = Color.White)
                     }
                 }
             }
-
-            // ✅ MODIFIED: Removed the central loading indicator
-            /*
-            if (viewModel.isLoading) {
-                CircularProgressIndicator(color = CabMintGreen)
-            }
-            */
         }
     }
+}
+
+@Composable
+fun DriverTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
+    isError: Boolean,
+    errorText: String?,
+    readOnly: Boolean
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = keyboardType,
+            capitalization = capitalization
+        ),
+        singleLine = true,
+        readOnly = readOnly,
+        isError = isError,
+        supportingText = {
+            if (isError) {
+                Text(errorText ?: "", color = MaterialTheme.colorScheme.error)
+            }
+        }
+    )
 }

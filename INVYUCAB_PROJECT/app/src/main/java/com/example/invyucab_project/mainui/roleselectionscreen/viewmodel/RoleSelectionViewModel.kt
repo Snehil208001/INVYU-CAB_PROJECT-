@@ -1,17 +1,17 @@
 package com.example.invyucab_project.mainui.roleselectionscreen.viewmodel
 
 import android.util.Log
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.invyucab_project.core.base.BaseViewModel
+import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.core.navigations.Screen
-import com.example.invyucab_project.data.api.CustomApiService
 import com.example.invyucab_project.data.models.CreateUserRequest
-import com.example.invyucab_project.data.preferences.UserPreferencesRepository // ✅ ADDED Import
+import com.example.invyucab_project.domain.usecase.CreateUserUseCase
+import com.example.invyucab_project.domain.usecase.SaveUserStatusUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -21,10 +21,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RoleSelectionViewModel @Inject constructor(
-    private val customApiService: CustomApiService, // ✅ INJECTED
-    private val userPreferencesRepository: UserPreferencesRepository, // ✅ INJECTED
+    private val createUserUseCase: CreateUserUseCase,
+    private val saveUserStatusUseCase: SaveUserStatusUseCase,
     savedStateHandle: SavedStateHandle
-) : ViewModel() {
+) : BaseViewModel() {
 
     // All verified user details are received
     val phone: String? = savedStateHandle.get<String>("phone")
@@ -40,17 +40,10 @@ class RoleSelectionViewModel @Inject constructor(
         savedStateHandle.get<String>("dob")
     }
 
-    // ✅ ADDED: State for loading and errors
-    var isLoading by mutableStateOf(false)
-        private set
-    var apiError by mutableStateOf<String?>(null)
-        private set
-
     init {
         Log.d("RoleSelectionViewModel", "Received data: Phone=$phone, Email=$email, Name=$name, Gender=$gender, DOB=$rawDob")
     }
 
-    // ✅ ADDED: Helper to convert date format
     private fun formatDobForApi(dobString: String?): String? {
         if (dobString.isNullOrBlank()) return null
         return try {
@@ -60,21 +53,16 @@ class RoleSelectionViewModel @Inject constructor(
             formatter.format(date!!)
         } catch (e: Exception) {
             Log.e("RoleSelectionViewModel", "Could not parse date: $dobString", e)
-            null // Return null if parsing fails
+            null
         }
     }
 
-    // ✅ MODIFIED: Calls createUser API only for Rider/Admin
-    fun onRoleSelected(
-        role: String,
-        onNavigate: (route: String) -> Unit
-    ) {
-        // Clear any previous error
-        apiError = null
+    fun onRoleSelected(role: String) {
+        _apiError.value = null
 
         // For Driver, we navigate first to get more details
         if (role == "Driver") {
-            onNavigate(
+            sendEvent(UiEvent.Navigate(
                 Screen.DriverDetailsScreen.createRoute(
                     phone = phone,
                     email = email,
@@ -82,49 +70,61 @@ class RoleSelectionViewModel @Inject constructor(
                     gender = gender,
                     dob = rawDob
                 )
-            )
+            ))
             return
         }
 
         // For Rider or Admin, create the user now
-        viewModelScope.launch {
-            isLoading = true
-            Log.d("RoleSelectionViewModel", "User selected role: $role. Saving...")
-            try {
-                val formattedDob = formatDobForApi(rawDob)
-                val request = CreateUserRequest(
-                    fullName = name ?: "User",
-                    phoneNumber = "+91$phone",
-                    userRole = role.lowercase(), // "rider" or "admin"
-                    profilePhotoUrl = null,
-                    gender = gender?.lowercase(),
-                    dob = formattedDob,
-                    licenseNumber = null,
-                    vehicleId = null,
-                    isVerified = true, // They just verified with OTP
-                    status = "active"  // They just verified with OTP
-                )
+        Log.d("RoleSelectionViewModel", "User selected role: $role. Saving...")
 
-                customApiService.createUser(request)
-                Log.d("RoleSelectionViewModel", "$role user created successfully.")
+        val formattedDob = formatDobForApi(rawDob)
 
-                // ✅✅✅ NEW: Save status to SharedPreferences ✅✅✅
-                userPreferencesRepository.saveUserStatus("active")
-                Log.d("RoleSelectionViewModel", "User status 'active' saved to SharedPreferences.")
-                // ✅✅✅ END OF NEW CODE ✅✅✅
+        // ✅✅✅ THE FIX IS HERE ✅✅✅
+        // We must explicitly set all skipped optional parameters to null
+        // to avoid the 'Inapplicable candidate' compiler error.
+        val request = CreateUserRequest(
+            fullName = name ?: "User",
+            phoneNumber = "+91$phone",
+            userRole = role.lowercase(), // "rider" or "admin"
+            profilePhotoUrl = null,
+            gender = gender?.lowercase(),
+            dob = formattedDob,
+            licenseNumber = null,
+            vehicleId = null,
+            rating = null,         // ✅ ADDED THIS LINE
+            walletBalance = null,  // ✅ ADDED THIS LINE
+            isVerified = true,
+            status = "active"
+        )
+        // ✅✅✅ END OF FIX ✅✅✅
 
-                // Determine navigation route
-                when (role) {
-                    "Rider" -> onNavigate(Screen.HomeScreen.route)
-                    "Admin" -> onNavigate(Screen.AdminScreen.route)
+        createUserUseCase.invoke(request).onEach { result ->
+            when (result) {
+                is Resource.Loading -> {
+                    _isLoading.value = true
                 }
+                is Resource.Success -> {
+                    _isLoading.value = false
+                    Log.d("RoleSelectionViewModel", "$role user created successfully.")
 
-            } catch (e: Exception) {
-                Log.e("RoleSelectionViewModel", "Failed to create user: ${e.message}", e)
-                apiError = "Registration failed: ${e.message}"
-            } finally {
-                isLoading = false
+                    // Save status and navigate
+                    viewModelScope.launch {
+                        saveUserStatusUseCase.invoke("active")
+                        Log.d("RoleSelectionViewModel", "User status 'active' saved to SharedPreferences.")
+
+                        val route = when (role) {
+                            "Rider" -> Screen.HomeScreen.route
+                            "Admin" -> Screen.AdminScreen.route
+                            else -> Screen.HomeScreen.route
+                        }
+                        sendEvent(UiEvent.Navigate(route))
+                    }
+                }
+                is Resource.Error -> {
+                    _isLoading.value = false
+                    _apiError.value = result.message
+                }
             }
-        }
+        }.launchIn(viewModelScope)
     }
 }

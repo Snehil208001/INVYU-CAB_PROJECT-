@@ -2,7 +2,6 @@ package com.example.invyucab_project.mainui.authscreen.ui
 
 import android.widget.Toast
 import androidx.compose.animation.Crossfade
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,7 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController // ✅ ADDED Import
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -34,11 +33,11 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.R
+import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.navigations.Screen
-// ✅✅✅ THIS IS THE FIX for "Unresolved reference 'AuthTab'" ✅✅✅
 import com.example.invyucab_project.domain.model.AuthTab
-import com.example.invyucab_project.mainui.authscreen.viewmodel.AuthViewModel
 import com.example.invyucab_project.domain.model.GoogleSignInState
+import com.example.invyucab_project.mainui.authscreen.viewmodel.AuthViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
 
@@ -50,9 +49,27 @@ fun AuthScreen(
     val googleSignInState by viewModel.googleSignInState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
-    val keyboardController = LocalSoftwareKeyboardController.current // ✅ ADDED Keyboard Controller
+    val keyboardController = LocalSoftwareKeyboardController.current
 
-    // ... (Your commented-out LaunchedEffect for Google Sign-In is correct to leave) ...
+    // --- Event Collection ---
+    // This LaunchedEffect listens for one-time events from the ViewModel
+    LaunchedEffect(key1 = true) {
+        viewModel.eventFlow.collect { event ->
+            when (event) {
+                is BaseViewModel.UiEvent.Navigate -> {
+                    navController.navigate(event.route)
+                }
+                is BaseViewModel.UiEvent.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(
+                        message = event.message,
+                        duration = SnackbarDuration.Short
+                    )
+                }
+            }
+        }
+    }
+
+    // ... (Your Google Sign-In LaunchedEffect, if you re-enable it) ...
 
     Scaffold(
         containerColor = CabVeryLightMint,
@@ -73,7 +90,6 @@ fun AuthScreen(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
-                // Box for loading indicator overlay
                 Box(
                     modifier = Modifier.padding(24.dp),
                     contentAlignment = Alignment.Center
@@ -82,15 +98,14 @@ fun AuthScreen(
                         AuthTabs(
                             selectedTab = viewModel.selectedTab,
                             onTabSelected = { viewModel.onTabSelected(it) },
-                            // ✅✅✅ FIXED: Read the state's value
-                            isLoading = viewModel.isLoading.value
+                            isLoading = viewModel.isLoading.value // Read .value
                         )
                         Spacer(modifier = Modifier.height(24.dp))
 
                         Crossfade(targetState = viewModel.selectedTab, label = "AuthFormCrossfade") { tab ->
                             when (tab) {
-                                AuthTab.SIGN_UP -> SignUpForm(viewModel, navController, googleSignInState, keyboardController)
-                                AuthTab.SIGN_IN -> SignInForm(viewModel, navController, keyboardController)
+                                AuthTab.SIGN_UP -> SignUpForm(viewModel, googleSignInState, keyboardController)
+                                AuthTab.SIGN_IN -> SignInForm(viewModel, keyboardController)
                             }
                         }
                     }
@@ -100,6 +115,7 @@ fun AuthScreen(
     }
 }
 
+// ... (AuthHeader, AuthTabs, AuthTabItem composables are unchanged) ...
 @Composable
 fun AuthHeader() {
     Box(
@@ -121,7 +137,7 @@ fun AuthHeader() {
 fun AuthTabs(
     selectedTab: AuthTab,
     onTabSelected: (AuthTab) -> Unit,
-    isLoading: Boolean // This parameter is now a plain Boolean, which is correct
+    isLoading: Boolean
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -130,12 +146,12 @@ fun AuthTabs(
         AuthTabItem(
             text = "Register",
             isSelected = selectedTab == AuthTab.SIGN_UP,
-            onClick = { if (!isLoading) onTabSelected(AuthTab.SIGN_UP) } // Use isLoading
+            onClick = { if (!isLoading) onTabSelected(AuthTab.SIGN_UP) }
         )
         AuthTabItem(
             text = "Sign In",
             isSelected = selectedTab == AuthTab.SIGN_IN,
-            onClick = { if (!isLoading) onTabSelected(AuthTab.SIGN_IN) } // Use isLoading
+            onClick = { if (!isLoading) onTabSelected(AuthTab.SIGN_IN) }
         )
     }
 }
@@ -170,7 +186,6 @@ fun AuthTabItem(text: String, isSelected: Boolean, onClick: () -> Unit) {
 @Composable
 fun SignUpForm(
     viewModel: AuthViewModel,
-    navController: NavController,
     googleSignInState: GoogleSignInState,
     keyboardController: androidx.compose.ui.platform.SoftwareKeyboardController?
 ) {
@@ -190,17 +205,13 @@ fun SignUpForm(
             leadingIcon = {
                 Icon(Icons.Default.Phone, contentDescription = "Phone Icon")
             },
-            // ✅✅✅ FIXED: Read the state's value
             readOnly = viewModel.isLoading.value,
-            // ✅✅✅ FIXED: Read the state's value
             isError = viewModel.signUpPhoneError != null || (viewModel.apiError.value != null && viewModel.selectedTab == AuthTab.SIGN_UP),
             supportingText = {
                 if (viewModel.signUpPhoneError != null) {
                     Text(viewModel.signUpPhoneError!!, color = MaterialTheme.colorScheme.error)
                 }
-                // ✅✅✅ FIXED: Read the state's value
                 if (viewModel.apiError.value != null && viewModel.selectedTab == AuthTab.SIGN_UP) {
-                    // ✅✅✅ FIXED: Read the state's value
                     Text(viewModel.apiError.value!!, color = MaterialTheme.colorScheme.error)
                 }
             }
@@ -208,24 +219,14 @@ fun SignUpForm(
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = {
-                viewModel.onSignUpClicked { phone ->
-                    navController.navigate(
-                        Screen.UserDetailsScreen.createRoute(
-                            phone = phone,
-                            email = null,
-                            name = null
-                        )
-                    )
-                }
+                viewModel.onSignUpClicked() // ViewModel now handles navigation
             },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
-            // ✅✅✅ FIXED: Read the state's value
             enabled = !viewModel.isLoading.value,
             colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen)
         ) {
-            // ✅✅✅ FIXED: Read the state's value
             if (viewModel.isLoading.value && viewModel.selectedTab == AuthTab.SIGN_UP) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
@@ -237,7 +238,7 @@ fun SignUpForm(
             }
         }
 
-        /* // COMMENTED OUT: Google Auth UI ... */
+        // ... (Google Auth UI) ...
 
         Spacer(modifier = Modifier.height(16.dp))
         Text(
@@ -250,12 +251,10 @@ fun SignUpForm(
     }
 }
 
-
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun SignInForm(
     viewModel: AuthViewModel,
-    navController: NavController,
     keyboardController: androidx.compose.ui.platform.SoftwareKeyboardController?
 ) {
     Column {
@@ -280,17 +279,13 @@ fun SignInForm(
             leadingIcon = {
                 Icon(Icons.Default.Phone, contentDescription = "Phone Icon")
             },
-            // ✅✅✅ FIXED: Read the state's value
             readOnly = viewModel.isLoading.value,
-            // ✅✅✅ FIXED: Read the state's value
             isError = viewModel.signInPhoneError != null || (viewModel.apiError.value != null && viewModel.selectedTab == AuthTab.SIGN_IN),
             supportingText = {
                 if (viewModel.signInPhoneError != null) {
                     Text(viewModel.signInPhoneError!!, color = MaterialTheme.colorScheme.error)
                 }
-                // ✅✅✅ FIXED: Read the state's value
                 if (viewModel.apiError.value != null && viewModel.selectedTab == AuthTab.SIGN_IN) {
-                    // ✅✅✅ FIXED: Read the state's value
                     Text(viewModel.apiError.value!!, color = MaterialTheme.colorScheme.error)
                 }
             }
@@ -298,27 +293,14 @@ fun SignInForm(
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = {
-                viewModel.onSignInClicked { phone ->
-                    navController.navigate(
-                        Screen.OtpScreen.createRoute(
-                            phone = phone,
-                            isSignUp = false,
-                            email = null,
-                            name = null,
-                            gender = null,
-                            dob = null
-                        )
-                    )
-                }
+                viewModel.onSignInClicked() // ViewModel now handles navigation
             },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
-            // ✅✅✅ FIXED: Read the state's value
             enabled = !viewModel.isLoading.value,
             colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen)
         ) {
-            // ✅✅✅ FIXED: Read the state's value
             if (viewModel.isLoading.value && viewModel.selectedTab == AuthTab.SIGN_IN) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),

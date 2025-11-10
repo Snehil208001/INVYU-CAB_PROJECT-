@@ -1,34 +1,32 @@
 package com.example.invyucab_project.mainui.authscreen.viewmodel
 
-import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.credentials.CredentialManager
 import androidx.lifecycle.viewModelScope
-import com.example.invyucab_project.core.base.BaseViewModel // ✅ IMPORTED BASE
+import com.example.invyucab_project.core.base.BaseViewModel
+import com.example.invyucab_project.core.common.Resource
+import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.domain.model.AuthTab
 import com.example.invyucab_project.domain.model.GoogleSignInState
-import com.example.invyucab_project.domain.usecase.CheckUserUseCase // ✅ IMPORTED USECASE
-import com.example.invyucab_project.domain.usecase.UserCheckStatus // ✅ IMPORTED USECASE
+import com.example.invyucab_project.domain.usecase.CheckUserUseCase
+import com.example.invyucab_project.domain.usecase.UserCheckStatus
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    // ✅ ONLY INJECT WHAT YOU NEED
     private val auth: FirebaseAuth,
     private val credentialManager: CredentialManager,
-    private val checkUserUseCase: CheckUserUseCase // ✅ INJECTED USECASE
-    // ⛔ CustomApiService and UserPreferencesRepository are GONE!
-) : BaseViewModel() { // ✅ INHERIT FROM BASEVIEWMODEL
-
-    private val TAG = "AuthViewModel"
+    private val checkUserUseCase: CheckUserUseCase
+) : BaseViewModel() {
 
     var selectedTab by mutableStateOf(AuthTab.SIGN_UP)
         private set
@@ -43,17 +41,14 @@ class AuthViewModel @Inject constructor(
     var signInPhoneError by mutableStateOf<String?>(null)
         private set
 
-    // ⛔ 'isLoading' and 'apiError' are now inherited from BaseViewModel
-
     private val _googleSignInState = MutableStateFlow<GoogleSignInState>(GoogleSignInState.Idle)
     val googleSignInState: StateFlow<GoogleSignInState> = _googleSignInState.asStateFlow()
-
 
     fun onTabSelected(tab: AuthTab) {
         selectedTab = tab
         signUpPhoneError = null
         signInPhoneError = null
-        _apiError.value = null // ✅ Use the _apiError from BaseViewModel
+        _apiError.value = null
         if (_googleSignInState.value is GoogleSignInState.Error) {
             resetGoogleSignInState()
         }
@@ -62,20 +57,16 @@ class AuthViewModel @Inject constructor(
     fun onSignUpPhoneChange(value: String) {
         if (value.all { it.isDigit() } && value.length <= 10) {
             signUpPhone = value
-            _apiError.value = null // ✅ Use the _apiError from BaseViewModel
-            if (signUpPhoneError != null) {
-                validateSignUpPhone()
-            }
+            _apiError.value = null
+            if (signUpPhoneError != null) validateSignUpPhone()
         }
     }
 
     fun onSignInPhoneChange(value: String) {
         if (value.all { it.isDigit() } && value.length <= 10) {
             signInPhone = value
-            _apiError.value = null // ✅ Use the _apiError from BaseViewModel
-            if (signInPhoneError != null) {
-                validateSignInPhone()
-            }
+            _apiError.value = null
+            if (signInPhoneError != null) validateSignInPhone()
         }
     }
 
@@ -105,66 +96,79 @@ class AuthViewModel @Inject constructor(
         return true
     }
 
-
-    // ✅✅✅ START OF LOGIC REFACTOR ✅✅✅
-    fun onSignUpClicked(onNavigate: (String) -> Unit) {
+    fun onSignUpClicked() {
         if (!validateSignUpPhone()) return
 
-        _apiError.value = null // Clear any old errors
-
-        // Use the safeLaunch wrapper from BaseViewModel
-        // It will automatically set isLoading = true/false
-        safeLaunch {
-            val result = checkUserUseCase.invoke(signUpPhone) // ✅ SO CLEAN!
-
-            // Handle the result from the UseCase
-            result.onSuccess { status ->
-                when (status) {
-                    UserCheckStatus.EXISTS -> {
-                        // This is an "expected" error, so we set it manually
-                        _apiError.value = "This phone number is already registered. Please Sign In."
-                    }
-                    UserCheckStatus.DOES_NOT_EXIST -> {
-                        // Success!
-                        onNavigate(signUpPhone)
+        checkUserUseCase.invoke(signUpPhone).onEach { result ->
+            when (result) {
+                is Resource.Loading -> {
+                    _isLoading.value = true
+                    _apiError.value = null
+                }
+                is Resource.Success -> {
+                    _isLoading.value = false
+                    when (result.data) {
+                        UserCheckStatus.EXISTS -> {
+                            _apiError.value = "This phone number is already registered. Please Sign In."
+                        }
+                        UserCheckStatus.DOES_NOT_EXIST -> {
+                            sendEvent(UiEvent.Navigate(
+                                Screen.UserDetailsScreen.createRoute(
+                                    phone = signUpPhone,
+                                    email = null,
+                                    name = null
+                                )
+                            ))
+                        }
+                        null -> {} // Should not happen
                     }
                 }
+                is Resource.Error -> {
+                    _isLoading.value = false
+                    _apiError.value = result.message
+                }
             }
-            // An "unexpected" error (like no internet) is handled by safeLaunch
-            result.onFailure { error ->
-                _apiError.value = error.message // Set error from the Result
-            }
-        }
+        }.launchIn(viewModelScope)
     }
 
-    fun onSignInClicked(onNavigate: (String) -> Unit) {
+    fun onSignInClicked() {
         if (!validateSignInPhone()) return
 
-        _apiError.value = null // Clear any old errors
-
-        safeLaunch {
-            val result = checkUserUseCase.invoke(signInPhone) // ✅ SO CLEAN!
-
-            result.onSuccess { status ->
-                when (status) {
-                    UserCheckStatus.EXISTS -> {
-                        // Success!
-                        onNavigate(signInPhone)
-                    }
-                    UserCheckStatus.DOES_NOT_EXIST -> {
-                        // This is an "expected" error
-                        _apiError.value = "This phone number is not registered. Please Register."
+        checkUserUseCase.invoke(signInPhone).onEach { result ->
+            when (result) {
+                is Resource.Loading -> {
+                    _isLoading.value = true
+                    _apiError.value = null
+                }
+                is Resource.Success -> {
+                    _isLoading.value = false
+                    when (result.data) {
+                        UserCheckStatus.EXISTS -> {
+                            sendEvent(UiEvent.Navigate(
+                                Screen.OtpScreen.createRoute(
+                                    phone = signInPhone,
+                                    isSignUp = false,
+                                    email = null,
+                                    name = null,
+                                    gender = null,
+                                    dob = null
+                                )
+                            ))
+                        }
+                        UserCheckStatus.DOES_NOT_EXIST -> {
+                            _apiError.value = "This phone number is not registered. Please Register."
+                        }
+                        null -> {} // Should not happen
                     }
                 }
+                is Resource.Error -> {
+                    _isLoading.value = false
+                    _apiError.value = result.message
+                }
             }
-            result.onFailure { error ->
-                _apiError.value = error.message
-            }
-        }
+        }.launchIn(viewModelScope)
     }
-    // ✅✅✅ END OF LOGIC REFACTOR ✅✅✅
 
-    // --- Google Sign-In Logic (Unchanged) ---
     fun resetGoogleSignInState() {
         _googleSignInState.value = GoogleSignInState.Idle
     }
