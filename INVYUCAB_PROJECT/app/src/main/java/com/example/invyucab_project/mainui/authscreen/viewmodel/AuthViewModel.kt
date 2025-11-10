@@ -112,13 +112,14 @@ class AuthViewModel @Inject constructor(
                             _apiError.value = "This phone number is already registered. Please Sign In."
                         }
                         UserCheckStatus.DOES_NOT_EXIST -> {
+                            // ✅✅✅ START OF CHANGE ✅✅✅
+                            // Navigate to RoleSelectionScreen first
                             sendEvent(UiEvent.Navigate(
-                                Screen.UserDetailsScreen.createRoute(
-                                    phone = signUpPhone,
-                                    email = null,
-                                    name = null
+                                Screen.RoleSelectionScreen.createRoute(
+                                    phone = signUpPhone
                                 )
                             ))
+                            // ✅✅✅ END OF CHANGE ✅✅✅
                         }
                         null -> {} // Should not happen
                     }
@@ -148,6 +149,7 @@ class AuthViewModel @Inject constructor(
                                 Screen.OtpScreen.createRoute(
                                     phone = signInPhone,
                                     isSignUp = false,
+                                    role = "rider", // Role doesn't matter for sign-in, but arg is required
                                     email = null,
                                     name = null,
                                     gender = null,

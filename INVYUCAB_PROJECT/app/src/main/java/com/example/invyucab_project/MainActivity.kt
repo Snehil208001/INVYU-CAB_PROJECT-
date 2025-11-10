@@ -7,16 +7,17 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.SystemBarStyle // ✅ ADD THIS IMPORT
 import com.example.invyucab_project.core.navigations.NavGraph
 import com.example.invyucab_project.core.navigations.Screen
-import com.example.invyucab_project.data.preferences.UserPreferencesRepository
+// import com.example.invyucab_project.data.preferences.UserPreferencesRepository // ❌ No longer needed here
 import com.example.invyucab_project.ui.theme.INVYUCAB_PROJECTTheme
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
+// import javax.inject.Inject // ❌ No longer needed here
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    @Inject
-    lateinit var userPreferencesRepository: UserPreferencesRepository
+    // ❌ This logic is now moved to SplashScreenViewModel
+    // @Inject
+    // lateinit var userPreferencesRepository: UserPreferencesRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,20 +33,14 @@ class MainActivity : ComponentActivity() {
         // ✅✅✅ END OF FIX ✅✅✅
 
         // ✅✅✅ START OF MODIFICATION ✅✅✅
-        // This logic is now simpler.
-        val isUserLoggedIn = userPreferencesRepository.getUserStatus() == "active"
-
-        val startDestination = when {
-            // Priority 1: If user is logged in, go to the logged-in splash.
-            isUserLoggedIn -> Screen.SplashScreenLoggedIn.route
-            // Priority 2: If user is NOT logged in, always show Onboarding.
-            else -> Screen.OnboardingScreen.route
-        }
+        // The app will ALWAYS start at the SplashScreenLoggedIn.
+        // This screen will then decide where to go (Onboarding or Home).
+        val startDestination = Screen.SplashScreenLoggedIn.route
         // ✅✅✅ END OF MODIFICATION ✅✅✅
 
         setContent {
             INVYUCAB_PROJECTTheme {
-                NavGraph(startDestination = startDestination) // ✅ PASS the dynamic start route
+                NavGraph(startDestination = startDestination) // ✅ PASS the single start route
             }
         }
     }

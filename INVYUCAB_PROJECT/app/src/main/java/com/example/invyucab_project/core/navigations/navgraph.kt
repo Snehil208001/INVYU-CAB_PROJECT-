@@ -47,20 +47,16 @@ fun NavGraph(
         composable(
             route = Screen.OtpScreen.route,
             arguments = listOf(
-                // ✅✅✅ THIS IS THE FIX FOR THE "PARCEL" CRASH ✅✅✅
-                navArgument("phone") {
-                    type = NavType.StringType
-                    nullable = true // <-- MUST BE TRUE
-                },
-                navArgument("isSignUp") {
-                    type = NavType.BoolType
-                    defaultValue = false // <-- MUST HAVE A DEFAULT
-                },
-                // ✅✅✅ END OF FIX ✅✅✅
+                navArgument("phone") { type = NavType.StringType },
+                navArgument("isSignUp") { type = NavType.BoolType },
+                navArgument("role") { type = NavType.StringType },
                 navArgument("email") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("name") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("gender") { type = NavType.StringType; nullable = true; defaultValue = null },
-                navArgument("dob") { type = NavType.StringType; nullable = true; defaultValue = null }
+                navArgument("dob") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("license") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("vehicle") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("aadhaar") { type = NavType.StringType; nullable = true; defaultValue = null }
             )
         ) {
             OtpScreen(navController = navController)
@@ -68,7 +64,8 @@ fun NavGraph(
         composable(
             route = Screen.UserDetailsScreen.route,
             arguments = listOf(
-                navArgument("phone") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("phone") { type = NavType.StringType },
+                navArgument("role") { type = NavType.StringType },
                 navArgument("email") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("name") { type = NavType.StringType; nullable = true; defaultValue = null }
             )
@@ -79,28 +76,34 @@ fun NavGraph(
         composable(
             route = Screen.RoleSelectionScreen.route,
             arguments = listOf(
-                navArgument("phone") { type = NavType.StringType; nullable = true; defaultValue = null },
-                navArgument("email") { type = NavType.StringType; nullable = true; defaultValue = null },
-                navArgument("name") { type = NavType.StringType; nullable = true; defaultValue = null },
-                navArgument("gender") { type = NavType.StringType; nullable = true; defaultValue = null },
-                navArgument("dob") { type = NavType.StringType; nullable = true; defaultValue = null }
+                navArgument("phone") { type = NavType.StringType }
             )
         ) {
             RoleSelectionScreen(navController = navController)
         }
 
+        // ✅✅✅ THIS IS THE FIX ✅✅✅
         composable(
-            route = Screen.DriverDetailsScreen.route,
+            route = Screen.DriverDetailsScreen.route, // This now includes '?email={email}'
             arguments = listOf(
-                navArgument("phone") { type = NavType.StringType; nullable = true; defaultValue = null },
-                navArgument("email") { type = NavType.StringType; nullable = true; defaultValue = null },
-                navArgument("name") { type = NavType.StringType; nullable = true; defaultValue = null },
-                navArgument("gender") { type = NavType.StringType; nullable = true; defaultValue = null },
-                navArgument("dob") { type = NavType.StringType; nullable = true; defaultValue = null }
+                // Path arguments (required)
+                navArgument("phone") { type = NavType.StringType },
+                navArgument("role") { type = NavType.StringType },
+                navArgument("name") { type = NavType.StringType },
+                navArgument("gender") { type = NavType.StringType },
+                navArgument("dob") { type = NavType.StringType },
+
+                // Query argument (optional)
+                navArgument("email") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
             )
         ) {
             DriverDetailsScreen(navController = navController)
         }
+        // ✅✅✅ END OF FIX ✅✅✅
 
         composable(Screen.AdminScreen.route) {
             AdminScreen(navController = navController)
@@ -138,16 +141,14 @@ fun NavGraph(
         composable(
             route = Screen.RideSelectionScreen.route,
             arguments = listOf(
-                // ✅✅✅ THIS IS ALSO PART OF THE "PARCEL" CRASH FIX ✅✅✅
                 navArgument("dropPlaceId") {
                     type = NavType.StringType
-                    nullable = true // <-- MUST BE TRUE
+                    nullable = true
                 },
                 navArgument("dropDescription") {
                     type = NavType.StringType
-                    nullable = true // <-- MUST BE TRUE
+                    nullable = true
                 },
-                // ✅✅✅ END OF FIX ✅✅✅
                 navArgument("pickupPlaceId") {
                     type = NavType.StringType
                     nullable = true

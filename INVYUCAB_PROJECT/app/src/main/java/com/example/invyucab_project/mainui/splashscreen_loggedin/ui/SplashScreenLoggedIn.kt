@@ -12,25 +12,43 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.R
 import com.example.invyucab_project.core.navigations.Screen
+import com.example.invyucab_project.mainui.splashscreen_loggedin.viewmodel.SplashScreenViewModel
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
 import kotlinx.coroutines.delay
 
 @Composable
-fun SplashScreenLoggedIn(navController: NavController) {
+fun SplashScreenLoggedIn(
+    navController: NavController,
+    viewModel: SplashScreenViewModel = hiltViewModel() // ✅ Inject ViewModel
+) {
     // This effect runs once when the composable enters the screen
     LaunchedEffect(Unit) {
         // Wait for 1.5 seconds
         delay(1500L)
-        // Navigate to HomeScreen
-        navController.navigate(Screen.HomeScreen.route) {
+
+        // ✅✅✅ START OF MODIFICATION ✅✅✅
+        // Check if the user is logged in
+        val isUserLoggedIn = viewModel.isUserLoggedIn()
+
+        // Determine the next destination
+        val nextDestination = if (isUserLoggedIn) {
+            Screen.HomeScreen.route // User is logged in
+        } else {
+            Screen.OnboardingScreen.route // User is NOT logged in
+        }
+
+        // Navigate to the correct destination
+        navController.navigate(nextDestination) {
             // Clear this splash screen from the back stack
             popUpTo(Screen.SplashScreenLoggedIn.route) {
                 inclusive = true
             }
         }
+        // ✅✅✅ END OF MODIFICATION ✅✅✅
     }
 
     Scaffold(

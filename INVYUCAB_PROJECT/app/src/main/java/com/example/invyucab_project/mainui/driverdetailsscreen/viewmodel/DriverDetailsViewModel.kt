@@ -5,155 +5,141 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.viewModelScope
-import com.example.invyucab_project.core.base.BaseViewModel // ✅ IMPORTED
-import com.example.invyucab_project.core.common.Resource // ✅ IMPORTED
+// import androidx.lifecycle.viewModelScope // ❌ No longer needed
+import com.example.invyucab_project.core.base.BaseViewModel
+// import com.example.invyucab_project.core.common.Resource // ❌ No longer needed
 import com.example.invyucab_project.core.navigations.Screen
-import com.example.invyucab_project.data.models.CreateUserRequest
-import com.example.invyucab_project.domain.usecase.CreateUserUseCase // ✅ IMPORTED
-import com.example.invyucab_project.domain.usecase.SaveUserStatusUseCase // ✅ IMPORTED
+// import com.example.invyucab_project.data.models.CreateUserRequest // ❌ No longer needed
+// import com.example.invyucab_project.domain.usecase.CreateUserUseCase // ❌ No longer needed
+// import com.example.invyucab_project.domain.usecase.SaveUserStatusUseCase // ❌ No longer needed
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Locale
+// import kotlinx.coroutines.flow.launchIn // ❌ No longer needed
+// import kotlinx.coroutines.flow.onEach // ❌ No longer needed
+// import kotlinx.coroutines.launch // ❌ No longer needed
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+// import java.text.SimpleDateFormat // ❌ No longer needed
+// import java.util.Locale // ❌ No longer needed
 import javax.inject.Inject
 
 @HiltViewModel
 class DriverDetailsViewModel @Inject constructor(
-    private val createUserUseCase: CreateUserUseCase, // ✅ INJECTED USECASE
-    private val saveUserStatusUseCase: SaveUserStatusUseCase, // ✅ INJECTED USECASE
+    // ❌ Usecases removed, no longer creating user here
+    // private val createUserUseCase: CreateUserUseCase,
+    // private val saveUserStatusUseCase: SaveUserStatusUseCase,
     savedStateHandle: SavedStateHandle
-) : BaseViewModel() { // ✅ INHERITS FROM BASEVIEWMODEL
+) : BaseViewModel() {
 
-    // Auto-filled data (unchanged)
-    val name: String = savedStateHandle.get<String>("name") ?: ""
-    val email: String = savedStateHandle.get<String>("email") ?: ""
-    val phone: String = savedStateHandle.get<String>("phone") ?: ""
-    val gender: String = savedStateHandle.get<String>("gender") ?: ""
-    val rawDob: String = savedStateHandle.get<String>("dob") ?: ""
+    // ✅✅✅ START OF CHANGE ✅✅✅
+    // All user details are received from UserDetailsScreen
+    val phone: String? = savedStateHandle.get<String>("phone")
+    val role: String? = savedStateHandle.get<String>("role")
 
-    // Driver-specific fields (unchanged)
+    // Handle decoding
+    val name: String? = try {
+        val encoded: String? = savedStateHandle.get<String>("name")
+        encoded?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
+    } catch (e: Exception) {
+        savedStateHandle.get<String>("name")
+    }
+    val email: String? = try {
+        val encoded: String? = savedStateHandle.get<String>("email")
+        encoded?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
+    } catch (e: Exception) {
+        savedStateHandle.get<String>("email")
+    }
+    val gender: String? = try {
+        val encoded: String? = savedStateHandle.get<String>("gender")
+        encoded?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
+    } catch (e: Exception) {
+        savedStateHandle.get<String>("gender")
+    }
+    val dob: String? = try {
+        val encoded: String? = savedStateHandle.get<String>("dob")
+        encoded?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
+    } catch (e: Exception) {
+        savedStateHandle.get<String>("dob")
+    }
+    // ✅✅✅ END OF CHANGE ✅✅✅
+
+
+    // --- Form State ---
     var aadhaarNumber by mutableStateOf("")
-        private set
-    var vehicleNumber by mutableStateOf("")
         private set
     var licenceNumber by mutableStateOf("")
         private set
-
-    // Error states for new fields (unchanged)
-    var aadhaarError by mutableStateOf<String?>(null)
+    var vehicleNumber by mutableStateOf("")
         private set
-    var vehicleError by mutableStateOf<String?>(null)
+
+    // --- Error State ---
+    var aadhaarError by mutableStateOf<String?>(null)
         private set
     var licenceError by mutableStateOf<String?>(null)
         private set
+    var vehicleError by mutableStateOf<String?>(null)
+        private set
 
-    // ⛔ 'isLoading' and 'apiError' are now inherited from BaseViewModel
-
-    // Helper to convert date format (unchanged)
-    private fun formatDobForApi(dobString: String?): String? {
-        if (dobString.isNullOrBlank()) return null
-        return try {
-            val parser = SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH)
-            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
-            val date = parser.parse(dobString)
-            formatter.format(date!!)
-        } catch (e: Exception) {
-            Log.e("DriverDetailsViewModel", "Could not parse date: $dobString", e)
-            null
-        }
+    init {
+        Log.d("DriverDetailsVM", "Received: $phone, $role, $name, $email, $gender, $dob")
     }
 
-    // --- All on-change and validation functions are unchanged ---
+    // --- Event Handlers ---
     fun onAadhaarChange(value: String) {
         if (value.all { it.isDigit() } && value.length <= 12) {
             aadhaarNumber = value
-            if (aadhaarError != null) validateAadhaar()
+            aadhaarError = if (value.length != 12) "Must be 12 digits" else null
         }
     }
-    fun onVehicleChange(value: String) {
-        vehicleNumber = value.uppercase()
-        if (vehicleError != null) validateVehicle()
-    }
+
     fun onLicenceChange(value: String) {
         licenceNumber = value.uppercase()
-        if (licenceError != null) validateLicence()
-    }
-    private fun validateAadhaar(): Boolean {
-        if (aadhaarNumber.length != 12) {
-            aadhaarError = "Aadhaar must be 12 digits"
-            return false
-        }
-        aadhaarError = null
-        return true
-    }
-    private fun validateVehicle(): Boolean {
-        if (vehicleNumber.isBlank()) {
-            vehicleError = "Vehicle number is required"
-            return false
-        }
-        vehicleError = null
-        return true
-    }
-    private fun validateLicence(): Boolean {
-        if (licenceNumber.isBlank()) {
-            licenceError = "Licence number is required"
-            return false
-        }
-        licenceError = null
-        return true
+        licenceError = if (value.isBlank()) "Licence is required" else null
     }
 
-    // ✅ REFACTORED: Calls UseCases and emits navigation events
+    fun onVehicleChange(value: String) {
+        vehicleNumber = value.uppercase()
+        vehicleError = if (value.isBlank()) "Vehicle number is required" else null
+    }
+
+    private fun validate(): Boolean {
+        aadhaarError = if (aadhaarNumber.length != 12) "Aadhaar must be 12 digits" else null
+        licenceError = if (licenceNumber.isBlank()) "Licence is required" else null
+        vehicleError = if (vehicleNumber.isBlank()) "Vehicle number is required" else null
+
+        return aadhaarError == null && licenceError == null && vehicleError == null
+    }
+
+    // ❌ Removed formatDobForApi
+
     fun onSubmitClicked() {
-        val isAadhaarValid = validateAadhaar()
-        val isVehicleValid = validateVehicle()
-        val isLicenceValid = validateLicence()
-
-        if (isAadhaarValid && isVehicleValid && isLicenceValid) {
-            Log.d("DriverDetailsViewModel", "Saving Driver Details...")
-            val formattedDob = formatDobForApi(rawDob)
-
-            val request = CreateUserRequest(
-                fullName = name,
-                phoneNumber = "+91$phone",
-                userRole = "driver",
-                profilePhotoUrl = null,
-                gender = gender.lowercase(),
-                dob = formattedDob,
-                licenseNumber = licenceNumber,
-                vehicleId = vehicleNumber,
-                rating = null,         // Explicitly null
-                walletBalance = null,  // Explicitly null
-                isVerified = true,
-                status = "active"
-            )
-
-            createUserUseCase.invoke(request).onEach { result ->
-                when (result) {
-                    is Resource.Loading -> {
-                        _isLoading.value = true
-                    }
-                    is Resource.Success -> {
-                        _isLoading.value = false
-                        Log.d("DriverDetailsViewModel", "Driver user created successfully.")
-
-                        // Save status and navigate
-                        viewModelScope.launch {
-                            saveUserStatusUseCase.invoke("active")
-                            Log.d("DriverDetailsViewModel", "Driver status 'active' saved to SharedPreferences.")
-                            sendEvent(UiEvent.Navigate(Screen.DriverScreen.route))
-                        }
-                    }
-                    is Resource.Error -> {
-                        _isLoading.value = false
-                        _apiError.value = result.message
-                        Log.e("DriverDetailsViewModel", "Failed to create driver: ${result.message}")
-                    }
-                }
-            }.launchIn(viewModelScope)
+        if (!validate()) {
+            return
         }
+        _apiError.value = null
+        _isLoading.value = true
+
+        // ✅✅✅ START OF CHANGE ✅✅✅
+        // Logic removed. This ViewModel now just navigates to OtpScreen
+        // It passes ALL data: user details + driver details
+
+        Log.d("DriverDetailsVM", "Validation success. Navigating to OTP Screen.")
+
+        sendEvent(UiEvent.Navigate(
+            Screen.OtpScreen.createRoute(
+                phone = phone!!,
+                isSignUp = true,
+                role = role!!,
+                // ✅✅✅ THIS IS THE FIX ✅✅✅
+                email = email?.ifBlank { null }, // Use safe call ?.
+                // ✅✅✅ END OF FIX ✅✅✅
+                name = name,
+                gender = gender,
+                dob = dob,
+                license = licenceNumber,
+                vehicle = vehicleNumber,
+                aadhaar = aadhaarNumber
+            )
+        ))
+        // ✅✅✅ END OF CHANGE ✅✅✅
     }
 }

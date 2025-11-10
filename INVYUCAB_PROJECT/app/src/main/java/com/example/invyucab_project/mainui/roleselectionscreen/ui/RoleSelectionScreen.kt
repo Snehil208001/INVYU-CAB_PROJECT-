@@ -40,10 +40,11 @@ fun RoleSelectionScreen(
         viewModel.eventFlow.collect { event ->
             when (event) {
                 is BaseViewModel.UiEvent.Navigate -> {
-                    // Clear the stack and navigate to the new screen
-                    navController.navigate(event.route) {
-                        popUpTo(Screen.AuthScreen.route) { inclusive = true }
-                    }
+                    // ✅✅✅ START OF FIX ✅✅✅
+                    // The 'popUpTo' logic was incorrect here.
+                    // We should just navigate, not pop the AuthScreen yet.
+                    navController.navigate(event.route)
+                    // ✅✅✅ END OF FIX ✅✅✅
                 }
                 is BaseViewModel.UiEvent.ShowSnackbar -> {
                     snackbarHostState.showSnackbar(
@@ -83,19 +84,26 @@ fun RoleSelectionScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
+                // ✅✅✅ START OF FIX ✅✅✅
+                // 'viewModel.name' does not exist here.
+                // We will remove that Text and make the next one the title.
+                /*
                 Text(
-                    text = "Welcome, ${viewModel.name ?: "User"}!",
+                    text = "Welcome, ${viewModel.name ?: "User"}!", // <-- THIS WAS THE ERROR
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
+                */
                 Text(
                     text = "How would you like to use our service?",
-                    fontSize = 18.sp,
-                    color = Color.Gray,
+                    fontSize = 24.sp, // Made title bigger
+                    fontWeight = FontWeight.Bold, // Made title bold
+                    color = Color.Black, // Changed color
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 8.dp)
                 )
+                // ✅✅✅ END OF FIX ✅✅✅
 
                 Spacer(modifier = Modifier.height(48.dp))
 
