@@ -32,10 +32,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.invyucab_project.R
 import com.example.invyucab_project.core.navigations.Screen
-import com.example.invyucab_project.mainui.homescreen.viewmodel.ExploreItem
 import com.example.invyucab_project.mainui.homescreen.viewmodel.HomeViewModel
-import com.example.invyucab_project.mainui.homescreen.viewmodel.PlaceItem
-import com.example.invyucab_project.mainui.homescreen.viewmodel.RecentLocation
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
 import com.example.invyucab_project.ui.theme.LightSlateGray

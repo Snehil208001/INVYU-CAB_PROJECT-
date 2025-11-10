@@ -54,9 +54,9 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.core.navigations.Screen
-import com.example.invyucab_project.mainui.locationsearchscreen.viewmodel.EditingField
+import com.example.invyucab_project.domain.model.EditingField
+import com.example.invyucab_project.domain.model.SearchLocation
 import com.example.invyucab_project.mainui.locationsearchscreen.viewmodel.LocationSearchViewModel
-import com.example.invyucab_project.mainui.locationsearchscreen.viewmodel.SearchLocation
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.LightSlateGray
 

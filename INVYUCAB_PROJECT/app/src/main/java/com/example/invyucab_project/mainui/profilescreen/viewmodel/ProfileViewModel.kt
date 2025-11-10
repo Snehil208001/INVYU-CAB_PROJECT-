@@ -4,28 +4,21 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.ImageVector // Keep this import for Icons
 import androidx.lifecycle.ViewModel
-import com.example.invyucab_project.data.preferences.UserPreferencesRepository // ✅ ADDED Import
+import com.example.invyucab_project.data.preferences.UserPreferencesRepository
+// Refactored: UI state classes imported from domain.model
+import com.example.invyucab_project.domain.model.ProfileOption
+import com.example.invyucab_project.domain.model.UserProfile
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
-// Data class for profile options
-data class ProfileOption(
-    val icon: ImageVector,
-    val title: String,
-    val onClick: () -> Unit = {} // Placeholder for navigation/action
-)
+// Note: ProfileOption and UserProfile were moved to
+// domain/model/ProfileUiState.kt
 
-// Data class for User Info
-data class UserProfile(
-    val name: String = "Snehil", // Placeholder
-    val phone: String = "+91 7542957884", // Placeholder
-    val profilePicUrl: String? = null // Placeholder, could be URL or local resource ID
-)
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(

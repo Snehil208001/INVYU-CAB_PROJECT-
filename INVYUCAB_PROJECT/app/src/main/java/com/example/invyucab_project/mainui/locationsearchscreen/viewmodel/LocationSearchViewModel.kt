@@ -6,11 +6,14 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.ImageVector // Still needed for Icons
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.data.api.GoogleMapsApiService
 import com.example.invyucab_project.data.models.Prediction
+// Refactored: UI state classes imported from domain.model
+import com.example.invyucab_project.domain.model.EditingField
+import com.example.invyucab_project.domain.model.SearchLocation
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -20,19 +23,9 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 
-// This data class will now be built from API results
-data class SearchLocation(
-    val name: String,
-    val address: String,
-    val icon: ImageVector,
-    val placeId: String // To pass to the next screen
-)
+// Note: SearchLocation and EditingField were moved to
+// domain/model/LocationSearchUiState.kt
 
-// ✅ ADDED: Enum to track which field is being edited
-enum class EditingField {
-    PICKUP,
-    DROP
-}
 
 @HiltViewModel
 class LocationSearchViewModel @Inject constructor(
@@ -59,7 +52,7 @@ class LocationSearchViewModel @Inject constructor(
     private val _searchResults = MutableStateFlow<List<SearchLocation>>(emptyList())
     val searchResults = _searchResults.asStateFlow()
 
-    private var searchJob: Job? = null
+    private var searchJob: Job? =null
     private var sessionToken: String = UUID.randomUUID().toString() // For Places API billing
 
     // This now updates the *active field's* description and triggers a search.
@@ -157,6 +150,8 @@ class LocationSearchViewModel @Inject constructor(
 }
 
 // Helper to convert API response to our UI model
+// This function stays in the ViewModel file as it's
+// responsible for transforming data (Prediction) to UI state (SearchLocation).
 fun Prediction.toSearchLocation(): SearchLocation {
     return SearchLocation(
         name = this.structuredFormatting.mainText,

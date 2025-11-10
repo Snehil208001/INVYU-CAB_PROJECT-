@@ -23,8 +23,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel // Import hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.core.navigations.Screen // Import Screen
+import com.example.invyucab_project.domain.model.ProfileOption
 import com.example.invyucab_project.mainui.homescreen.ui.AppBottomNavigation
-import com.example.invyucab_project.mainui.profilescreen.viewmodel.ProfileOption // Import ProfileOption
 import com.example.invyucab_project.mainui.profilescreen.viewmodel.ProfileViewModel // Import ProfileViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.LightSlateGray

@@ -12,6 +12,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.data.api.CustomApiService
 import com.example.invyucab_project.data.api.GoogleMapsApiService
 import com.example.invyucab_project.data.models.GetPricingRequest
+// Refactored: UI state classes imported from domain.model
+import com.example.invyucab_project.domain.model.RideOption
+import com.example.invyucab_project.domain.model.RideSelectionState
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.PolyUtil
@@ -24,31 +27,9 @@ import java.nio.charset.StandardCharsets
 import javax.inject.Inject
 import kotlin.math.roundToInt
 
-// ✅ MODIFIED RideOption: price is now added
-data class RideOption(
-    val id: Int,
-    val icon: ImageVector,
-    val name: String,
-    val description: String, // ETA like "2 mins away"
-    val price: String? = null, // ✅ RE-ADDED
-    val subtitle: String? = null,
-    val estimatedDurationMinutes: Int? = null, // Trip duration
-    val estimatedDistanceKm: String? = null,
-    val isLoadingPrice: Boolean = true // ✅ ADDED
-)
+// Note: RideOption and RideSelectionState were moved to
+// domain/model/RideSelectionUiState.kt
 
-data class RideSelectionState(
-    val pickupLocation: LatLng? = null,
-    val dropLocation: LatLng? = null,
-    val pickupDescription: String = "Fetching current location...",
-    val dropDescription: String = "",
-    val routePolyline: List<LatLng> = emptyList(),
-    val tripDurationSeconds: Int? = null,
-    val tripDistanceMeters: Int? = null,
-    val isLoading: Boolean = false,
-    val isFetchingLocation: Boolean = true,
-    val errorMessage: String? = null
-)
 
 @HiltViewModel
 class RideSelectionViewModel @Inject constructor(

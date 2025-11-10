@@ -2,15 +2,18 @@ package com.example.invyucab_project.mainui.homescreen.viewmodel
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.ImageVector // Keep this import for Icons
 import androidx.lifecycle.ViewModel
+// Refactored: UI state classes imported from domain.model
+import com.example.invyucab_project.domain.model.ExploreItem
+import com.example.invyucab_project.domain.model.PlaceItem
+import com.example.invyucab_project.domain.model.RecentLocation
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
-// Data classes for the new UI
-data class ExploreItem(val icon: ImageVector, val label: String)
-data class PlaceItem(val icon: ImageVector, val label: String) // Using icon for placeholder
-data class RecentLocation(val name: String, val address: String)
+// Note: ExploreItem, PlaceItem, and RecentLocation were moved to
+// domain/model/HomeUiState.kt
+
 
 @HiltViewModel
 class HomeViewModel @Inject constructor() : ViewModel() {
