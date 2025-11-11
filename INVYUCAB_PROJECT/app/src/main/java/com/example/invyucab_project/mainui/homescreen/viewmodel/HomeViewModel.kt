@@ -165,6 +165,8 @@ class HomeViewModel @Inject constructor(
                                 )
                             } ?: emptyList()
 
+
+
                             if (field == SearchField.PICKUP) {
                                 _uiState.update { it.copy(pickupResults = mappedPredictions, isSearching = false) }
                             } else {

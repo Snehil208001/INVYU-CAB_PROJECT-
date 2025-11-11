@@ -28,6 +28,11 @@ data class HomeUiState(
     val pickupResults: List<AutocompletePrediction> = emptyList(),
     val dropResults: List<AutocompletePrediction> = emptyList(),
 
+    // ✅✅✅ START OF FIX ✅✅✅
+    // This property was missing, causing the error in HomeScreen.kt
+    val recentDropLocations: List<AutocompletePrediction> = emptyList(),
+    // ✅✅✅ END OF FIX ✅✅✅
+
     val isSearching: Boolean = false,
     val activeField: SearchField = SearchField.DROP // Drop is active by default
 )

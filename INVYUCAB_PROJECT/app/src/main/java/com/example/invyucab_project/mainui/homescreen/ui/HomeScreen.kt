@@ -28,6 +28,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+// ✅ ADDED IMPORT
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -284,14 +286,27 @@ fun SearchInputSection(
     val pickupFocusRequester = remember { FocusRequester() }
     val dropFocusRequester = remember { FocusRequester() }
 
+    // ✅ ADDED: Flag to skip first composition
+    val isInitialRun = remember { mutableStateOf(true) }
+
     // This effect is necessary to handle focus changes
     // when a prediction is tapped
     LaunchedEffect(activeField) {
-        if (activeField == SearchField.PICKUP) {
-            pickupFocusRequester.requestFocus()
+        // ✅ START OF MODIFIED CODE: KEYBOARD FIX
+        if (isInitialRun.value) {
+            // Skip the first effect run to prevent keyboard on launch
+            // The default field is DROP, so this will trigger, set the flag, and not request focus
+            isInitialRun.value = false
         } else {
-            dropFocusRequester.requestFocus()
+            // This is a subsequent run, triggered by user interaction (e.g., tapping PICKUP)
+            if (activeField == SearchField.PICKUP) {
+                pickupFocusRequester.requestFocus()
+            } else if (activeField == SearchField.DROP) {
+                // This will run if the state changes *back* to drop
+                dropFocusRequester.requestFocus()
+            }
         }
+        // ✅ END OF MODIFIED CODE
     }
 
     Row(
