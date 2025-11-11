@@ -24,6 +24,7 @@ import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.driverdetailsscreen.viewmodel.DriverDetailsViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
+import com.example.invyucab_project.ui.theme.CabVeryLightMint
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,10 +41,8 @@ fun DriverDetailsScreen(
         viewModel.eventFlow.collect { event ->
             when (event) {
                 is BaseViewModel.UiEvent.Navigate -> {
-                    // Navigate to DriverScreen and clear the auth stack
-                    navController.navigate(event.route) {
-                        popUpTo(Screen.AuthScreen.route) { inclusive = true }
-                    }
+                    // ✅ THIS IS THE FIX
+                    navController.navigate(event.route)
                 }
                 is BaseViewModel.UiEvent.ShowSnackbar -> {
                     snackbarHostState.showSnackbar(
@@ -87,7 +86,9 @@ fun DriverDetailsScreen(
                     navigationIconContentColor = Color.White // This ensures the icon is white
                 )
             )
-        }
+        },
+        containerColor = CabVeryLightMint
+
     ) { padding ->
         Box(
             modifier = Modifier
