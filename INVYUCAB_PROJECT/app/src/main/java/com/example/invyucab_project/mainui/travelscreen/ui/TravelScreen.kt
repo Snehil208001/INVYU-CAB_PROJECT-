@@ -1,34 +1,32 @@
 package com.example.invyucab_project.mainui.travelscreen.ui
 
-
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.NavController
-import com.example.invyucab_project.mainui.homescreen.ui.AppBottomNavigation
+// ✅✅✅ START OF FIX ✅✅✅
+// Added the correct import
+import com.example.invyucab_project.core.utils.navigationsbar.AppBottomNavigation
+// ✅✅✅ END OF FIX ✅✅✅
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TravelScreen(navController: NavController) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Travel", fontWeight = FontWeight.Bold) }
-            )
+            TopAppBar(title = { Text("My Travels") })
         },
-        bottomBar = { AppBottomNavigation(navController = navController) }
+        bottomBar = {
+            // ✅ This call is now valid
+            AppBottomNavigation(navController = navController, selectedItem = "Travel")
+        }
     ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentAlignment = Alignment.Center
-        ) {
+        Box(modifier = Modifier.padding(padding)) {
             Text("Travel Screen")
         }
     }

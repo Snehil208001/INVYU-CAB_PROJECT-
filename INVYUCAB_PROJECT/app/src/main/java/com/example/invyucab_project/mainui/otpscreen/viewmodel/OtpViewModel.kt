@@ -10,9 +10,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.core.navigations.Screen
-import com.example.invyucab_project.data.models.CreateUserRequest // ✅ ADDED
+import com.example.invyucab_project.data.models.CreateUserRequest
 import com.example.invyucab_project.domain.usecase.ActivateUserUseCase
-import com.example.invyucab_project.domain.usecase.CreateUserUseCase // ✅ ADDED
+import com.example.invyucab_project.domain.usecase.CreateUserUseCase
 import com.example.invyucab_project.domain.usecase.SaveUserStatusUseCase
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
@@ -24,10 +24,10 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import java.net.URLDecoder // ✅ ADDED
-import java.nio.charset.StandardCharsets // ✅ ADDED
-import java.text.SimpleDateFormat // ✅ ADDED
-import java.util.Locale // ✅ ADDED
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+import java.text.SimpleDateFormat
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -36,7 +36,7 @@ class OtpViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val activateUserUseCase: ActivateUserUseCase,
     private val saveUserStatusUseCase: SaveUserStatusUseCase,
-    private val createUserUseCase: CreateUserUseCase, // ✅ ADDED
+    private val createUserUseCase: CreateUserUseCase,
     savedStateHandle: SavedStateHandle
 ) : BaseViewModel() {
 
@@ -47,8 +47,8 @@ class OtpViewModel @Inject constructor(
     private val isSignUp: Boolean = savedStateHandle.get<Boolean>("isSignUp") ?: false
     val role: String = savedStateHandle.get<String>("role") ?: "rider"
 
-    // ✅ ADDED: All user/driver data
-    val email: String? = decodeParam(savedStateHandle.get<String>("email"))
+    // ❌ REMOVED email
+    // val email: String? = decodeParam(savedStateHandle.get<String>("email"))
     val name: String? = decodeParam(savedStateHandle.get<String>("name"))
     val gender: String? = decodeParam(savedStateHandle.get<String>("gender"))
     val dob: String? = decodeParam(savedStateHandle.get<String>("dob"))
@@ -70,7 +70,8 @@ class OtpViewModel @Inject constructor(
 
     init {
         Log.d(TAG, "OTP Screen loaded. Mode: ${if(isSignUp) "Sign Up" else "Sign In"}")
-        Log.d(TAG, "Data: $fullPhoneNumber, $role, $name, $email, $dob, $gender, $license, $vehicle, $aadhaar")
+        // ❌ REMOVED email from log
+        Log.d(TAG, "Data: $fullPhoneNumber, $role, $name, $dob, $gender, $license, $vehicle, $aadhaar")
 
         callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
             override fun onCodeSent(id: String, token: PhoneAuthProvider.ForceResendingToken) {
@@ -90,12 +91,11 @@ class OtpViewModel @Inject constructor(
                 Log.d(TAG, "onVerificationCompleted: Auto-retrieval success.")
                 otp = credential.smsCode ?: ""
                 isAutoVerificationRunning = true
-                signInWithCredential(credential) // Attempt auto-sign-in
+                signInWithCredential(credential)
             }
         }
     }
 
-    // Helper to decode URL-encoded params
     private fun decodeParam(param: String?): String? {
         if (param.isNullOrBlank()) return null
         return try {
@@ -139,7 +139,6 @@ class OtpViewModel @Inject constructor(
             return
         }
 
-        // If auto-verification is already running, don't do it again
         if (isAutoVerificationRunning) return
 
         _isLoading.value = true
@@ -151,19 +150,13 @@ class OtpViewModel @Inject constructor(
     private fun signInWithCredential(credential: PhoneAuthCredential) {
         viewModelScope.launch {
             try {
-                // Step 1: Verify OTP with Firebase
                 auth.signInWithCredential(credential).await()
                 Log.d(TAG, "Firebase sign-in successful.")
 
-                // Step 2: Navigate OR Update Status
                 if (isSignUp) {
-                    // ✅✅✅ START OF CHANGE ✅✅✅
-                    // THIS IS SIGN-UP: Create the user in our backend
                     Log.d(TAG, "Sign-up flow: Creating user in backend...")
                     createUser()
-                    // ✅✅✅ END OF CHANGE ✅✅✅
                 } else {
-                    // THIS IS SIGN-IN
                     Log.d(TAG, "Sign-in flow: Updating user status to active.")
                     activateUser()
                 }
@@ -172,29 +165,26 @@ class OtpViewModel @Inject constructor(
                 Log.e(TAG, "signInWithCredential failed: ", e)
                 _isLoading.value = false
                 _apiError.value = "Verification failed. Please check the OTP."
-                isAutoVerificationRunning = false // Reset auto-verify flag on failure
+                isAutoVerificationRunning = false
             }
         }
     }
 
     private fun activateUser() {
-        activateUserUseCase.invoke(fullPhoneNumber, email).onEach { result ->
+        // ✅ MODIFIED: Pass null for the email parameter
+        activateUserUseCase.invoke(fullPhoneNumber, null).onEach { result ->
             when (result) {
                 is Resource.Loading -> {
                     _isLoading.value = true
                 }
                 is Resource.Success -> {
-                    // Backend API call successful, now save to local prefs
                     saveUserStatusUseCase.invoke("active")
                     Log.d(TAG, "User status 'active' saved to SharedPreferences.")
 
                     _isLoading.value = false
                     isAutoVerificationRunning = false
 
-                    // ✅✅✅ THIS IS THE FIX ✅✅✅
-                    // Send ONLY the route. The UI will handle the popUpTo.
                     sendEvent(UiEvent.Navigate(Screen.HomeScreen.route))
-                    // ✅✅✅ END OF FIX ✅✅✅
                 }
                 is Resource.Error -> {
                     _isLoading.value = false
@@ -205,8 +195,6 @@ class OtpViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    // ✅✅✅ START OF NEW FUNCTION ✅✅✅
-    // Handles creating the user after OTP is verified
     private fun createUser() {
         val formattedDob = formatDobForApi(dob)
         val finalRole = role.lowercase()
@@ -218,13 +206,12 @@ class OtpViewModel @Inject constructor(
             profilePhotoUrl = null,
             gender = gender?.lowercase(),
             dob = formattedDob,
-            licenseNumber = license, // Passed from DriverDetails or null
-            vehicleId = vehicle,   // Passed from DriverDetails or null
+            licenseNumber = license,
+            vehicleId = vehicle,
             rating = null,
             walletBalance = null,
             isVerified = true,
             status = "active"
-            // Note: aadhaarNumber is not in CreateUserRequest model
         )
 
         createUserUseCase.invoke(request).onEach { result ->
@@ -233,13 +220,11 @@ class OtpViewModel @Inject constructor(
                     _isLoading.value = true
                 }
                 is Resource.Success -> {
-                    // User created in backend, now save to local prefs
                     saveUserStatusUseCase.invoke("active")
                     Log.d(TAG, "User status 'active' saved to SharedPreferences.")
                     _isLoading.value = false
                     isAutoVerificationRunning = false
 
-                    // Navigate to the correct screen based on role
                     val route = when (finalRole) {
                         "rider" -> Screen.HomeScreen.route
                         "driver" -> Screen.DriverScreen.route
@@ -247,10 +232,7 @@ class OtpViewModel @Inject constructor(
                         else -> Screen.HomeScreen.route
                     }
 
-                    // ✅✅✅ THIS IS THE FIX ✅✅✅
-                    // Send ONLY the route. The UI will handle the popUpTo.
                     sendEvent(UiEvent.Navigate(route))
-                    // ✅✅✅ END OF FIX ✅✅✅
                 }
                 is Resource.Error -> {
                     _isLoading.value = false
@@ -261,13 +243,10 @@ class OtpViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    // Helper function to format DOB for the API
     private fun formatDobForApi(dobString: String?): String? {
         if (dobString.isNullOrBlank()) return null
         return try {
-            // Input format: "MMMM d, yyyy" (e.g., "July 4, 1990")
             val parser = SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH)
-            // Output format: "yyyy-MM-dd"
             val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
             val date = parser.parse(dobString)
             formatter.format(date!!)
@@ -276,5 +255,4 @@ class OtpViewModel @Inject constructor(
             null
         }
     }
-    // ✅✅✅ END OF NEW FUNCTION ✅✅✅
 }

@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons // ✅ ADDED Import
+import androidx.compose.material.icons.automirrored.filled.ArrowBack // ✅ ADDED Import
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.invyucab_project.core.base.BaseViewModel // ✅ IMPORTED
+import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.driverdetailsscreen.viewmodel.DriverDetailsViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
@@ -30,8 +32,8 @@ fun DriverDetailsScreen(
     viewModel: DriverDetailsViewModel = hiltViewModel()
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    val isLoading = viewModel.isLoading.value // ✅ Get state from BaseViewModel
-    val apiError = viewModel.apiError.value   // ✅ Get state from BaseViewModel
+    val isLoading = viewModel.isLoading.value
+    val apiError = viewModel.apiError.value
 
     // --- Event Collection ---
     LaunchedEffect(key1 = true) {
@@ -69,9 +71,20 @@ fun DriverDetailsScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Driver Details") },
+                // ✅✅✅ START OF FIX ✅✅✅
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                        )
+                    }
+                },
+                // ✅✅✅ END OF FIX ✅✅✅
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = CabMintGreen,
-                    titleContentColor = Color.White
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White // This ensures the icon is white
                 )
             )
         }
@@ -128,7 +141,7 @@ fun DriverDetailsScreen(
 
                 Button(
                     onClick = {
-                        viewModel.onSubmitClicked() // ✅ ViewModel handles navigation
+                        viewModel.onSubmitClicked()
                     },
                     modifier = Modifier
                         .fillMaxWidth()

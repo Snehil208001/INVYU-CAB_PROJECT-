@@ -9,7 +9,7 @@ import androidx.navigation.navArgument
 import com.example.invyucab_project.mainui.allservicesscreen.ui.AllServicesScreen
 import com.example.invyucab_project.mainui.authscreen.ui.AuthScreen
 import com.example.invyucab_project.mainui.homescreen.ui.HomeScreen
-import com.example.invyucab_project.mainui.locationsearchscreen.ui.LocationSearchScreen
+// import com.example.invyucab_project.mainui.locationsearchscreen.ui.LocationSearchScreen // ❌ REMOVED
 import com.example.invyucab_project.mainui.onboardingscreen.ui.OnboardingScreen
 import com.example.invyucab_project.mainui.otpscreen.ui.OtpScreen
 import com.example.invyucab_project.mainui.profilescreen.ui.ProfileScreen
@@ -50,7 +50,6 @@ fun NavGraph(
                 navArgument("phone") { type = NavType.StringType },
                 navArgument("isSignUp") { type = NavType.BoolType },
                 navArgument("role") { type = NavType.StringType },
-                navArgument("email") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("name") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("gender") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("dob") { type = NavType.StringType; nullable = true; defaultValue = null },
@@ -66,7 +65,6 @@ fun NavGraph(
             arguments = listOf(
                 navArgument("phone") { type = NavType.StringType },
                 navArgument("role") { type = NavType.StringType },
-                navArgument("email") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("name") { type = NavType.StringType; nullable = true; defaultValue = null }
             )
         ) {
@@ -82,28 +80,18 @@ fun NavGraph(
             RoleSelectionScreen(navController = navController)
         }
 
-        // ✅✅✅ THIS IS THE FIX ✅✅✅
         composable(
-            route = Screen.DriverDetailsScreen.route, // This now includes '?email={email}'
+            route = Screen.DriverDetailsScreen.route,
             arguments = listOf(
-                // Path arguments (required)
                 navArgument("phone") { type = NavType.StringType },
                 navArgument("role") { type = NavType.StringType },
                 navArgument("name") { type = NavType.StringType },
                 navArgument("gender") { type = NavType.StringType },
-                navArgument("dob") { type = NavType.StringType },
-
-                // Query argument (optional)
-                navArgument("email") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                }
+                navArgument("dob") { type = NavType.StringType }
             )
         ) {
             DriverDetailsScreen(navController = navController)
         }
-        // ✅✅✅ END OF FIX ✅✅✅
 
         composable(Screen.AdminScreen.route) {
             AdminScreen(navController = navController)
@@ -134,9 +122,13 @@ fun NavGraph(
         composable(Screen.PaymentMethodScreen.route) {
             PaymentMethodScreen(navController = navController)
         }
+
+        // ❌❌❌ REMOVED ❌❌❌
+        /*
         composable(Screen.LocationSearchScreen.route) {
             LocationSearchScreen(navController = navController)
         }
+        */
 
         composable(
             route = Screen.RideSelectionScreen.route,

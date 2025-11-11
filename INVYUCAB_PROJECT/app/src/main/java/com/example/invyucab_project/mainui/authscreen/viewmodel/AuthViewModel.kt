@@ -150,7 +150,6 @@ class AuthViewModel @Inject constructor(
                                     phone = signInPhone,
                                     isSignUp = false,
                                     role = "rider", // Role doesn't matter for sign-in, but arg is required
-                                    email = null,
                                     name = null,
                                     gender = null,
                                     dob = null

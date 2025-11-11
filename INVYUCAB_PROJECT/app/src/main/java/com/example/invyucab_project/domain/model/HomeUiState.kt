@@ -1,14 +1,33 @@
-// This file contains UI state models for the HomeScreen.
-// These models are used by the HomeViewModel.
 package com.example.invyucab_project.domain.model
 
-import androidx.compose.ui.graphics.vector.ImageVector
+import com.google.android.gms.maps.model.LatLng
 
-// Represents an item in the "Explore" section of the home screen
-data class ExploreItem(val icon: ImageVector, val label: String)
+// ✅ ADDED This data class back. It was deleted when LocationSearchScreen was removed.
+data class AutocompletePrediction(
+    val placeId: String,
+    val primaryText: String,
+    val secondaryText: String,
+    val description: String // Full text
+)
 
-// Represents a quick-access "Go Places" item on the home screen
-data class PlaceItem(val icon: ImageVector, val label: String)
+// Enum to track which text field is active
+enum class SearchField {
+    PICKUP, DROP
+}
 
-// Represents a recent location in the "Recent Locations" list
-data class RecentLocation(val name: String, val address: String)
+data class HomeUiState(
+    val currentLocation: LatLng? = null,
+    val isFetchingLocation: Boolean = true, // We still need this for the API
+
+    // ✅ ADDED properties to handle the new search UI
+    val pickupQuery: String = "Your Current Location",
+    val dropQuery: String = "",
+    val pickupPlaceId: String? = "current_location", // Default to current location
+    val dropPlaceId: String? = null,
+
+    val pickupResults: List<AutocompletePrediction> = emptyList(),
+    val dropResults: List<AutocompletePrediction> = emptyList(),
+
+    val isSearching: Boolean = false,
+    val activeField: SearchField = SearchField.DROP // Drop is active by default
+)

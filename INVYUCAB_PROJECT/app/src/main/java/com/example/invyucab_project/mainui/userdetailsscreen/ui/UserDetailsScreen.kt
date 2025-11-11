@@ -12,7 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Cake
-import androidx.compose.material.icons.filled.Email
+// import androidx.compose.material.icons.filled.Email // ❌ REMOVED
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Wc
@@ -44,7 +44,7 @@ import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.userdetailsscreen.viewmodel.UserDetailsViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
-import com.example.invyucab_project.ui.theme.LightSlateGray
+// import com.example.invyucab_project.ui.theme.LightSlateGray // ❌ REMOVED (if unused)
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -55,12 +55,10 @@ fun UserDetailsScreen(
     navController: NavController,
     viewModel: UserDetailsViewModel = hiltViewModel()
 ) {
-    // === STATE FOR DIALOGS ===
     var showGenderDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // === DATE PICKER LOGIC ===
     val calendar = remember {
         parseDate(viewModel.birthday) ?: Calendar.getInstance()
     }
@@ -77,9 +75,7 @@ fun UserDetailsScreen(
             viewModel.onBirthdayChange(formatDate(selectedCalendar))
         }, year, month, day
     )
-    // ==========================
 
-    // Listen for navigation events from the ViewModel
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collect { event ->
             when (event) {
@@ -100,7 +96,6 @@ fun UserDetailsScreen(
                 title = { Text("Complete Your Profile", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = {
-                        // Go back to RoleSelectionScreen
                         navController.popBackStack()
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -166,7 +161,8 @@ fun UserDetailsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Email Field
+            // ❌❌❌ EMAIL FIELD REMOVED ❌❌❌
+            /*
             OutlinedTextField(
                 value = viewModel.email,
                 onValueChange = { viewModel.onEmailChange(it) },
@@ -198,6 +194,9 @@ fun UserDetailsScreen(
             )
 
             Spacer(modifier = Modifier.height(16.dp))
+            */
+            // ❌❌❌ END OF REMOVAL ❌❌❌
+
 
             // Phone Field
             OutlinedTextField(
@@ -304,7 +303,7 @@ private fun ClickableOutlinedTextField(
     leadingIcon: ImageVector,
     onClick: () -> Unit,
     isError: Boolean = false,
-    isPlaceholder: Boolean = false, // ✅ ADDED: To handle placeholder color
+    isPlaceholder: Boolean = false,
     supportingText: @Composable (() -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -323,28 +322,18 @@ private fun ClickableOutlinedTextField(
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
             },
             singleLine = true,
-            enabled = false, // Always disabled to be clickable
+            enabled = false,
             isError = isError,
-
-            // ✅✅✅ THIS IS THE FIX ✅✅✅
             colors = OutlinedTextFieldDefaults.colors(
-                // Handle placeholder color for DOB/Gender field
                 disabledTextColor = if (isPlaceholder) Color.Gray else Color.Black.copy(alpha = 0.8f),
-
-                // This color is used when (enabled = false) AND (isError = false)
                 disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
-
-                // This color is used when (isError = true), even if disabled
                 errorBorderColor = MaterialTheme.colorScheme.error,
-
                 disabledLeadingIconColor = Color.Black.copy(alpha = 0.8f),
                 disabledTrailingIconColor = Color.Gray,
                 disabledLabelColor = Color.Gray,
                 disabledContainerColor = Color.White
             )
-            // ✅✅✅ END OF FIX ✅✅✅
         )
-        // Render supporting text if it exists
         if (supportingText != null) {
             Box(
                 modifier = Modifier
@@ -352,7 +341,6 @@ private fun ClickableOutlinedTextField(
                     .padding(start = 16.dp, top = 4.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
-                // Apply error color to supporting text if in error state
                 val textColor = if (isError) MaterialTheme.colorScheme.error else Color.Gray
                 ProvideTextStyle(
                     value = MaterialTheme.typography.bodySmall.copy(color = textColor),

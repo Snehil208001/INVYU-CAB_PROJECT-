@@ -18,7 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.LocalOffer
+// import androidx.compose.material.icons.filled.LocalOffer // ❌ REMOVED
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -44,8 +44,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.R
 import com.example.invyucab_project.domain.model.RideOption
-// ✅✅✅ THIS IS THE FIX (Part 1) ✅✅✅
-// Import the new state model
 import com.example.invyucab_project.domain.model.RideSelectionState
 import com.example.invyucab_project.mainui.rideselectionscreen.viewmodel.RideSelectionViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
@@ -58,8 +56,8 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
-import java.text.SimpleDateFormat
-import java.util.*
+// import java.text.SimpleDateFormat // ❌ REMOVED
+// import java.util.* // ❌ REMOVED
 import java.lang.Exception
 
 
@@ -70,9 +68,6 @@ fun RideSelectionScreen(
     viewModel: RideSelectionViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-
-    // ✅✅✅ THIS IS THE FIX (Part 2) ✅✅✅
-    // val rideOptions by viewModel.rideOptions.collectAsState() // <-- REMOVED. It's now inside uiState.
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(25.5941, 85.1376), 12f)
@@ -188,8 +183,6 @@ fun RideSelectionScreen(
             )
 
             RideOptionsBottomSheet(
-                // ✅✅✅ THIS IS THE FIX (Part 3) ✅✅✅
-                // Pass the rideOptions list *from* the uiState
                 rideOptions = uiState.rideOptions
             )
 
@@ -359,32 +352,24 @@ fun BoxScope.RideOptionsBottomSheet(rideOptions: List<RideOption>) {
                         }
                     }
                 }
-                Text(
-                    "UNLIMITED Discounts! Buy Pass Now >",
-                    color = Color(0xFFE65100),
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.background(Color(0xFFFFF8E1)).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
-                )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
+                // ✅✅✅ START OF FIX ✅✅✅
+                // Removed the "Offers" Row and its Arrangement.SpaceBetween
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                    // horizontalArrangement = Arrangement.SpaceBetween // ❌ REMOVED
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { /* TODO */ }) {
                         Icon(Icons.Default.CreditCard, contentDescription = "Payment", tint = Color.Gray)
                         Text("Cash", fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 8.dp))
                         Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = Color.Gray)
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { /* TODO */ }) {
-                        Icon(Icons.Filled.LocalOffer, contentDescription = "Offers", tint = CabMintGreen)
-                        Text("% Offers", fontWeight = FontWeight.Medium, color = CabMintGreen, modifier = Modifier.padding(start = 4.dp))
-                    }
+                    // ❌ REMOVED "Offers" Row
                 }
+                // ✅✅✅ END OF FIX ✅✅✅
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -431,25 +416,27 @@ fun RideOptionItem(ride: RideOption, isSelected: Boolean, onClick: () -> Unit) {
         Column( modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(ride.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                if (ride.id == 1) {
+                if (ride.name.equals("Bike", ignoreCase = true)) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Icon(Icons.Default.Person, contentDescription="Single Rider", modifier = Modifier.size(14.dp), tint = Color.Gray)
                     Text("1", fontSize=12.sp, color = Color.Gray)
                 }
             }
 
-            ride.subtitle?.let {
-                Text(it, fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(top=2.dp))
+            // ✅✅✅ START OF FIX ✅✅✅
+            // Removed the Text composable that showed the drop-off time
+            /*
+            ride.estimatedDurationMinutes?.let { duration ->
+                val dropTime = calculateDropOffTime(0, duration) // 0 ETA, just duration
+                Text(
+                    "Est. Drop $dropTime", // e.g., "Est. Drop 5:15 pm"
+                    fontSize = 13.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
             }
-
-            val etaMinutes = ride.description.filter { it.isDigit() }.toIntOrNull() ?: 0
-            val dropTime = calculateDropOffTime(etaMinutes, ride.estimatedDurationMinutes)
-            Text(
-                "${ride.description} • Drop ${dropTime}",
-                fontSize = 13.sp,
-                color = Color.Gray,
-                modifier = Modifier.padding(top=2.dp)
-            )
+            */
+            // ✅✅✅ END OF FIX ✅✅✅
         }
 
         Spacer(modifier = Modifier.width(16.dp))
@@ -463,7 +450,7 @@ fun RideOptionItem(ride: RideOption, isSelected: Boolean, onClick: () -> Unit) {
                 )
             } else if (ride.price != null) {
                 Text(
-                    text = ride.price,
+                    text = "${ride.price}",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     color = Color.Black
@@ -482,10 +469,12 @@ fun RideOptionItem(ride: RideOption, isSelected: Boolean, onClick: () -> Unit) {
     }
 }
 
-
+// ❌❌❌ REMOVED unused function ❌❌❌
+/*
 fun calculateDropOffTime(etaMinutes: Int, durationMinutes: Int?): String {
     val calendar = Calendar.getInstance()
     calendar.add(Calendar.MINUTE, etaMinutes + (durationMinutes ?: 0))
     val format = SimpleDateFormat("h:mm a", Locale.getDefault())
     return format.format(calendar.time).lowercase()
 }
+*/

@@ -9,8 +9,8 @@ import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.navigations.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import java.net.URLDecoder // ✅ ADDED
-import java.nio.charset.StandardCharsets // ✅ ADDED
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import javax.inject.Inject
 
 @HiltViewModel
@@ -20,17 +20,17 @@ class UserDetailsViewModel @Inject constructor(
 
     // --- State from Navigation ---
     private val rawPhone: String? = savedStateHandle.get<String>("phone")
-
-    // ✅ ADDED: Get role from navigation
     val role: String = savedStateHandle.get<String>("role") ?: "rider"
 
-    // ✅ MODIFIED: Handle decoding for email/name
+    // ❌ REMOVED rawEmail
+    /*
     private val rawEmail: String? = try {
         val encoded: String? = savedStateHandle.get<String>("email")
         encoded?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
     } catch (e: Exception) {
         savedStateHandle.get<String>("email")
     }
+    */
 
     private val rawName: String? = try {
         val encoded: String? = savedStateHandle.get<String>("name")
@@ -42,8 +42,8 @@ class UserDetailsViewModel @Inject constructor(
     // --- UI State ---
     var name by mutableStateOf(rawName ?: "")
         private set
-    var email by mutableStateOf(rawEmail ?: "")
-        private set
+    // var email by mutableStateOf(rawEmail ?: "") // ❌ REMOVED
+    //     private set
     var phone by mutableStateOf(rawPhone ?: "")
         private set
     var gender by mutableStateOf("")
@@ -54,15 +54,15 @@ class UserDetailsViewModel @Inject constructor(
     // --- Error State ---
     var nameError by mutableStateOf<String?>(null)
         private set
-    var emailError by mutableStateOf<String?>(null)
-        private set
+    // var emailError by mutableStateOf<String?>(null) // ❌ REMOVED
+    //     private set
     var phoneError by mutableStateOf<String?>(null)
         private set
     var birthdayError by mutableStateOf<String?>(null)
         private set
 
     // --- Flags ---
-    val isEmailFromGoogle = rawEmail != null && rawEmail.isNotBlank()
+    // val isEmailFromGoogle = rawEmail != null && rawEmail.isNotBlank() // ❌ REMOVED
     val isPhoneFromMobileAuth = rawPhone != null && rawPhone.isNotBlank()
 
     // --- UI Event Handlers ---
@@ -72,15 +72,17 @@ class UserDetailsViewModel @Inject constructor(
         nameError = if (value.isBlank()) "Name is required" else null
     }
 
+    // ❌ REMOVED onEmailChange function
+    /*
     fun onEmailChange(value: String) {
         email = value
-        // Basic email validation (optional)
         emailError = if (value.isNotBlank() && !android.util.Patterns.EMAIL_ADDRESS.matcher(value).matches()) {
             "Invalid email format"
         } else {
             null
         }
     }
+    */
 
     fun onPhoneChange(value: String) {
         if (value.all { it.isDigit() } && value.length <= 10) {
@@ -102,21 +104,16 @@ class UserDetailsViewModel @Inject constructor(
         nameError = if (name.isBlank()) "Name is required" else null
         phoneError = if (phone.length != 10) "Must be 10 digits" else null
         birthdayError = if (birthday.isBlank()) "Date of birth is required" else null
-        // Gender is validated by dialog
 
+        // ❌ REMOVED emailError check
         return nameError == null && phoneError == null && birthdayError == null && gender.isNotBlank()
     }
 
-    // ✅✅✅ START OF CHANGE ✅✅✅
-    // ViewModel now handles navigation logic
     fun onSaveClicked() {
         if (!validate()) return
 
-        // Clear focus (optional, good practice)
-        // ... (requires keyboard controller)
-
-        val finalEmail = email.ifBlank { null }
-        val finalDob = birthday // Already in "MMMM d, yyyy" format
+        // val finalEmail = email.ifBlank { null } // ❌ REMOVED
+        val finalDob = birthday
 
         viewModelScope.launch {
             if (role.equals("Rider", ignoreCase = true)) {
@@ -126,11 +123,10 @@ class UserDetailsViewModel @Inject constructor(
                         phone = phone,
                         isSignUp = true,
                         role = role,
-                        email = finalEmail,
+                        // email = finalEmail, // ❌ REMOVED
                         name = name,
                         gender = gender,
                         dob = finalDob
-                        // Driver fields (license, etc.) are null by default
                     )
                 ))
             } else {
@@ -140,7 +136,7 @@ class UserDetailsViewModel @Inject constructor(
                         phone = phone,
                         role = role,
                         name = name,
-                        email = finalEmail,
+                        // email = finalEmail, // ❌ REMOVED
                         gender = gender,
                         dob = finalDob
                     )
@@ -148,5 +144,4 @@ class UserDetailsViewModel @Inject constructor(
             }
         }
     }
-    // ✅✅✅ END OF CHANGE ✅✅✅
 }

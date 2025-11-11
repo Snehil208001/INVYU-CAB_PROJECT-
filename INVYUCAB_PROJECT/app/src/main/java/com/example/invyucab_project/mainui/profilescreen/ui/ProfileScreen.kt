@@ -8,7 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AccountCircle // Keep general filled icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -20,12 +20,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel // Import hiltViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.invyucab_project.core.navigations.Screen // Import Screen
+import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.domain.model.ProfileOption
-import com.example.invyucab_project.mainui.homescreen.ui.AppBottomNavigation
-import com.example.invyucab_project.mainui.profilescreen.viewmodel.ProfileViewModel // Import ProfileViewModel
+// ✅✅✅ START OF FIX ✅✅✅
+// Corrected the import path
+import com.example.invyucab_project.core.utils.navigationsbar.AppBottomNavigation
+// ✅✅✅ END OF FIX ✅✅✅
+import com.example.invyucab_project.mainui.profilescreen.viewmodel.ProfileViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.LightSlateGray
 
@@ -33,9 +36,8 @@ import com.example.invyucab_project.ui.theme.LightSlateGray
 @Composable
 fun ProfileScreen(
     navController: NavController,
-    viewModel: ProfileViewModel = hiltViewModel() // Inject ViewModel
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
-    // Get user profile data and options from ViewModel
     val userProfile by viewModel.userProfile.collectAsState()
     val profileOptions = viewModel.profileOptions
 
@@ -46,7 +48,10 @@ fun ProfileScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
-        bottomBar = { AppBottomNavigation(navController = navController) },
+        bottomBar = {
+            // ✅ This call is now valid
+            AppBottomNavigation(navController = navController, selectedItem = "Profile")
+        },
         containerColor = Color.White
     ) { padding ->
         LazyColumn(
@@ -55,7 +60,6 @@ fun ProfileScreen(
                 .padding(padding)
                 .background(LightSlateGray.copy(alpha = 0.3f)),
         ) {
-            // Header Section - Pass data from ViewModel state
             item {
                 ProfileHeader(
                     name = userProfile.name,
@@ -64,19 +68,17 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Options Section - Use options from ViewModel
             items(profileOptions) { option ->
                 ProfileOptionItem(
                     option = option,
                     navController = navController,
-                    viewModel = viewModel // ✅ PASS ViewModel
+                    viewModel = viewModel
                 )
             }
         }
     }
 }
 
-// Composable for the Profile Header
 @Composable
 fun ProfileHeader(name: String, phone: String) {
     Column(
@@ -86,7 +88,6 @@ fun ProfileHeader(name: String, phone: String) {
             .padding(horizontal = 20.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.Start
     ) {
-        // Placeholder for Profile Picture
         Icon(
             imageVector = Icons.Default.AccountCircle,
             contentDescription = "Profile Picture",
@@ -95,7 +96,6 @@ fun ProfileHeader(name: String, phone: String) {
                 .clip(CircleShape)
                 .background(LightSlateGray),
             tint = Color.Gray
-            // TODO: Replace with Coil Image loader if profilePicUrl is available
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
@@ -113,38 +113,31 @@ fun ProfileHeader(name: String, phone: String) {
     }
 }
 
-// Composable for each item in the profile options list
 @Composable
 fun ProfileOptionItem(
     option: ProfileOption,
     navController: NavController,
-    viewModel: ProfileViewModel // ✅ ACCEPT ViewModel
+    viewModel: ProfileViewModel
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.White)
             .clickable(onClick = {
-                // ✅✅✅ START OF MODIFICATION ✅✅✅
-                // Handle navigation directly
                 when (option.title) {
                     "Edit Profile" -> navController.navigate(Screen.EditProfileScreen.route)
                     "Payment Methods" -> navController.navigate(Screen.PaymentMethodScreen.route)
-                    // "Ride History" -> navController.navigate(Screen.RideHistoryScreen.route) // Example
                     "Logout" -> {
-                        viewModel.logout() // Call the logout function
-                        // ✅ MODIFIED: Navigate to OnboardingScreen instead of AuthScreen
+                        viewModel.logout()
                         navController.navigate(Screen.OnboardingScreen.route) {
-                            // Clear the entire back stack
                             popUpTo(navController.graph.id) {
                                 inclusive = true
                             }
                             launchSingleTop = true
                         }
                     }
-                    else -> option.onClick() // Fallback for other clicks
+                    else -> option.onClick()
                 }
-                // ✅✅✅ END OF MODIFICATION ✅✅✅
             })
             .padding(horizontal = 20.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -167,5 +160,5 @@ fun ProfileOptionItem(
             tint = Color.Gray.copy(alpha = 0.7f)
         )
     }
-    Divider(color = LightSlateGray.copy(alpha = 0.5f), thickness = 0.5.dp, modifier = Modifier.padding(start = 56.dp)) // Added thin divider
+    Divider(color = LightSlateGray.copy(alpha = 0.5f), thickness = 0.5.dp, modifier = Modifier.padding(start = 56.dp))
 }

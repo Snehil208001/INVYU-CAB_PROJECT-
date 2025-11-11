@@ -3,10 +3,7 @@ package com.example.invyucab_project.data.repository
 import com.example.invyucab_project.data.api.CustomApiService
 import com.example.invyucab_project.data.api.GoogleMapsApiService
 import com.example.invyucab_project.data.models.*
-// ✅✅✅ START OF FIX ✅✅✅
-// The class is named PlacesAutocompleteResponse, not PlacesResponse
 import com.example.invyucab_project.data.models.PlacesAutocompleteResponse
-// ✅✅✅ END OF FIX ✅✅✅
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
 import retrofit2.Response
 import javax.inject.Inject
