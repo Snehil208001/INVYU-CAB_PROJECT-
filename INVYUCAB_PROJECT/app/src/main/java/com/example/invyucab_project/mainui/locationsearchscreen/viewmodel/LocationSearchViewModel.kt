@@ -50,7 +50,8 @@ class LocationSearchViewModel @Inject constructor(
     val searchResults = _searchResults.asStateFlow()
 
     private var searchJob: Job? = null
-    private var sessionToken: String = UUID.randomUUID().toString()
+    //                              ↓↓↓↓↓↓↓
+    private var sessionToken: String = UUID.randomUUID().toString() // <-- THIS IS THE FIX
 
     fun onQueryChanged(query: String) {
         searchJob?.cancel()
@@ -80,7 +81,7 @@ class LocationSearchViewModel @Inject constructor(
                         _searchResults.value = result.data?.map {
                             SearchLocation(
                                 name = it.structuredFormatting.mainText,
-                                address = it.structuredFormatting.secondaryText,
+                                address = it.structuredFormatting.secondaryText ?: "",
                                 icon = Icons.Default.LocationOn,
                                 placeId = it.placeId
                             )

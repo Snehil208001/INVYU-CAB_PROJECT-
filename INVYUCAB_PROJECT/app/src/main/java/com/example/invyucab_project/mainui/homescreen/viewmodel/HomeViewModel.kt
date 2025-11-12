@@ -160,7 +160,7 @@ class HomeViewModel @Inject constructor(
                                 AutocompletePrediction(
                                     placeId = prediction.placeId,
                                     primaryText = prediction.structuredFormatting.mainText,
-                                    secondaryText = prediction.structuredFormatting.secondaryText,
+                                    secondaryText = prediction.structuredFormatting.secondaryText ?: "", // <-- THIS IS THE FIX
                                     description = prediction.description
                                 )
                             } ?: emptyList()

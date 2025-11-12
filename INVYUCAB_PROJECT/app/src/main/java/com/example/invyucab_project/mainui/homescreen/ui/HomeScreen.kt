@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
@@ -28,7 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-// ✅ ADDED IMPORT
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -77,13 +75,14 @@ fun HomeScreen(
                 is BaseViewModel.UiEvent.Navigate -> {
                     navController.navigate(event.route)
                 }
+
                 else -> {}
             }
         }
     }
 
-    // ✅ This boolean now controls the button's visibility
-    val isButtonEnabled = !uiState.pickupPlaceId.isNullOrBlank() && !uiState.dropPlaceId.isNullOrBlank()
+    val isButtonEnabled =
+        !uiState.pickupPlaceId.isNullOrBlank() && !uiState.dropPlaceId.isNullOrBlank()
 
     Scaffold(
         containerColor = Color.White,
@@ -96,7 +95,6 @@ fun HomeScreen(
                 )
             )
         },
-        // ✅✅✅ START OF THE FIX ✅✅✅
         bottomBar = {
             Column(
                 modifier = Modifier
@@ -130,7 +128,6 @@ fun HomeScreen(
                 AppBottomNavigation(navController = navController, selectedItem = "Home")
             }
         }
-        // ✅✅✅ END OF THE FIX ✅✅✅
     ) { padding -> // These paddingValues from the Scaffold now perfectly account for the nav bar AND the button
         Column(
             modifier = Modifier

@@ -132,24 +132,11 @@ class RideSelectionViewModel @Inject constructor(
             .setMaxUpdates(1)
             .build()
 
-        val locationCallback = object : LocationCallback() {
-            override fun onLocationResult(locationResult: LocationResult) {
-                fusedLocationClient.removeLocationUpdates(this)
-                locationResult.lastLocation?.let { location ->
-                    val currentLatLng = LatLng(location.latitude, location.longitude)
-                    _uiState.update { it.copy(
-                        isFetchingLocation = false,
-                        pickupLocation = currentLatLng
-                    )}
-                    onLocationsReady(currentLatLng)
-                } ?: run {
-                    _uiState.update { it.copy(
-                        errorMessage = "Could not fetch current location.",
-                        isFetchingLocation = false
-                    )}
-                }
-            }
-        }
+        // ✅✅✅ START OF FIX ✅✅✅
+        // We create an instance of our new inner class instead of an anonymous object
+        val locationCallback = MyLocationCallback()
+        // ✅✅✅ END OF FIX ✅✅✅
+
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
     }
 
@@ -302,6 +289,36 @@ class RideSelectionViewModel @Inject constructor(
             }
         }.launchIn(viewModelScope)
     }
+
+    // ✅✅✅ START OF FIX ✅✅✅
+    /**
+     * This inner class is used to fix a crash with Android Studio's Live Edit feature.
+     * Live Edit cannot instantiate anonymous inner classes (like `object : LocationCallback()`),
+     * so we define a concrete inner class here and instantiate it in `requestNewLocation()`.
+     */
+    private inner class MyLocationCallback : LocationCallback() {
+        override fun onLocationResult(locationResult: LocationResult) {
+            // We only need one update, so remove the callback immediately
+            fusedLocationClient.removeLocationUpdates(this)
+
+            locationResult.lastLocation?.let { location ->
+                val currentLatLng = LatLng(location.latitude, location.longitude)
+                _uiState.update { it.copy(
+                    isFetchingLocation = false,
+                    pickupLocation = currentLatLng
+                )}
+                // Now that we have the location, proceed to fetch the route
+                onLocationsReady(currentLatLng)
+            } ?: run {
+                // This block runs if lastLocation is somehow null
+                _uiState.update { it.copy(
+                    errorMessage = "Could not fetch current location.",
+                    isFetchingLocation = false
+                )}
+            }
+        }
+    }
+    // ✅✅✅ END OF FIX ✅✅✅
 
     // ❌❌❌ REMOVED unused property ❌❌❌
     /*

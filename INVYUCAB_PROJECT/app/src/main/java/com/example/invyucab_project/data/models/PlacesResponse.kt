@@ -21,5 +21,5 @@ data class Prediction(
 @JsonClass(generateAdapter = true)
 data class StructuredFormatting(
     @Json(name = "main_text") val mainText: String,
-    @Json(name = "secondary_text") val secondaryText: String
+    @Json(name = "secondary_text") val secondaryText: String? // <-- This is the only change
 )
