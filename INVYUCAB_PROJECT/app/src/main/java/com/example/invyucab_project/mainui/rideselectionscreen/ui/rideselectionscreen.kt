@@ -1,5 +1,17 @@
 package com.example.invyucab_project.mainui.rideselectionscreen.ui
 
+// --- START OF ADDED IMPORTS ---
+import android.Manifest
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
+// --- END OF ADDED IMPORTS ---
+
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -61,7 +73,7 @@ import com.google.maps.android.compose.*
 import java.lang.Exception
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class) // ✅ ADDED ExperimentalPermissionsApi
 @Composable
 fun RideSelectionScreen(
     navController: NavController,
@@ -74,6 +86,60 @@ fun RideSelectionScreen(
     }
 
     val context = LocalContext.current
+
+    // --- START OF ADDED PERMISSION LOGIC ---
+    val settingsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        // This block executes when returning from settings.
+    }
+
+    // This code requests location permissions
+    val locationPermissionsState = rememberMultiplePermissionsState(
+        permissions = listOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+    )
+
+    // Keep track of whether we've made the *first* request.
+    var permissionRequestLaunched by remember { mutableStateOf(false) }
+
+    // Request permissions when the screen launches *if not already granted*.
+    LaunchedEffect(key1 = Unit) {
+        if (!locationPermissionsState.allPermissionsGranted) {
+            locationPermissionsState.launchMultiplePermissionRequest()
+            permissionRequestLaunched = true // We've now made the first request.
+        }
+    }
+
+    // React to permission grant
+    LaunchedEffect(key1 = locationPermissionsState.allPermissionsGranted) {
+        if (locationPermissionsState.allPermissionsGranted) {
+            // You could add logic here if needed, e.g., refetching location
+            // viewModel.onLocationPermissionGranted()
+        }
+    }
+
+    // Determine if the banner should be shown.
+    val showPermissionBanner = !locationPermissionsState.allPermissionsGranted && permissionRequestLaunched
+
+    // Define the action for the "Allow" button on the banner
+    val onAllowClick: () -> Unit = {
+        if (locationPermissionsState.shouldShowRationale) {
+            // Case 1: User denied once. Show request dialog again.
+            locationPermissionsState.launchMultiplePermissionRequest()
+        } else {
+            // Case 2: User permanently denied ("Don't ask again").
+            // Send them to app settings.
+            val intent = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", context.packageName, null)
+            )
+            settingsLauncher.launch(intent)
+        }
+    }
+    // --- END OF ADDED PERMISSION LOGIC ---
 
     val mapStyleOptions = remember {
         try {
@@ -173,14 +239,20 @@ fun RideSelectionScreen(
                 }
             }
 
-            LocationTopBar(
-                pickup = uiState.pickupDescription,
-                drop = uiState.dropDescription,
-                onBack = { navController.navigateUp() },
-                onFieldsClick = {
-                    navController.popBackStack()
+            // ✅ MODIFIED: Grouped banner and top bar in a Column
+            Column(modifier = Modifier.fillMaxWidth()) {
+                AnimatedVisibility(visible = showPermissionBanner) {
+                    LocationPermissionBanner(onAllowClick = onAllowClick)
                 }
-            )
+                LocationTopBar(
+                    pickup = uiState.pickupDescription,
+                    drop = uiState.dropDescription,
+                    onBack = { navController.navigateUp() },
+                    onFieldsClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
 
             RideOptionsBottomSheet(
                 rideOptions = uiState.rideOptions
@@ -478,3 +550,42 @@ fun calculateDropOffTime(etaMinutes: Int, durationMinutes: Int?): String {
     return format.format(calendar.time).lowercase()
 }
 */
+
+// ✅ --- START OF ADDED BANNER COMPOSABLE ---
+/**
+ * A banner composable that informs the user about denied location permissions
+ * and provides an action to grant them.
+ *
+ * @param onAllowClick The action to perform when the "Allow" button is clicked.
+ */
+@Composable
+fun LocationPermissionBanner(
+    onAllowClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFFFFBE6)) // Light yellow background
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "To see prices and availability, turn on location.",
+            modifier = Modifier.weight(1f),
+            color = Color.Black,
+            fontSize = 14.sp
+        )
+
+        Spacer(Modifier.width(8.dp))
+
+        TextButton(onClick = onAllowClick) {
+            Text(
+                "ALLOW",
+                color = MaterialTheme.colorScheme.primary, // Use app's theme color
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+        }
+    }
+}

@@ -62,7 +62,7 @@ fun SplashScreenLoggedIn(
         ) {
             // Display the logo
             Image(
-                painter = painterResource(id = R.drawable.logo_auth),
+                painter = painterResource(id = R.drawable.invyucablogo),
                 contentDescription = "App Logo",
                 modifier = Modifier.size(150.dp)
             )

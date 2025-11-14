@@ -1,5 +1,18 @@
 package com.example.invyucab_project.mainui.homescreen.ui
 
+// --- START OF ADDED IMPORTS ---
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.sp
+// --- END OF ADDED IMPORTS ---
+
+import android.Manifest
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -47,7 +60,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.core.base.BaseViewModel
@@ -59,14 +71,69 @@ import com.example.invyucab_project.mainui.homescreen.viewmodel.HomeViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
 import com.example.invyucab_project.ui.theme.LightSlateGray
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun HomeScreen(
     navController: NavController,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // --- START OF PERMISSION LOGIC ---
+
+    val context = LocalContext.current
+    val settingsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        // This block executes when returning from settings.
+    }
+
+    val locationPermissionsState = rememberMultiplePermissionsState(
+        permissions = listOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+    )
+
+    var permissionRequestLaunched by remember { mutableStateOf(false) }
+
+    LaunchedEffect(key1 = Unit) {
+        if (!locationPermissionsState.allPermissionsGranted) {
+            locationPermissionsState.launchMultiplePermissionRequest()
+            permissionRequestLaunched = true
+        }
+    }
+
+    LaunchedEffect(key1 = locationPermissionsState.allPermissionsGranted) {
+        if (locationPermissionsState.allPermissionsGranted) {
+            // viewModel.onLocationPermissionGranted()
+        }
+    }
+
+    val showPermissionBanner = !locationPermissionsState.allPermissionsGranted && permissionRequestLaunched
+
+    // ✅ THIS IS THE KEY LOGIC
+    val onAllowClick: () -> Unit = {
+        if (locationPermissionsState.shouldShowRationale) {
+            // Case 1: User denied once. Show request dialog again.
+            // THIS IS THE "ALLOW -> APP PERMISSION" flow you want.
+            locationPermissionsState.launchMultiplePermissionRequest()
+        } else {
+            // Case 2: User permanently denied ("Don't ask again").
+            // It is IMPOSSIBLE to show the dialog. We must send to settings.
+            // THIS IS THE "ALLOW -> APP INFO" flow.
+            val intent = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", context.packageName, null)
+            )
+            settingsLauncher.launch(intent)
+        }
+    }
+    // --- END OF PERMISSION LOGIC ---
+
 
     // Collect navigation events
     LaunchedEffect(key1 = true) {
@@ -98,22 +165,21 @@ fun HomeScreen(
         bottomBar = {
             Column(
                 modifier = Modifier
-                    .background(Color.White) // Ensure background is white
-                    .imePadding() // This pushes the whole Column up when keyboard appears
+                    .background(Color.White)
+                    .imePadding()
             ) {
                 AnimatedVisibility(
                     visible = isButtonEnabled,
                     enter = fadeIn() + slideInVertically { it / 2 },
                     exit = fadeOut() + slideOutVertically { it / 2 }
                 ) {
-                    // The Button is now part of the bottomBar
                     Button(
                         onClick = { viewModel.onContinueClicked() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp)
-                            .padding(horizontal = 16.dp) // Padding for the button
-                            .padding(bottom = 8.dp), // Space between button and nav bar
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
                     ) {
                         Text(
@@ -124,17 +190,23 @@ fun HomeScreen(
                         )
                     }
                 }
-                // The AppBottomNavigation is now below the button
                 AppBottomNavigation(navController = navController, selectedItem = "Home")
             }
         }
-    ) { padding -> // These paddingValues from the Scaffold now perfectly account for the nav bar AND the button
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding) // ✅ This padding is all that's needed
+                .padding(padding)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
         ) {
+
+            AnimatedVisibility(visible = showPermissionBanner) {
+                LocationPermissionBanner(
+                    onAllowClick = onAllowClick
+                )
+            }
+
             SearchInputSection(
                 pickupQuery = uiState.pickupQuery,
                 dropQuery = uiState.dropQuery,
@@ -157,7 +229,6 @@ fun HomeScreen(
                 }
             )
 
-            // Show results based on which field is active
             val results = if (uiState.activeField == SearchField.PICKUP) {
                 uiState.pickupResults
             } else {
@@ -167,10 +238,9 @@ fun HomeScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.White) // White background for the list
+                    .background(Color.White)
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                // ✅ No more fixed bottom padding needed
             ) {
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -186,7 +256,6 @@ fun HomeScreen(
                         )
                     }
                 } else {
-                    // Default items when not searching
                     item {
                         SearchButton(
                             text = "Set on map",
@@ -208,7 +277,39 @@ fun HomeScreen(
     }
 }
 
-// --- StyledTextField (This is correct) ---
+// --- Other Composables (Unchanged) ---
+
+@Composable
+fun LocationPermissionBanner(
+    onAllowClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFFFFBE6)) // Light yellow background
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "To see prices and availability, turn on location.",
+            modifier = Modifier.weight(1f),
+            color = Color.Black,
+            fontSize = 14.sp
+        )
+
+        Spacer(Modifier.width(8.dp))
+
+        TextButton(onClick = onAllowClick) {
+            Text(
+                "ALLOW",
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+        }
+    }
+}
 
 @Composable
 fun StyledTextField(
@@ -268,8 +369,6 @@ fun StyledTextField(
     )
 }
 
-// --- SearchInputSection (This is correct) ---
-
 @Composable
 fun SearchInputSection(
     pickupQuery: String,
@@ -283,27 +382,18 @@ fun SearchInputSection(
     val pickupFocusRequester = remember { FocusRequester() }
     val dropFocusRequester = remember { FocusRequester() }
 
-    // ✅ ADDED: Flag to skip first composition
     val isInitialRun = remember { mutableStateOf(true) }
 
-    // This effect is necessary to handle focus changes
-    // when a prediction is tapped
     LaunchedEffect(activeField) {
-        // ✅ START OF MODIFIED CODE: KEYBOARD FIX
         if (isInitialRun.value) {
-            // Skip the first effect run to prevent keyboard on launch
-            // The default field is DROP, so this will trigger, set the flag, and not request focus
             isInitialRun.value = false
         } else {
-            // This is a subsequent run, triggered by user interaction (e.g., tapping PICKUP)
             if (activeField == SearchField.PICKUP) {
                 pickupFocusRequester.requestFocus()
             } else if (activeField == SearchField.DROP) {
-                // This will run if the state changes *back* to drop
                 dropFocusRequester.requestFocus()
             }
         }
-        // ✅ END OF MODIFIED CODE
     }
 
     Row(
@@ -354,8 +444,6 @@ fun SearchInputSection(
         }
     }
 }
-
-// --- Other Composables (Unchanged) ---
 
 @Composable
 fun LocationConnectorGraphic() {
