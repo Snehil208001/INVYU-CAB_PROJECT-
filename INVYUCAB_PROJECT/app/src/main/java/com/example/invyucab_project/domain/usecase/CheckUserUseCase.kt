@@ -16,6 +16,7 @@ class CheckUserUseCase @Inject constructor(
     private val repository: AppRepository
 ) {
 
+    // ✅ FIX 1: Change the return type to our new sealed interface
     operator fun invoke(phoneNumber: String): Flow<Resource<UserCheckStatus>> = flow {
         try {
             emit(Resource.Loading()) // 1. Emit loading
@@ -24,15 +25,17 @@ class CheckUserUseCase @Inject constructor(
             val response = repository.checkUser(fullPhone)
 
             if (response.isSuccessful && response.body()?.existingUser != null) {
-                emit(Resource.Success(UserCheckStatus.EXISTS)) // 2. Emit success
+                // ✅ FIX 2: Get the role from the response
+                val role = response.body()?.existingUser?.userRole ?: "rider"
+                // ✅ FIX 3: Emit success WITH the user's role
+                emit(Resource.Success(UserCheckStatus.Exists(role)))
             } else {
-                emit(Resource.Success(UserCheckStatus.DOES_NOT_EXIST)) // 2. Emit success
+                emit(Resource.Success(UserCheckStatus.DoesNotExist))
             }
 
         } catch (e: HttpException) {
             if (e.code() == 404) {
-                // 404 is an expected "success" for sign-up
-                emit(Resource.Success(UserCheckStatus.DOES_NOT_EXIST))
+                emit(Resource.Success(UserCheckStatus.DoesNotExist))
             } else {
                 emit(Resource.Error("Server error: ${e.message()}. Please try again."))
             }
@@ -44,7 +47,9 @@ class CheckUserUseCase @Inject constructor(
     }
 }
 
-enum class UserCheckStatus {
-    EXISTS,
-    DOES_NOT_EXIST
+// ✅ FIX 4: Change this from an enum to a sealed interface
+// This allows us to pass data (the role) in the "Exists" state
+sealed interface UserCheckStatus {
+    data class Exists(val role: String) : UserCheckStatus
+    object DoesNotExist : UserCheckStatus
 }
