@@ -120,7 +120,7 @@ fun RoleSelectionScreen(
 
                 // RoleCard for Driver
                 RoleCard(
-                    title = "Driver",
+                    title = "Pilot",
                     description = "Offer rides and earn money.",
                     iconRes = R.drawable.onboarding2, // Replace with actual driver icon
                     onClick = { viewModel.onRoleSelected("Driver") },

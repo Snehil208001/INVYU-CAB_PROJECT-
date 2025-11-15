@@ -31,6 +31,15 @@ class AppRepository @Inject constructor(
         return customApiService.createUser(request)
     }
 
+    // ✅✅✅ START OF NEW CODE ✅✅✅
+    /**
+     * Adds a vehicle for a driver.
+     */
+    suspend fun addVehicle(request: AddVehicleRequest): AddVehicleResponse {
+        return customApiService.addVehicle(request)
+    }
+    // ✅✅✅ END OF NEW CODE ✅✅✅
+
     suspend fun updateUserStatus(request: UpdateUserStatusRequest): UpdateUserStatusResponse {
         return customApiService.updateUserStatus(request)
     }
@@ -45,10 +54,7 @@ class AppRepository @Inject constructor(
 
     // --- MAPS / RIDE FUNCTIONS ---
 
-    // ✅✅✅ START OF FIX ✅✅✅
-    // Use the correct return type
     suspend fun getPlaceAutocomplete(query: String, sessionToken: String): PlacesAutocompleteResponse {
-        // ✅✅✅ END OF FIX ✅✅✅
         return googleMapsApiService.getPlaceAutocomplete(query, sessionToken)
     }
 

@@ -22,16 +22,28 @@ class RoleSelectionViewModel @Inject constructor(
         _apiError.value = null
         _isLoading.value = true
 
-        Log.d("RoleSelectionViewModel", "User selected role: $role. Navigating to UserDetails...")
-
-        sendEvent(UiEvent.Navigate(
-            Screen.UserDetailsScreen.createRoute(
-                phone = phone!!,
-                role = role,
-                // email = null, // ❌ REMOVED
-                name = null
-            )
-        ))
+        // ✅✅✅ START OF MODIFICATION ✅✅✅
+        if (role.equals("Driver", ignoreCase = true)) {
+            Log.d("RoleSelectionViewModel", "User selected role: $role. Navigating to DriverDetails...")
+            // If DRIVER, skip UserDetailsScreen and go to DriverDetailsScreen
+            sendEvent(UiEvent.Navigate(
+                Screen.DriverDetailsScreen.createRoute(
+                    phone = phone!!,
+                    role = role
+                )
+            ))
+        } else {
+            Log.d("RoleSelectionViewModel", "User selected role: $role. Navigating to UserDetails...")
+            // If RIDER (or other), go to UserDetailsScreen as before
+            sendEvent(UiEvent.Navigate(
+                Screen.UserDetailsScreen.createRoute(
+                    phone = phone!!,
+                    role = role,
+                    name = null
+                )
+            ))
+        }
+        // ✅✅✅ END OF MODIFICATION ✅✅✅
 
         _isLoading.value = false
     }

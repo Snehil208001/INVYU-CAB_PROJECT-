@@ -8,8 +8,6 @@ import androidx.lifecycle.SavedStateHandle
 import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.navigations.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
 import javax.inject.Inject
 
 @HiltViewModel
@@ -17,62 +15,80 @@ class DriverDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : BaseViewModel() {
 
-    // All user details are received from UserDetailsScreen
+    // Received from RoleSelectionScreen
     val phone: String? = savedStateHandle.get<String>("phone")
     val role: String? = savedStateHandle.get<String>("role")
 
-    val name: String? = try {
-        val encoded: String? = savedStateHandle.get<String>("name")
-        encoded?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
-    } catch (e: Exception) {
-        savedStateHandle.get<String>("name")
-    }
+    // --- Personal Details Form State ---
+    var name by mutableStateOf("")
+        private set
+    var gender by mutableStateOf("")
+        private set
+    var dob by mutableStateOf("") // This will be birthday
+        private set
 
-    // ❌ REMOVED email
-    /*
-    val email: String? = try {
-        val encoded: String? = savedStateHandle.get<String>("email")
-        encoded?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
-    } catch (e: Exception) {
-        savedStateHandle.get<String>("email")
-    }
-    */
-
-    val gender: String? = try {
-        val encoded: String? = savedStateHandle.get<String>("gender")
-        encoded?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
-    } catch (e: Exception) {
-        savedStateHandle.get<String>("gender")
-    }
-    val dob: String? = try {
-        val encoded: String? = savedStateHandle.get<String>("dob")
-        encoded?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
-    } catch (e: Exception) {
-        savedStateHandle.get<String>("dob")
-    }
-
-    // --- Form State ---
+    // --- Driver Details Form State ---
     var aadhaarNumber by mutableStateOf("")
         private set
     var licenceNumber by mutableStateOf("")
         private set
+
+    // --- Vehicle Details Form State (Matches API Body, minus driver_id) ---
     var vehicleNumber by mutableStateOf("")
+        private set
+    var vehicleModel by mutableStateOf("")
+        private set
+    var vehicleType by mutableStateOf("") // "Auto", "Bike", "Car"
+        private set
+    var vehicleColor by mutableStateOf("")
+        private set
+    var vehicleCapacity by mutableStateOf("")
         private set
 
     // --- Error State ---
+    var nameError by mutableStateOf<String?>(null)
+        private set
+    var genderError by mutableStateOf<String?>(null)
+        private set
+    var dobError by mutableStateOf<String?>(null)
+        private set
     var aadhaarError by mutableStateOf<String?>(null)
         private set
     var licenceError by mutableStateOf<String?>(null)
         private set
-    var vehicleError by mutableStateOf<String?>(null)
+    var vehicleNumberError by mutableStateOf<String?>(null)
+        private set
+    var vehicleModelError by mutableStateOf<String?>(null)
+        private set
+    var vehicleTypeError by mutableStateOf<String?>(null)
+        private set
+    var vehicleColorError by mutableStateOf<String?>(null)
+        private set
+    var vehicleCapacityError by mutableStateOf<String?>(null)
         private set
 
+    val vehicleTypes = listOf("Auto", "Bike", "Car")
+
     init {
-        // ❌ REMOVED email from log
-        Log.d("DriverDetailsVM", "Received: $phone, $role, $name, $gender, $dob")
+        Log.d("DriverDetailsVM", "Received: $phone, $role")
     }
 
     // --- Event Handlers ---
+    fun onNameChange(value: String) {
+        name = value
+        nameError = if (value.isBlank()) "Name is required" else null
+    }
+
+    fun onGenderChange(value: String) {
+        gender = value
+        genderError = if (value.isBlank()) "Gender is required" else null
+    }
+
+    fun onDobChange(value: String) {
+        dob = value
+        dobError = if (value.isBlank()) "Date of birth is required" else null
+    }
+
     fun onAadhaarChange(value: String) {
         if (value.all { it.isDigit() } && value.length <= 12) {
             aadhaarNumber = value
@@ -85,17 +101,57 @@ class DriverDetailsViewModel @Inject constructor(
         licenceError = if (value.isBlank()) "Licence is required" else null
     }
 
-    fun onVehicleChange(value: String) {
+    fun onVehicleNumberChange(value: String) {
         vehicleNumber = value.uppercase()
-        vehicleError = if (value.isBlank()) "Vehicle number is required" else null
+        vehicleNumberError = if (value.isBlank()) "Vehicle number is required" else null
+    }
+
+    fun onVehicleModelChange(value: String) {
+        vehicleModel = value
+        vehicleModelError = if (value.isBlank()) "Model is required" else null
+    }
+
+    fun onVehicleTypeChange(value: String) {
+        vehicleType = value
+        vehicleTypeError = if (value.isBlank()) "Type is required" else null
+    }
+
+    fun onVehicleColorChange(value: String) {
+        vehicleColor = value
+        vehicleColorError = if (value.isBlank()) "Color is required" else null
+    }
+
+    fun onVehicleCapacityChange(value: String) {
+        if (value.all { it.isDigit() } && value.length <= 2) {
+            vehicleCapacity = value
+            val capacityInt = value.toIntOrNull()
+            vehicleCapacityError = when {
+                value.isBlank() -> "Capacity is required"
+                capacityInt == null || capacityInt <= 0 -> "Must be > 0"
+                else -> null
+            }
+        }
     }
 
     private fun validate(): Boolean {
-        aadhaarError = if (aadhaarNumber.length != 12) "Aadhaar must be 12 digits" else null
-        licenceError = if (licenceNumber.isBlank()) "Licence is required" else null
-        vehicleError = if (vehicleNumber.isBlank()) "Vehicle number is required" else null
+        // Trigger validation for ALL fields
+        onNameChange(name)
+        onGenderChange(gender)
+        onDobChange(dob)
+        onAadhaarChange(aadhaarNumber)
+        onLicenceChange(licenceNumber)
+        onVehicleNumberChange(vehicleNumber)
+        onVehicleModelChange(vehicleModel)
+        onVehicleTypeChange(vehicleType)
+        onVehicleColorChange(vehicleColor)
+        onVehicleCapacityChange(vehicleCapacity)
 
-        return aadhaarError == null && licenceError == null && vehicleError == null
+        // Check all errors
+        return nameError == null && genderError == null && dobError == null &&
+                aadhaarError == null && licenceError == null &&
+                vehicleNumberError == null && vehicleModelError == null &&
+                vehicleTypeError == null && vehicleColorError == null &&
+                vehicleCapacityError == null
     }
 
     fun onSubmitClicked() {
@@ -107,18 +163,23 @@ class DriverDetailsViewModel @Inject constructor(
 
         Log.d("DriverDetailsVM", "Validation success. Navigating to OTP Screen.")
 
+        // Pass ALL collected data to the OtpScreen route
         sendEvent(UiEvent.Navigate(
             Screen.OtpScreen.createRoute(
                 phone = phone!!,
                 isSignUp = true,
                 role = role!!,
-                // email = email?.ifBlank { null }, // ❌ REMOVED
                 name = name,
                 gender = gender,
                 dob = dob,
                 license = licenceNumber,
-                vehicle = vehicleNumber,
-                aadhaar = aadhaarNumber
+                aadhaar = aadhaarNumber,
+                // Vehicle fields
+                vehicleNumber = vehicleNumber,
+                vehicleModel = vehicleModel,
+                vehicleType = vehicleType,
+                vehicleColor = vehicleColor,
+                vehicleCapacity = vehicleCapacity
             )
         ))
     }
