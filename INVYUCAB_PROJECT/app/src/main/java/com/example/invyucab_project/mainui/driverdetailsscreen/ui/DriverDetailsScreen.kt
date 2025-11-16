@@ -106,7 +106,7 @@ fun DriverDetailsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Driver & Vehicle Details") },
+                title = { Text("Driver Details") }, // MODIFIED
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
@@ -197,15 +197,7 @@ fun DriverDetailsScreen(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.fillMaxWidth()
                 )
-                DriverTextField(
-                    value = viewModel.aadhaarNumber,
-                    onValueChange = viewModel::onAadhaarChange,
-                    label = "Aadhaar Number",
-                    keyboardType = KeyboardType.Number,
-                    isError = viewModel.aadhaarError != null,
-                    errorText = viewModel.aadhaarError,
-                    readOnly = isLoading
-                )
+                // REMOVED: Aadhaar Number
                 DriverTextField(
                     value = viewModel.licenceNumber,
                     onValueChange = viewModel::onLicenceChange,
@@ -216,58 +208,7 @@ fun DriverDetailsScreen(
                     readOnly = isLoading
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // --- Vehicle Details ---
-                Text(
-                    "Vehicle Details",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // The Driver ID field is removed
-
-                DriverTextField(
-                    value = viewModel.vehicleNumber,
-                    onValueChange = viewModel::onVehicleNumberChange,
-                    label = "Vehicle Registration Number",
-                    capitalization = KeyboardCapitalization.Characters,
-                    isError = viewModel.vehicleNumberError != null,
-                    errorText = viewModel.vehicleNumberError,
-                    readOnly = isLoading
-                )
-                VehicleTypeDropdown(
-                    viewModel = viewModel,
-                    isLoading = isLoading
-                )
-                DriverTextField(
-                    value = viewModel.vehicleModel,
-                    onValueChange = viewModel::onVehicleModelChange,
-                    label = "Vehicle Model (e.g. Hero Splendor, Swift)",
-                    capitalization = KeyboardCapitalization.Words,
-                    isError = viewModel.vehicleModelError != null,
-                    errorText = viewModel.vehicleModelError,
-                    readOnly = isLoading
-                )
-                DriverTextField(
-                    value = viewModel.vehicleColor,
-                    onValueChange = viewModel::onVehicleColorChange,
-                    label = "Vehicle Color",
-                    capitalization = KeyboardCapitalization.Words,
-                    isError = viewModel.vehicleColorError != null,
-                    errorText = viewModel.vehicleColorError,
-                    readOnly = isLoading
-                )
-                DriverTextField(
-                    value = viewModel.vehicleCapacity,
-                    onValueChange = viewModel::onVehicleCapacityChange,
-                    label = "Seating Capacity (excluding driver)",
-                    keyboardType = KeyboardType.Number,
-                    isError = viewModel.vehicleCapacityError != null,
-                    errorText = viewModel.vehicleCapacityError,
-                    readOnly = isLoading
-                )
+                // REMOVED: Vehicle Details Section
 
                 Spacer(modifier = Modifier.height(32.dp))
 
@@ -289,7 +230,7 @@ fun DriverDetailsScreen(
                             strokeWidth = 3.dp
                         )
                     } else {
-                        Text("Submit & Start Driving", fontSize = 16.sp, color = Color.White)
+                        Text("Submit Details", fontSize = 16.sp, color = Color.White) // MODIFIED
                     }
                 }
             }
@@ -355,70 +296,7 @@ fun DriverTextField(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun VehicleTypeDropdown(
-    viewModel: DriverDetailsViewModel,
-    isLoading: Boolean
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val isError = viewModel.vehicleTypeError != null
-    val errorText = viewModel.vehicleTypeError
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-    ) {
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { if (!isLoading) expanded = !expanded }
-        ) {
-            OutlinedTextField(
-                value = viewModel.vehicleType,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Vehicle Type *") },
-                trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                },
-                shape = RoundedCornerShape(8.dp),
-                colors = ExposedDropdownMenuDefaults.textFieldColors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    disabledContainerColor = Color.White,
-                    errorContainerColor = Color.White
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(),
-                isError = isError,
-            )
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                viewModel.vehicleTypes.forEach { selectionOption ->
-                    DropdownMenuItem(
-                        text = { Text(selectionOption) },
-                        onClick = {
-                            viewModel.onVehicleTypeChange(selectionOption)
-                            expanded = false
-                        }
-                    )
-                }
-            }
-        }
-    }
-    if (isError) {
-        Text(
-            errorText ?: "",
-            color = MaterialTheme.colorScheme.error,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(start = 16.dp)
-        )
-    }
-}
+// REMOVED: VehicleTypeDropdown Composable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -539,7 +417,8 @@ private fun GenderSelectionDialog(
 
 private fun parseDate(dateString: String): Calendar? {
     return try {
-        val format = SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH)
+        // MODIFIED: Updated date format to match API
+        val format = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
         val date = format.parse(dateString)
         Calendar.getInstance().apply {
             if (date != null) {
@@ -552,6 +431,7 @@ private fun parseDate(dateString: String): Calendar? {
 }
 
 private fun formatDate(calendar: Calendar): String {
-    val format = SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH)
+    // MODIFIED: Updated date format to match API
+    val format = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
     return format.format(calendar.time)
 }
