@@ -12,8 +12,11 @@ class UserPreferencesRepository @Inject constructor(
     companion object {
         // Key for storing the user's status
         const val KEY_USER_STATUS = "user_status"
-        // ✅ ADDED: Key for onboarding
         const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
+
+        // ✅ --- ADDED KEY FOR USER ID ---
+        const val KEY_USER_ID = "user_id"
+        // ✅ --- END OF CHANGE ---
     }
 
     /**
@@ -23,11 +26,23 @@ class UserPreferencesRepository @Inject constructor(
         prefs.edit().putString(KEY_USER_STATUS, status).apply()
     }
 
+    // ✅ --- NEW FUNCTION TO SAVE USER ID ---
+    /**
+     * Saves the user's unique ID (as a String) to SharedPreferences.
+     */
+    fun saveUserId(userId: String) {
+        prefs.edit().putString(KEY_USER_ID, userId).apply()
+    }
+    // ✅ --- END OF CHANGE ---
+
     /**
      * Clears the user's status from SharedPreferences (e.g., on logout).
      */
     fun clearUserStatus() {
-        prefs.edit().remove(KEY_USER_STATUS).apply()
+        prefs.edit()
+            .remove(KEY_USER_STATUS)
+            .remove(KEY_USER_ID) // ✅ Also remove user ID on logout
+            .apply()
     }
 
     /**
@@ -38,7 +53,16 @@ class UserPreferencesRepository @Inject constructor(
         return prefs.getString(KEY_USER_STATUS, null)
     }
 
-    // ✅✅✅ NEW FUNCTION ✅✅✅
+    // ✅ --- NEW FUNCTION TO GET USER ID ---
+    /**
+     * Retrieves the current user's ID.
+     * Returns null if no ID is saved.
+     */
+    fun getUserId(): String? {
+        return prefs.getString(KEY_USER_ID, null)
+    }
+    // ✅ --- END OF CHANGE ---
+
     /**
      * Saves a flag indicating the user has seen the onboarding flow.
      */
@@ -46,7 +70,6 @@ class UserPreferencesRepository @Inject constructor(
         prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETED, true).apply()
     }
 
-    // ✅✅✅ NEW FUNCTION ✅✅✅
     /**
      * Checks if the user has completed the onboarding flow.
      * @return true if completed, false otherwise.

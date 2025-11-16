@@ -65,6 +65,10 @@ fun AuthScreen(
                         duration = SnackbarDuration.Short
                     )
                 }
+                // ✅ --- THIS IS THE FIX ---
+                // Add an else branch to handle all other events (like NavigateBack)
+                else -> {}
+                // ✅ --- END OF FIX ---
             }
         }
     }

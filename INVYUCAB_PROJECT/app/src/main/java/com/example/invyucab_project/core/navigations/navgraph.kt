@@ -11,6 +11,9 @@ import com.example.invyucab_project.mainui.adminscreen.ui.AdminScreen
 import com.example.invyucab_project.mainui.allservicesscreen.ui.AllServicesScreen
 import com.example.invyucab_project.mainui.authscreen.ui.AuthScreen
 import com.example.invyucab_project.mainui.driverdetailsscreen.ui.DriverDetailsScreen
+import com.example.invyucab_project.mainui.driverdocument.ui.DriverDocumentsScreen
+// ✅ --- NEW IMPORT ---
+import com.example.invyucab_project.mainui.driverprofilescreen.ui.DriverProfileScreen
 import com.example.invyucab_project.mainui.driverscreen.ui.DriverScreen
 import com.example.invyucab_project.mainui.homescreen.ui.HomeScreen
 import com.example.invyucab_project.mainui.onboardingscreen.ui.OnboardingScreen
@@ -24,6 +27,7 @@ import com.example.invyucab_project.mainui.roleselectionscreen.ui.RoleSelectionS
 import com.example.invyucab_project.mainui.splashscreen_loggedin.ui.SplashScreenLoggedIn
 import com.example.invyucab_project.mainui.travelscreen.ui.TravelScreen
 import com.example.invyucab_project.mainui.userdetailsscreen.ui.UserDetailsScreen
+import com.example.invyucab_project.mainui.vehiclepreferences.ui.VehiclePreferencesScreen
 
 @Composable
 fun NavGraph(
@@ -46,10 +50,8 @@ fun NavGraph(
             AuthScreen(navController = navController)
         }
 
-        // ✅✅✅ START OF MODIFICATION ✅✅✅
         composable(
             route = Screen.OtpScreen.route,
-            // Updated arguments to match the new route
             arguments = listOf(
                 navArgument("phone") { type = NavType.StringType },
                 navArgument("isSignUp") { type = NavType.BoolType },
@@ -59,7 +61,6 @@ fun NavGraph(
                 navArgument("dob") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("license") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("aadhaar") { type = NavType.StringType; nullable = true; defaultValue = null },
-                // Add all new vehicle arguments
                 navArgument("vehicleNumber") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("vehicleModel") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("vehicleType") { type = NavType.StringType; nullable = true; defaultValue = null },
@@ -69,9 +70,7 @@ fun NavGraph(
         ) {
             OtpScreen(navController = navController)
         }
-        // ✅✅✅ END OF MODIFICATION ✅✅✅
 
-        // ... (UserDetailsScreen, RoleSelectionScreen) ...
         composable(
             route = Screen.UserDetailsScreen.route,
             arguments = listOf(
@@ -92,8 +91,6 @@ fun NavGraph(
             RoleSelectionScreen(navController = navController)
         }
 
-        // ✅✅✅ START OF MODIFICATION ✅✅✅
-        // This route is now correct, it no longer takes personal details
         composable(
             route = Screen.DriverDetailsScreen.route,
             arguments = listOf(
@@ -103,7 +100,6 @@ fun NavGraph(
         ) {
             DriverDetailsScreen(navController = navController)
         }
-        // ✅✅✅ END OF MODIFICATION ✅✅✅
 
         composable(Screen.AdminScreen.route) {
             AdminScreen(navController = navController)
@@ -113,7 +109,6 @@ fun NavGraph(
             DriverScreen(navController = navController)
         }
 
-        // ... (other composables: HomeScreen, AllServicesScreen, etc.) ...
         composable(Screen.HomeScreen.route) {
             HomeScreen(navController = navController)
         }
@@ -126,6 +121,19 @@ fun NavGraph(
         composable(Screen.ProfileScreen.route) {
             ProfileScreen(navController = navController)
         }
+        composable(Screen.DriverDocumentsScreen.route) {
+            DriverDocumentsScreen(navController = navController)
+        }
+        composable(Screen.VehiclePreferencesScreen.route) {
+            VehiclePreferencesScreen(navController = navController)
+        }
+
+        // ✅ --- NEW SCREEN COMPOSABLE ---
+        composable(Screen.DriverProfileScreen.route) {
+            DriverProfileScreen(navController = navController)
+        }
+        // ✅ ------------------------------
+
         composable(Screen.EditProfileScreen.route) {
             EditProfileScreen(navController = navController)
         }

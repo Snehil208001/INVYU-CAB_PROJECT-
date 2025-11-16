@@ -8,10 +8,6 @@ sealed class Screen(val route: String) {
     object AuthScreen : Screen("auth_screen")
     object SplashScreenLoggedIn : Screen("splash_screen_logged_in")
 
-    // ✅✅✅ START OF MODIFICATION ✅✅✅
-    // This route now contains ALL fields for a driver sign up
-    // The "vehicle" param is replaced by detailed vehicle fields
-    // "driverId" is removed, as it's not known yet
     object OtpScreen :
         Screen("otp_screen/{phone}/{isSignUp}/{role}?name={name}&gender={gender}&dob={dob}&license={license}&aadhaar={aadhaar}&vehicleNumber={vehicleNumber}&vehicleModel={vehicleModel}&vehicleType={vehicleType}&vehicleColor={vehicleColor}&vehicleCapacity={vehicleCapacity}") {
         fun createRoute(
@@ -23,7 +19,6 @@ sealed class Screen(val route: String) {
             dob: String?,
             license: String? = null,
             aadhaar: String? = null,
-            // Vehicle fields (no driverId)
             vehicleNumber: String? = null,
             vehicleModel: String? = null,
             vehicleType: String? = null,
@@ -36,18 +31,15 @@ sealed class Screen(val route: String) {
             val encodedLicense = license?.let { URLEncoder.encode(it, StandardCharsets.UTF_8.toString()) } ?: ""
             val encodedAadhaar = aadhaar?.let { URLEncoder.encode(it, StandardCharsets.UTF_8.toString()) } ?: ""
 
-            // Encode new vehicle fields
             val encodedVehicleNumber = vehicleNumber?.let { URLEncoder.encode(it, StandardCharsets.UTF_8.toString()) } ?: ""
             val encodedVehicleModel = vehicleModel?.let { URLEncoder.encode(it, StandardCharsets.UTF_8.toString()) } ?: ""
             val encodedVehicleType = vehicleType?.let { URLEncoder.encode(it, StandardCharsets.UTF_8.toString()) } ?: ""
             val encodedVehicleColor = vehicleColor?.let { URLEncoder.encode(it, StandardCharsets.UTF_8.toString()) } ?: ""
             val encodedVehicleCapacity = vehicleCapacity?.let { URLEncoder.encode(it, StandardCharsets.UTF_8.toString()) } ?: ""
 
-            // driverId is removed
             return "otp_screen/$phone/$isSignUp/$role?name=$encodedName&gender=$encodedGender&dob=$encodedDob&license=$encodedLicense&aadhaar=$encodedAadhaar&vehicleNumber=$encodedVehicleNumber&vehicleModel=$encodedVehicleModel&vehicleType=$encodedVehicleType&vehicleColor=$encodedVehicleColor&vehicleCapacity=$encodedVehicleCapacity"
         }
     }
-    // ✅✅✅ END OF MODIFICATION ✅✅✅
 
     object UserDetailsScreen : Screen("user_details_screen/{phone}/{role}?name={name}") {
         fun createRoute(
@@ -69,8 +61,6 @@ sealed class Screen(val route: String) {
     object AdminScreen : Screen("admin_screen")
     object DriverScreen : Screen("driver_screen")
 
-    // ✅✅✅ START OF MODIFICATION ✅✅✅
-    // The route no longer takes personal details, as this screen collects them
     object DriverDetailsScreen :
         Screen("driver_details_screen/{phone}/{role}") {
         fun createRoute(
@@ -80,13 +70,19 @@ sealed class Screen(val route: String) {
             return "driver_details_screen/$phone/$role"
         }
     }
-    // ✅✅✅ END OF MODIFICATION ✅✅✅
 
-    // ... (Other screen objects: HomeScreen, ProfileScreen, etc.) ...
     object HomeScreen : Screen("home_screen")
     object AllServicesScreen : Screen("all_services_screen")
     object TravelScreen : Screen("travel_screen")
+
     object ProfileScreen : Screen("profile_screen")
+    object DriverProfileScreen : Screen("driver_profile_screen")
+    object DriverDocumentsScreen : Screen("driver_documents_screen")
+
+    // ✅ --- NEW SCREEN ADDED ---
+    object VehiclePreferencesScreen : Screen("vehicle_preferences_screen")
+    // ✅ --------------------------
+
     object EditProfileScreen : Screen("edit_profile_screen")
     object MemberLevelScreen : Screen("member_level_screen")
     object PaymentMethodScreen : Screen("payment_method_screen")

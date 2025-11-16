@@ -56,5 +56,8 @@ abstract class BaseViewModel : ViewModel() {
     sealed class UiEvent {
         data class Navigate(val route: String) : UiEvent()
         data class ShowSnackbar(val message: String) : UiEvent()
+        // ✅ --- ADD THIS LINE ---
+        object NavigateBack : UiEvent()
+        // ✅ --- END OF CHANGE ---
     }
 }

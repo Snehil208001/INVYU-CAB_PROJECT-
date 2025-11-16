@@ -228,13 +228,13 @@ fun HomeScreen(
                 is BaseViewModel.UiEvent.Navigate -> {
                     navController.navigate(event.route)
                 }
-
-                // You can also handle snackbar events from the eventFlow if you prefer
                 is BaseViewModel.UiEvent.ShowSnackbar -> {
                     snackbarHostState.showSnackbar(event.message)
                 }
-
-                // else -> {} // Original code
+                // ✅ --- THIS IS THE FIX ---
+                // Add an else branch to make the 'when' exhaustive
+                else -> {}
+                // ✅ --- END OF FIX ---
             }
         }
     }

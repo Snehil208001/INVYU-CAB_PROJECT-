@@ -85,6 +85,10 @@ fun UserDetailsScreen(
                 is BaseViewModel.UiEvent.ShowSnackbar -> {
                     // Handle snackbar if needed
                 }
+                // ✅ --- THIS IS THE FIX ---
+                // Add an else branch to make the 'when' exhaustive
+                else -> {}
+                // ✅ --- END OF FIX ---
             }
         }
     }
