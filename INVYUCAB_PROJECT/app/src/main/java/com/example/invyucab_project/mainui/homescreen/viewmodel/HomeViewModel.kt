@@ -2,6 +2,7 @@ package com.example.invyucab_project.mainui.homescreen.viewmodel
 
 import android.annotation.SuppressLint
 import android.location.Location
+import android.location.LocationManager // ✅
 import android.os.Looper
 import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.core.base.BaseViewModel
@@ -24,7 +25,8 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val fusedLocationClient: FusedLocationProviderClient,
-    private val getAutocompletePredictionsUseCase: GetAutocompletePredictionsUseCase
+    private val getAutocompletePredictionsUseCase: GetAutocompletePredictionsUseCase,
+    private val locationManager: LocationManager // ✅
 ) : BaseViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -36,9 +38,22 @@ class HomeViewModel @Inject constructor(
         getCurrentLocation()
     }
 
+    // ✅
+    private fun isLocationEnabled(): Boolean {
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    }
+
     // Gets location for search biasing
     @SuppressLint("MissingPermission")
-    private fun getCurrentLocation() {
+    fun getCurrentLocation() { // ✅ MODIFIED: Removed 'private'
+        // ✅
+        if (!isLocationEnabled()) {
+            _apiError.value = "Please turn on location services (GPS)."
+            _uiState.update { it.copy(isFetchingLocation = false) }
+            return // Stop here, don't try to get location
+        }
+
         _uiState.update { it.copy(isFetchingLocation = true) }
         fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
             if (location != null) {
@@ -59,6 +74,13 @@ class HomeViewModel @Inject constructor(
 
     @SuppressLint("MissingPermission")
     private fun requestNewLocation() {
+        // ✅
+        if (!isLocationEnabled()) {
+            _apiError.value = "Please turn on location services (GPS)."
+            _uiState.update { it.copy(isFetchingLocation = false) }
+            return
+        }
+
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000)
             .setMinUpdateIntervalMillis(5000)
             .setMaxUpdates(1)

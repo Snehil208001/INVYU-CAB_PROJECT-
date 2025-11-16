@@ -12,6 +12,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 // --- END OF ADDED IMPORTS ---
 
+// --- START OF ✅ ADDED IMPORTS ---
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.material3.SnackbarDuration // ✅ ADDED
+import androidx.compose.material3.SnackbarResult // ✅ ADDED
+// --- END OF ✅ ADDED IMPORTS ---
+
 import android.Manifest
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -82,14 +93,54 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    // --- START OF ✅ MODIFIED CODE ---
+    val apiError by viewModel.apiError // ✅ MODIFIED: Read the State directly
+    val snackbarHostState = remember { SnackbarHostState() } // State for snackbar
+    // --- END OF ✅ MODIFIED CODE ---
+
+    // --- START OF ✅ ADDED LIFECYCLE OBSERVER ---
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            // This event fires every time the screen becomes active
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // Re-run the location check
+                viewModel.getCurrentLocation()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        // This cleans up the observer when the composable is destroyed
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+    // --- END OF ✅ ADDED LIFECYCLE OBSERVER ---
+
     // --- START OF PERMISSION LOGIC ---
 
     val context = LocalContext.current
-    val settingsLauncher = rememberLauncherForActivityResult(
+
+    // Launcher for App PERMISSIONS
+    val permissionSettingsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
         // This block executes when returning from settings.
+        // ✅ We can also trigger a re-check here
+        viewModel.getCurrentLocation()
     }
+
+    // --- START OF ✅ ADDED CODE ---
+    // Launcher for Location SERVICES (GPS Toggle)
+    val locationServiceLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        // User has returned from the location settings screen.
+        // Re-check if they turned it on.
+        viewModel.getCurrentLocation()
+    }
+    // --- END OF ✅ ADDED CODE ---
+
 
     val locationPermissionsState = rememberMultiplePermissionsState(
         permissions = listOf(
@@ -109,6 +160,8 @@ fun HomeScreen(
 
     LaunchedEffect(key1 = locationPermissionsState.allPermissionsGranted) {
         if (locationPermissionsState.allPermissionsGranted) {
+            // ✅ Permission was just granted, fetch location
+            viewModel.getCurrentLocation()
             // viewModel.onLocationPermissionGranted()
         }
     }
@@ -129,10 +182,43 @@ fun HomeScreen(
                 Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.fromParts("package", context.packageName, null)
             )
-            settingsLauncher.launch(intent)
+            permissionSettingsLauncher.launch(intent)
         }
     }
     // --- END OF PERMISSION LOGIC ---
+
+
+    // --- START OF ✅ MODIFIED CODE ---
+    // This LaunchedEffect will react when apiError changes
+    LaunchedEffect(apiError) {
+        apiError?.let { message ->
+
+            // Check if this is the specific GPS error
+            if (message.contains("location services (GPS)")) {
+                // Show snackbar with "Turn On" action
+                val result = snackbarHostState.showSnackbar(
+                    message = message,
+                    actionLabel = "Turn On",
+                    duration = SnackbarDuration.Long // Keep it on screen longer
+                )
+
+                if (result == SnackbarResult.ActionPerformed) {
+                    // User clicked "Turn On"
+                    val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                    locationServiceLauncher.launch(intent)
+                }
+
+            } else {
+                // Show a normal snackbar for all other errors
+                snackbarHostState.showSnackbar(message)
+            }
+
+            // Clear the error in the ViewModel so it doesn't show again
+            // until the next time we check (on resume)
+            viewModel.clearApiError() // This function is from BaseViewModel
+        }
+    }
+    // --- END OF ✅ MODIFIED CODE ---
 
 
     // Collect navigation events
@@ -143,7 +229,12 @@ fun HomeScreen(
                     navController.navigate(event.route)
                 }
 
-                else -> {}
+                // You can also handle snackbar events from the eventFlow if you prefer
+                is BaseViewModel.UiEvent.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(event.message)
+                }
+
+                // else -> {} // Original code
             }
         }
     }
@@ -153,6 +244,7 @@ fun HomeScreen(
 
     Scaffold(
         containerColor = Color.White,
+        snackbarHost = { SnackbarHost(snackbarHostState) }, // <-- ✅ ADDED
         topBar = {
             TopAppBar(
                 title = { Text("Book a Ride", fontWeight = FontWeight.Bold) },
