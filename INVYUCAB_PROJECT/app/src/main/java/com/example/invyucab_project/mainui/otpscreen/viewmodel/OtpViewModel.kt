@@ -10,12 +10,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.core.navigations.Screen
-import com.example.invyucab_project.data.models.AddVehicleRequest
 import com.example.invyucab_project.data.models.CreateUserRequest
-import com.example.invyucab_project.domain.usecase.ActivateUserUseCase
-import com.example.invyucab_project.domain.usecase.AddVehicleUseCase
 import com.example.invyucab_project.domain.usecase.CreateUserUseCase
-import com.example.invyucab_project.domain.usecase.SaveUserStatusUseCase
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
@@ -37,10 +33,7 @@ import javax.inject.Inject
 @HiltViewModel
 class OtpViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val activateUserUseCase: ActivateUserUseCase,
-    private val saveUserStatusUseCase: SaveUserStatusUseCase,
     private val createUserUseCase: CreateUserUseCase,
-    private val addVehicleUseCase: AddVehicleUseCase, // ✅ INJECTED
     savedStateHandle: SavedStateHandle
 ) : BaseViewModel() {
 
@@ -60,7 +53,7 @@ class OtpViewModel @Inject constructor(
     val license: String? = decodeParam(savedStateHandle.get<String>("license"))
     val aadhaar: String? = decodeParam(savedStateHandle.get<String>("aadhaar"))
 
-    // Vehicle Details
+    // Vehicle Details (still received, but not used for AddVehicle)
     private val vehicleNumber: String? = decodeParam(savedStateHandle.get<String>("vehicleNumber"))
     private val vehicleModel: String? = decodeParam(savedStateHandle.get<String>("vehicleModel"))
     private val vehicleType: String? = decodeParam(savedStateHandle.get<String>("vehicleType"))
@@ -189,8 +182,17 @@ class OtpViewModel @Inject constructor(
                     Log.d(TAG, "Sign-up flow: Handling sign up...")
                     handleSignUp()
                 } else {
-                    Log.d(TAG, "Sign-in flow: Updating user status to active.")
-                    activateUser()
+                    Log.d(TAG, "Sign-in flow: Navigating based on role.")
+                    // Sign-in flow (no use cases, just navigate)
+                    _isLoading.value = false
+                    isAutoVerificationRunning = false
+
+                    val route = when (role.lowercase()) {
+                        "driver" -> Screen.DriverScreen.route
+                        "admin" -> Screen.AdminScreen.route
+                        else -> Screen.HomeScreen.route
+                    }
+                    sendEvent(UiEvent.Navigate(route))
                 }
 
             } catch (e: Exception) {
@@ -200,36 +202,6 @@ class OtpViewModel @Inject constructor(
                 isAutoVerificationRunning = false
             }
         }
-    }
-
-    private fun activateUser() {
-        activateUserUseCase.invoke(fullPhoneNumber, null).onEach { result ->
-            when (result) {
-                is Resource.Loading -> {
-                    _isLoading.value = true
-                }
-                is Resource.Success -> {
-                    saveUserStatusUseCase.invoke("active")
-                    Log.d(TAG, "User status 'active' saved to SharedPreferences.")
-
-                    _isLoading.value = false
-                    isAutoVerificationRunning = false
-
-                    // Navigate based on role
-                    val route = when (role.lowercase()) {
-                        "driver" -> Screen.DriverScreen.route
-                        "admin" -> Screen.AdminScreen.route
-                        else -> Screen.HomeScreen.route
-                    }
-                    sendEvent(UiEvent.Navigate(route))
-                }
-                is Resource.Error -> {
-                    _isLoading.value = false
-                    _apiError.value = result.message
-                    isAutoVerificationRunning = false
-                }
-            }
-        }.launchIn(viewModelScope)
     }
 
     private fun handleSignUp() {
@@ -245,7 +217,7 @@ class OtpViewModel @Inject constructor(
             gender = gender?.lowercase(),
             dob = formattedDob,
             licenseNumber = license,
-            vehicleId = null, // This is null because we add vehicle in the next step
+            vehicleId = null, // Vehicle logic removed from this viewmodel
             rating = null,
             walletBalance = null,
             isVerified = true,
@@ -260,43 +232,16 @@ class OtpViewModel @Inject constructor(
                 }
                 is Resource.Success -> {
                     Log.d(TAG, "CreateUser successful. User ID: ${result.data?.userId}")
-                    // User is created, save status
-                    saveUserStatusUseCase.invoke("active")
+                    // User is created.
+                    _isLoading.value = false
+                    isAutoVerificationRunning = false
 
-                    // NOW, check role
+                    // NOW, check role and navigate
                     if (finalRole == "driver") {
-                        // User is a driver, now add their vehicle
-                        val newDriverId = result.data?.userId
-                        if (newDriverId == null) {
-                            _isLoading.value = false
-                            _apiError.value = "Created user but did not get a User ID."
-                            return@onEach
-                        }
-
-                        // Check if all required vehicle details are present
-                        if (vehicleNumber == null || vehicleModel == null || vehicleType == null || vehicleColor == null || vehicleCapacity == null) {
-                            _isLoading.value = false
-                            _apiError.value = "User created, but missing vehicle details."
-                            Log.e(TAG, "Driver sign up failed: Missing vehicle details.")
-                            return@onEach
-                        }
-
-                        val addVehicleRequest = AddVehicleRequest(
-                            driverId = newDriverId,
-                            vehicleNumber = vehicleNumber,
-                            model = vehicleModel,
-                            type = vehicleType,
-                            color = vehicleColor,
-                            capacity = vehicleCapacity
-                        )
-
-                        // Call the second API
-                        callAddVehicleApi(addVehicleRequest)
-
+                        // User is a Driver, navigate to DriverScreen
+                        sendEvent(UiEvent.Navigate(Screen.DriverScreen.route))
                     } else {
                         // User is a Rider, so we are done
-                        _isLoading.value = false
-                        isAutoVerificationRunning = false
                         sendEvent(UiEvent.Navigate(Screen.HomeScreen.route))
                     }
                 }
@@ -304,31 +249,6 @@ class OtpViewModel @Inject constructor(
                     _isLoading.value = false
                     _apiError.value = result.message
                     isAutoVerificationRunning = false
-                }
-            }
-        }.launchIn(viewModelScope)
-    }
-
-    private fun callAddVehicleApi(request: AddVehicleRequest) {
-        addVehicleUseCase(request).onEach { result ->
-            when (result) {
-                is Resource.Loading -> {
-                    _isLoading.value = true
-                }
-                is Resource.Success -> {
-                    // Vehicle added successfully
-                    _isLoading.value = false
-                    isAutoVerificationRunning = false
-                    Log.d(TAG, "AddVehicle successful. Vehicle ID: ${result.data?.data}")
-
-                    // Navigate to Driver Screen
-                    sendEvent(UiEvent.Navigate(Screen.DriverScreen.route))
-                }
-                is Resource.Error -> {
-                    _isLoading.value = false
-                    isAutoVerificationRunning = false
-                    _apiError.value = "User created, but failed to add vehicle: ${result.message}"
-                    Log.e(TAG, "Failed to add vehicle: ${result.message}")
                 }
             }
         }.launchIn(viewModelScope)

@@ -28,12 +28,15 @@ class DriverDetailsViewModel @Inject constructor(
         private set
 
     // --- Driver Details Form State ---
+    // ✅✅✅ FIX: This property is no longer used by the UI, but a a value
+    // is still passed. We can leave it or remove it.
     var aadhaarNumber by mutableStateOf("")
         private set
     var licenceNumber by mutableStateOf("")
         private set
 
     // --- Vehicle Details Form State (Matches API Body, minus driver_id) ---
+    // ✅✅✅ FIX: These properties are no longer used by the UI
     var vehicleNumber by mutableStateOf("")
         private set
     var vehicleModel by mutableStateOf("")
@@ -52,6 +55,7 @@ class DriverDetailsViewModel @Inject constructor(
         private set
     var dobError by mutableStateOf<String?>(null)
         private set
+    // ✅✅✅ FIX: These errors are no longer used
     var aadhaarError by mutableStateOf<String?>(null)
         private set
     var licenceError by mutableStateOf<String?>(null)
@@ -90,72 +94,93 @@ class DriverDetailsViewModel @Inject constructor(
     }
 
     fun onAadhaarChange(value: String) {
+        // ✅✅✅ FIX: This logic is no longer used, but we'll keep the
+        // function to avoid build errors if it's still called somewhere.
+        // We will no longer set an error.
         if (value.all { it.isDigit() } && value.length <= 12) {
             aadhaarNumber = value
-            aadhaarError = if (value.length != 12) "Must be 12 digits" else null
+            // aadhaarError = if (value.length != 12) "Must be 12 digits" else null // REMOVED
+            aadhaarError = null
         }
     }
 
     fun onLicenceChange(value: String) {
         licenceNumber = value.uppercase()
+        // ✅✅✅ FIX: Licence can be optional, so we'll remove this hard requirement
+        // Or, if it's required, we keep it. Let's assume it's required for a driver.
         licenceError = if (value.isBlank()) "Licence is required" else null
     }
 
+    // ✅✅✅ FIX: All vehicle field validations are no longer needed
+    // We just update the value and set no errors.
     fun onVehicleNumberChange(value: String) {
         vehicleNumber = value.uppercase()
-        vehicleNumberError = if (value.isBlank()) "Vehicle number is required" else null
+        // vehicleNumberError = if (value.isBlank()) "Vehicle number is required" else null // REMOVED
+        vehicleNumberError = null
     }
 
     fun onVehicleModelChange(value: String) {
         vehicleModel = value
-        vehicleModelError = if (value.isBlank()) "Model is required" else null
+        // vehicleModelError = if (value.isBlank()) "Model is required" else null // REMOVED
+        vehicleModelError = null
     }
 
     fun onVehicleTypeChange(value: String) {
         vehicleType = value
-        vehicleTypeError = if (value.isBlank()) "Type is required" else null
+        // vehicleTypeError = if (value.isBlank()) "Type is required" else null // REMOVED
+        vehicleTypeError = null
     }
 
     fun onVehicleColorChange(value: String) {
         vehicleColor = value
-        vehicleColorError = if (value.isBlank()) "Color is required" else null
+        // vehicleColorError = if (value.isBlank()) "Color is required" else null // REMOVED
+        vehicleColorError = null
     }
 
     fun onVehicleCapacityChange(value: String) {
         if (value.all { it.isDigit() } && value.length <= 2) {
             vehicleCapacity = value
-            val capacityInt = value.toIntOrNull()
-            vehicleCapacityError = when {
-                value.isBlank() -> "Capacity is required"
-                capacityInt == null || capacityInt <= 0 -> "Must be > 0"
-                else -> null
-            }
+            // val capacityInt = value.toIntOrNull() // REMOVED
+            // vehicleCapacityError = when { // REMOVED
+            //     value.isBlank() -> "Capacity is required"
+            //     capacityInt == null || capacityInt <= 0 -> "Must be > 0"
+            //     else -> null
+            // }
+            vehicleCapacityError = null
         }
     }
 
+    // ✅✅✅ START OF MAJOR FIX ✅✅✅
     private fun validate(): Boolean {
-        // Trigger validation for ALL fields
+        // Trigger validation for ONLY the fields in the UI
         onNameChange(name)
         onGenderChange(gender)
         onDobChange(dob)
-        onAadhaarChange(aadhaarNumber)
         onLicenceChange(licenceNumber)
-        onVehicleNumberChange(vehicleNumber)
-        onVehicleModelChange(vehicleModel)
-        onVehicleTypeChange(vehicleType)
-        onVehicleColorChange(vehicleColor)
-        onVehicleCapacityChange(vehicleCapacity)
 
-        // Check all errors
+        // --- REMOVED VALIDATION CALLS ---
+        // onAadhaarChange(aadhaarNumber)
+        // onVehicleNumberChange(vehicleNumber)
+        // onVehicleModelChange(vehicleModel)
+        // onVehicleTypeChange(vehicleType)
+        // onVehicleColorChange(vehicleColor)
+        // onVehicleCapacityChange(vehicleCapacity)
+
+        // Check errors ONLY for the fields in the UI
         return nameError == null && genderError == null && dobError == null &&
-                aadhaarError == null && licenceError == null &&
-                vehicleNumberError == null && vehicleModelError == null &&
-                vehicleTypeError == null && vehicleColorError == null &&
-                vehicleCapacityError == null
+                licenceError == null
+
+        // --- REMOVED ERROR CHECKS ---
+        // && aadhaarError == null &&
+        // && vehicleNumberError == null && vehicleModelError == null &&
+        // && vehicleTypeError == null && vehicleColorError == null &&
+        // && vehicleCapacityError == null
     }
+    // ✅✅✅ END OF MAJOR FIX ✅✅✅
 
     fun onSubmitClicked() {
         if (!validate()) {
+            Log.d("DriverDetailsVM", "Validation FAILED.") // Added for debugging
             return
         }
         _apiError.value = null
@@ -163,7 +188,9 @@ class DriverDetailsViewModel @Inject constructor(
 
         Log.d("DriverDetailsVM", "Validation success. Navigating to OTP Screen.")
 
-        // Pass ALL collected data to the OtpScreen route
+        // ✅✅✅ START OF CLEANUP FIX ✅✅✅
+        // Pass null for fields that are no longer collected.
+        // The OtpViewModel is set up to handle nulls.
         sendEvent(UiEvent.Navigate(
             Screen.OtpScreen.createRoute(
                 phone = phone!!,
@@ -173,14 +200,15 @@ class DriverDetailsViewModel @Inject constructor(
                 gender = gender,
                 dob = dob,
                 license = licenceNumber,
-                aadhaar = aadhaarNumber,
+                aadhaar = null, // Pass null
                 // Vehicle fields
-                vehicleNumber = vehicleNumber,
-                vehicleModel = vehicleModel,
-                vehicleType = vehicleType,
-                vehicleColor = vehicleColor,
-                vehicleCapacity = vehicleCapacity
+                vehicleNumber = null, // Pass null
+                vehicleModel = null, // Pass null
+                vehicleType = null, // Pass null
+                vehicleColor = null, // Pass null
+                vehicleCapacity = null // Pass null
             )
         ))
+        // ✅✅✅ END OF CLEANUP FIX ✅✅✅
     }
 }
