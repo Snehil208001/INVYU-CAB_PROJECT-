@@ -31,12 +31,20 @@ class AppRepository @Inject constructor(
         return customApiService.createUser(request)
     }
 
-    // ✅✅✅ START OF NEW CODE ✅✅✅
     /**
      * Adds a vehicle for a driver.
      */
     suspend fun addVehicle(request: AddVehicleRequest): AddVehicleResponse {
         return customApiService.addVehicle(request)
+    }
+
+    // ✅✅✅ START OF NEW CODE ✅✅✅
+    /**
+     * Gets a driver's registered vehicle details.
+     */
+    suspend fun getVehicleDetails(driverId: String): Response<GetVehicleDetailsResponse> {
+        val request = GetVehicleDetailsRequest(driverId = driverId)
+        return customApiService.getVehicleDetails(request)
     }
     // ✅✅✅ END OF NEW CODE ✅✅✅
 

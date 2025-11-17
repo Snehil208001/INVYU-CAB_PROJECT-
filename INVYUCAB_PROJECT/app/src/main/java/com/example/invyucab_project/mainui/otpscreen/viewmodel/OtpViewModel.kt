@@ -11,9 +11,7 @@ import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.data.models.CreateUserRequest
-// ✅ --- START OF FIX: IMPORT ADDED ---
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
-// ✅ --- END OF FIX ---
 import com.example.invyucab_project.domain.usecase.CreateUserUseCase
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
@@ -37,9 +35,7 @@ import javax.inject.Inject
 class OtpViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val createUserUseCase: CreateUserUseCase,
-    // ✅ --- START OF FIX: REPOSITORY INJECTED ---
     private val userPreferencesRepository: UserPreferencesRepository,
-    // ✅ --- END OF FIX ---
     savedStateHandle: SavedStateHandle
 ) : BaseViewModel() {
 
@@ -193,11 +189,15 @@ class OtpViewModel @Inject constructor(
                     _isLoading.value = false
                     isAutoVerificationRunning = false
 
-                    // ✅ --- START OF FIX: SAVE ROLE AND STATUS ON SIGN-IN ---
+                    // SAVE ROLE AND STATUS ON SIGN-IN
                     userPreferencesRepository.saveUserRole(role)
                     userPreferencesRepository.saveUserStatus("active")
                     Log.d(TAG, "Sign-in: Saved role '$role' and status 'active'.")
-                    // ✅ --- END OF FIX ---
+
+                    // We still need to save the user ID on sign-in, which we get from preferences
+                    // (it was saved in AuthViewModel)
+                    val userId = userPreferencesRepository.getUserId()
+                    Log.d(TAG, "Sign-in: Retrieved user ID $userId")
 
                     val route = when (role.lowercase()) {
                         "driver" -> Screen.DriverScreen.route
@@ -245,17 +245,18 @@ class OtpViewModel @Inject constructor(
                 is Resource.Success -> {
                     Log.d(TAG, "CreateUser successful. User ID: ${result.data?.userId}")
 
-                    // ✅ --- START OF FIX: SAVE THE USER ID, ROLE, and STATUS ---
                     val newUserId = result.data?.userId
                     if (newUserId != null) {
-                        userPreferencesRepository.saveUserId(newUserId)
+                        // ✅✅✅ START OF FIX ✅✅✅
+                        // Convert the Int 'newUserId' to a String before saving
+                        userPreferencesRepository.saveUserId(newUserId.toString())
+                        // ✅✅✅ END OF FIX ✅✅✅
                         userPreferencesRepository.saveUserRole(finalRole)
                         userPreferencesRepository.saveUserStatus("active")
                         Log.d(TAG, "Sign-up: Saved User ID $newUserId, Role '$finalRole', and Status 'active'.")
                     } else {
                         Log.e(TAG, "CreateUser succeeded but userId was null in response.")
                     }
-                    // ✅ --- END OF FIX ---
 
                     // User is created.
                     _isLoading.value = false
@@ -282,10 +283,8 @@ class OtpViewModel @Inject constructor(
     private fun formatDobForApi(dobString: String?): String? {
         if (dobString.isNullOrBlank()) return null
         return try {
-            // ✅ --- START OF FIX: CHANGED PARSER FORMAT ---
-            // The log "Could not parse date: 2025-11-17" shows the date is in yyyy-MM-dd format
+            // The date is in yyyy-MM-dd format from DatePicker
             val parser = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
-            // ✅ --- END OF FIX ---
             val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
             val date = parser.parse(dobString)
             formatter.format(date!!)

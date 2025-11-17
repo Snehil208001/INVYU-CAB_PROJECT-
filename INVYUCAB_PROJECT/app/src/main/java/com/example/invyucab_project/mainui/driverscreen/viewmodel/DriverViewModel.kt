@@ -7,7 +7,10 @@ import android.os.Looper
 import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.core.base.BaseViewModel
+import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.core.navigations.Screen
+import com.example.invyucab_project.data.preferences.UserPreferencesRepository
+import com.example.invyucab_project.domain.usecase.GetVehicleDetailsUseCase
 import com.example.invyucab_project.domain.usecase.LogoutUserUseCase
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.model.LatLng
@@ -15,6 +18,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -24,7 +29,9 @@ class DriverViewModel @Inject constructor(
     private val logoutUserUseCase: LogoutUserUseCase,
     // --- Injected Location Services ---
     private val fusedLocationClient: FusedLocationProviderClient,
-    private val locationManager: LocationManager
+    private val locationManager: LocationManager,
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val getVehicleDetailsUseCase: GetVehicleDetailsUseCase
 ) : BaseViewModel() {
 
     private val _isActive = MutableStateFlow(false)
@@ -34,9 +41,55 @@ class DriverViewModel @Inject constructor(
     private val _currentLocation = MutableStateFlow<LatLng?>(null)
     val currentLocation: StateFlow<LatLng?> = _currentLocation.asStateFlow()
 
+    // --- State for the vehicle banner ---
+    private val _showVehicleBanner = MutableStateFlow(false)
+    val showVehicleBanner: StateFlow<Boolean> = _showVehicleBanner.asStateFlow()
+
     init {
         // Get location as soon as the ViewModel is created
         getCurrentLocation()
+        // Check for vehicle details when ViewModel starts
+        checkVehicleDetails()
+    }
+
+    private fun checkVehicleDetails() {
+        viewModelScope.launch {
+            // Use getUserId() as this is what we save during sign-in/sign-up
+            val driverId = userPreferencesRepository.getUserId()
+
+            if (driverId == null) {
+                Log.w("DriverViewModel", "Driver ID not found in preferences. Showing banner.")
+                _showVehicleBanner.value = true
+                return@launch
+            }
+
+            Log.d("DriverViewModel", "Checking vehicle for driverId: $driverId")
+            getVehicleDetailsUseCase(driverId).onEach { result ->
+                when (result) {
+                    is Resource.Loading -> {
+                        // Don't need to show full-screen loader for this
+                    }
+                    is Resource.Success -> {
+                        if (result.data == null) {
+                            // This means no vehicle is registered
+                            Log.d("DriverViewModel", "No vehicle found. Showing banner.")
+                            _showVehicleBanner.value = true
+                        } else {
+                            // Vehicle found, hide banner
+                            Log.d("DriverViewModel", "Vehicle found. Hiding banner.")
+                            _showVehicleBanner.value = false
+                        }
+                    }
+                    is Resource.Error -> {
+                        // Per your request: If the API fails, show the banner
+                        // so the user can add a vehicle.
+                        Log.e("DriverViewModel", "API Error checking vehicle: ${result.message}. Showing banner.")
+                        _apiError.value = result.message ?: "Could not verify vehicle"
+                        _showVehicleBanner.value = true
+                    }
+                }
+            }.launchIn(viewModelScope)
+        }
     }
 
     // --- Location Logic (from HomeViewModel) ---
@@ -80,7 +133,10 @@ class DriverViewModel @Inject constructor(
             override fun onLocationResult(locationResult: LocationResult) {
                 fusedLocationClient.removeLocationUpdates(this)
                 locationResult.lastLocation?.let { location ->
+                    // ✅✅✅ START OF FIX ✅✅✅
+                    // Corrected the typo from 'location.L' to 'location.longitude'
                     _currentLocation.value = LatLng(location.latitude, location.longitude)
+                    // ✅✅✅ END OF FIX ✅✅✅
                 } ?: run {
                     _apiError.value = "Could not fetch current location."
                 }

@@ -1,6 +1,12 @@
 package com.example.invyucab_project.mainui.driverscreen.ui
 
 import android.util.Log
+// ✅✅✅ START OF NEW CODE ✅✅✅
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,6 +19,8 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
+// ✅✅✅ END OF NEW CODE ✅✅✅
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -59,6 +67,10 @@ fun DriverScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    // ✅✅✅ START OF NEW CODE ✅✅✅
+    val showVehicleBanner by viewModel.showVehicleBanner.collectAsState()
+    // ✅✅✅ END OF NEW CODE ✅✅✅
 
     val selectedBottomNavItem = "Rides"
 
@@ -209,6 +221,24 @@ fun DriverScreen(
                     )
                 )
 
+                // ✅✅✅ START OF NEW CODE ✅✅✅
+                // This banner will show on top of the map, below the app bar.
+                AnimatedVisibility(
+                    visible = showVehicleBanner,
+                    enter = slideInVertically { -it } + fadeIn(),
+                    exit = slideOutVertically { -it } + fadeOut(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                ) {
+                    VehicleBanner(
+                        onClick = {
+                            navController.navigate(Screen.VehiclePreferencesScreen.route)
+                        }
+                    )
+                }
+                // ✅✅✅ END OF NEW CODE ✅✅✅
+
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -247,6 +277,35 @@ fun DriverScreen(
         }
     }
 }
+
+// ✅✅✅ START OF NEW CODE ✅✅✅
+@Composable
+fun VehicleBanner(
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFFFFBE6)) // Light yellow
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Warning,
+            contentDescription = "Warning",
+            tint = Color(0xFFF57F17) // Amber
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = "No vehicle registered. Tap to add your vehicle.",
+            color = Color.Black.copy(alpha = 0.8f),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+// ✅✅✅ END OF NEW CODE ✅✅✅
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -25,4 +25,9 @@ interface CustomApiService {
     @POST("riding_app/v1/add_vehicle")
     suspend fun addVehicle(@Body request: AddVehicleRequest): AddVehicleResponse
     // ✅✅✅ END OF NEW CODE ✅✅✅
+
+    // ✅✅✅ START OF NEW CODE ✅✅✅
+    @POST("riding_app/v1/get_driver_vehicle_detailes")
+    suspend fun getVehicleDetails(@Body request: GetVehicleDetailsRequest): Response<GetVehicleDetailsResponse>
+    // ✅✅✅ END OF NEW CODE ✅✅✅
 }

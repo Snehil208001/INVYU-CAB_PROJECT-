@@ -45,7 +45,7 @@ data class CreateUserRequest(
 
 @JsonClass(generateAdapter = true)
 data class CreateUserResponse(
-    @Json(name = "user_id") val userId: String,
+    @Json(name = "user_id") val userId: Int, // Changed to Int to match new log
     @Json(name = "message") val message: String
 )
 
@@ -91,11 +91,38 @@ data class AddVehicleRequest(
     @Json(name = "capacity") val capacity: String
 )
 
-// ✅✅✅ START OF FIX ✅✅✅
-// Changed this data class to match the server response
 @JsonClass(generateAdapter = true)
 data class AddVehicleResponse(
     @Json(name = "success") val success: Boolean,
-    @Json(name = "data") val data: Int? // This is the '16' from the log
+    @Json(name = "data") val data: Int?
+)
+
+
+// --- Vehicle Details Models ---
+
+@JsonClass(generateAdapter = true)
+data class GetVehicleDetailsRequest(
+    @Json(name = "driver_id") val driverId: String
+)
+
+@JsonClass(generateAdapter = true)
+data class VehicleDetails(
+    @Json(name = "vehicle_id") val vehicleId: Int?,
+    @Json(name = "vehicle_number") val vehicleNumber: String?,
+    @Json(name = "model") val model: String?,
+    @Json(name = "type") val type: String?,
+    @Json(name = "color") val color: String?,
+    @Json(name = "capacity") val capacity: String?
+)
+
+// ✅✅✅ START OF FIX ✅✅✅
+// Making this data class robust to handle the inconsistent backend responses
+@JsonClass(generateAdapter = true)
+data class GetVehicleDetailsResponse(
+    @Json(name = "success") val success: Boolean?, // Made nullable
+    @Json(name = "succcess") val succcess: Boolean?, // Added typo field
+    @Json(name = "isDriverPresent") val isDriverPresent: Boolean?, // Added new field
+    @Json(name = "data") val data: List<VehicleDetails>?, // Keep as List
+    @Json(name = "error") val error: String? // Added error field
 )
 // ✅✅✅ END OF FIX ✅✅✅
