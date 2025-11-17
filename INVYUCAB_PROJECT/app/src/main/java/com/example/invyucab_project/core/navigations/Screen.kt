@@ -79,9 +79,7 @@ sealed class Screen(val route: String) {
     object DriverProfileScreen : Screen("driver_profile_screen")
     object DriverDocumentsScreen : Screen("driver_documents_screen")
 
-    // ✅ --- NEW SCREEN ADDED ---
     object VehiclePreferencesScreen : Screen("vehicle_preferences_screen")
-    // ✅ --------------------------
 
     object EditProfileScreen : Screen("edit_profile_screen")
     object MemberLevelScreen : Screen("member_level_screen")
@@ -104,4 +102,10 @@ sealed class Screen(val route: String) {
             return "ride_selection_screen/$dropPlaceId/$encodedDropDesc?pickupPlaceId=$encodedPickupId&pickupDescription=$encodedPickupDesc"
         }
     }
+
+    // --- START OF ADDED CODE ---
+    data object RideBookingScreen : Screen("ride_booking_screen/{rideId}") {
+        fun createRoute(rideId: Int) = "ride_booking_screen/$rideId"
+    }
+    // --- END OF ADDED CODE ---
 }

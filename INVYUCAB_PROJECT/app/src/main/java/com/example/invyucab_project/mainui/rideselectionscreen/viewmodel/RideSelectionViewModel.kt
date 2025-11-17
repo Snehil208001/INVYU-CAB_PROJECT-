@@ -10,8 +10,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.common.Resource
+import com.example.invyucab_project.data.models.CreateRideRequest // ✅ ADDED
+import com.example.invyucab_project.data.models.CreateRideResponse // ✅ ADDED
 import com.example.invyucab_project.domain.model.RideOption
 import com.example.invyucab_project.domain.model.RideSelectionState
+import com.example.invyucab_project.domain.usecase.CreateRideUseCase // ✅ ADDED
 import com.example.invyucab_project.domain.usecase.GetDirectionsAndRouteUseCase
 import com.example.invyucab_project.domain.usecase.GetPlaceDetailsUseCase
 import com.example.invyucab_project.domain.usecase.GetRidePricingUseCase
@@ -22,8 +25,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-// import java.text.SimpleDateFormat // ❌ REMOVED
-// import java.util.* // ❌ REMOVED
 import javax.inject.Inject
 import kotlin.math.roundToInt
 
@@ -32,12 +33,23 @@ class RideSelectionViewModel @Inject constructor(
     private val getPlaceDetailsUseCase: GetPlaceDetailsUseCase,
     private val getDirectionsAndRouteUseCase: GetDirectionsAndRouteUseCase,
     private val getRidePricingUseCase: GetRidePricingUseCase,
+    private val createRideUseCase: CreateRideUseCase, // ✅ ADDED
     private val fusedLocationClient: FusedLocationProviderClient,
     savedStateHandle: SavedStateHandle
 ) : BaseViewModel() {
 
     private val _uiState = MutableStateFlow(RideSelectionState())
     val uiState = _uiState.asStateFlow()
+
+    // --- START OF ADDED CODE ---
+    // This state will be for the "Book" button's loading spinner
+    private val _bookingState = MutableStateFlow(BookingState())
+    val bookingState = _bookingState.asStateFlow()
+
+    // This is for navigation after a successful booking
+    private val _navigationEvent = MutableSharedFlow<RideNavigationEvent>()
+    val navigationEvent = _navigationEvent.asSharedFlow()
+    // --- END OF ADDED CODE ---
 
     // --- Dropped PlaceId and Description ---
     private val dropPlaceId: String? = savedStateHandle.get<String>("dropPlaceId")
@@ -132,11 +144,7 @@ class RideSelectionViewModel @Inject constructor(
             .setMaxUpdates(1)
             .build()
 
-        // ✅✅✅ START OF FIX ✅✅✅
-        // We create an instance of our new inner class instead of an anonymous object
         val locationCallback = MyLocationCallback()
-        // ✅✅✅ END OF FIX ✅✅✅
-
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
     }
 
@@ -250,7 +258,6 @@ class RideSelectionViewModel @Inject constructor(
                     isLoadingPrice = true,
                     estimatedDurationMinutes = durationMinutes,
                     estimatedDistanceKm = distanceString
-                    // ❌ REMOVED description = "Est. drop $dropTime"
                 )
             }
             currentState.copy(rideOptions = updatedOptions)
@@ -290,11 +297,58 @@ class RideSelectionViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    // ✅✅✅ START OF FIX ✅✅✅
+    // --- START OF ADDED CODE ---
+    fun onBookRideClicked(selectedRideId: Int) {
+        val currentState = _uiState.value
+        val selectedRide = currentState.rideOptions.find { it.id == selectedRideId }
+        val pickup = currentState.pickupLocation
+        val drop = currentState.dropLocation
+
+        // Ensure we have all the data we need
+        if (selectedRide == null || pickup == null || drop == null || selectedRide.price == null) {
+            _uiState.update {
+                it.copy(errorMessage = "Cannot book ride, missing details.")
+            }
+            return
+        }
+
+        // Construct the request
+        val request = CreateRideRequest(
+            riderId = 1, // TODO: Replace this with the actual logged-in user's ID
+            pickupLatitude = pickup.latitude,
+            pickupLongitude = pickup.longitude,
+            dropLatitude = drop.latitude,
+            dropLongitude = drop.longitude,
+            estimatedPrice = selectedRide.price.replace("₹", "").toDoubleOrNull() ?: 0.0,
+            status = "requested"
+        )
+
+        createRideUseCase(request).onEach { result ->
+            when (result) {
+                is Resource.Loading -> {
+                    _bookingState.update { it.copy(isLoading = true) }
+                }
+                is Resource.Success -> {
+                    _bookingState.update { it.copy(isLoading = false) }
+                    // Send event to UI to navigate
+                    result.data?.let {
+                        _navigationEvent.emit(RideNavigationEvent.NavigateToBooking(it.rideId))
+                    }
+                }
+                is Resource.Error -> {
+                    _bookingState.update { it.copy(isLoading = false) }
+                    _uiState.update {
+                        it.copy(errorMessage = result.message ?: "Booking failed")
+                    }
+                }
+            }
+        }.launchIn(viewModelScope)
+    }
+    // --- END OF ADDED CODE ---
+
+
     /**
      * This inner class is used to fix a crash with Android Studio's Live Edit feature.
-     * Live Edit cannot instantiate anonymous inner classes (like `object : LocationCallback()`),
-     * so we define a concrete inner class here and instantiate it in `requestNewLocation()`.
      */
     private inner class MyLocationCallback : LocationCallback() {
         override fun onLocationResult(locationResult: LocationResult) {
@@ -318,22 +372,19 @@ class RideSelectionViewModel @Inject constructor(
             }
         }
     }
-    // ✅✅✅ END OF FIX ✅✅✅
-
-    // ❌❌❌ REMOVED unused property ❌❌❌
-    /*
-    private val dropTime: String
-        get() {
-            val duration = _uiState.value.tripDurationSeconds ?: 0
-            val calendar = Calendar.getInstance()
-            calendar.add(Calendar.SECOND, duration)
-            val format = SimpleDateFormat("h:mm a", Locale.getDefault())
-            return format.format(calendar.time).lowercase()
-        }
-    */
 
     fun dismissError() {
         _uiState.update { it.copy(errorMessage = null) }
         _apiError.value = null
     }
 }
+
+// --- START OF ADDED CODE ---
+data class BookingState(
+    val isLoading: Boolean = false
+)
+
+sealed class RideNavigationEvent {
+    data class NavigateToBooking(val rideId: Int) : RideNavigationEvent()
+}
+// --- END OF ADDED CODE ---

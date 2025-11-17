@@ -20,14 +20,14 @@ interface CustomApiService {
     @POST("riding_app/v1/get_pricing")
     suspend fun getPricing(@Body request: GetPricingRequest): GetPricingResponse
 
-    // ✅✅✅ START OF NEW CODE ✅✅✅
-    // Added the new endpoint for adding a vehicle
     @POST("riding_app/v1/add_vehicle")
     suspend fun addVehicle(@Body request: AddVehicleRequest): AddVehicleResponse
-    // ✅✅✅ END OF NEW CODE ✅✅✅
 
-    // ✅✅✅ START OF NEW CODE ✅✅✅
     @POST("riding_app/v1/get_driver_vehicle_detailes")
     suspend fun getVehicleDetails(@Body request: GetVehicleDetailsRequest): Response<GetVehicleDetailsResponse>
-    // ✅✅✅ END OF NEW CODE ✅✅✅
+
+    // --- START OF ADDED CODE ---
+    @POST("riding_app/v1/create_rides")
+    suspend fun createRide(@Body request: CreateRideRequest): Response<CreateRideResponse>
+    // --- END OF ADDED CODE ---
 }

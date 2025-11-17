@@ -38,7 +38,6 @@ class AppRepository @Inject constructor(
         return customApiService.addVehicle(request)
     }
 
-    // ✅✅✅ START OF NEW CODE ✅✅✅
     /**
      * Gets a driver's registered vehicle details.
      */
@@ -46,7 +45,6 @@ class AppRepository @Inject constructor(
         val request = GetVehicleDetailsRequest(driverId = driverId)
         return customApiService.getVehicleDetails(request)
     }
-    // ✅✅✅ END OF NEW CODE ✅✅✅
 
     suspend fun updateUserStatus(request: UpdateUserStatusRequest): UpdateUserStatusResponse {
         return customApiService.updateUserStatus(request)
@@ -77,4 +75,10 @@ class AppRepository @Inject constructor(
     suspend fun getRidePricing(request: GetPricingRequest): GetPricingResponse {
         return customApiService.getPricing(request)
     }
+
+    // --- START OF ADDED CODE ---
+    suspend fun createRide(request: CreateRideRequest): Response<CreateRideResponse> {
+        return customApiService.createRide(request)
+    }
+    // --- END OF ADDED CODE ---
 }

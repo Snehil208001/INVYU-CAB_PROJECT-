@@ -1,4 +1,3 @@
-// ✅ ADDED: Import for Properties
 import java.util.Properties
 
 plugins {
@@ -11,7 +10,7 @@ plugins {
 }
 
 // Logic to read API key from local.properties
-val localProperties = Properties() // ✅ FIXED: Uses the imported Properties
+val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
     localPropertiesFile.inputStream().use { localProperties.load(it) }
@@ -59,7 +58,7 @@ android {
 
     buildFeatures {
         compose = true
-        buildConfig = true // ✅✅✅ THIS IS THE FIX ✅✅✅
+        buildConfig = true
     }
 }
 
@@ -67,6 +66,7 @@ dependencies {
     // Standard Android & Compose dependencies
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose) // ✅ ADD THIS LINE
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)

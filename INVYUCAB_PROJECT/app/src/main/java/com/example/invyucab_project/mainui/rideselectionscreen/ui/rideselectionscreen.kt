@@ -1,6 +1,5 @@
 package com.example.invyucab_project.mainui.rideselectionscreen.ui
 
-// --- START OF ADDED IMPORTS ---
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
@@ -10,8 +9,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
-// --- END OF ADDED IMPORTS ---
-
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -30,7 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.KeyboardArrowRight
-// import androidx.compose.material.icons.filled.LocalOffer // ❌ REMOVED
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -55,8 +51,10 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.R
+import com.example.invyucab_project.core.navigations.Screen // ✅ ADDED IMPORT
 import com.example.invyucab_project.domain.model.RideOption
 import com.example.invyucab_project.domain.model.RideSelectionState
+import com.example.invyucab_project.mainui.rideselectionscreen.viewmodel.RideNavigationEvent
 import com.example.invyucab_project.mainui.rideselectionscreen.viewmodel.RideSelectionViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
@@ -68,18 +66,17 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
-// import java.text.SimpleDateFormat // ❌ REMOVED
-// import java.util.* // ❌ REMOVED
 import java.lang.Exception
 
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class) // ✅ ADDED ExperimentalPermissionsApi
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun RideSelectionScreen(
     navController: NavController,
     viewModel: RideSelectionViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val bookingState by viewModel.bookingState.collectAsState()
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(25.5941, 85.1376), 12f)
@@ -87,14 +84,10 @@ fun RideSelectionScreen(
 
     val context = LocalContext.current
 
-    // --- START OF ADDED PERMISSION LOGIC ---
     val settingsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
-    ) {
-        // This block executes when returning from settings.
-    }
+    ) {}
 
-    // This code requests location permissions
     val locationPermissionsState = rememberMultiplePermissionsState(
         permissions = listOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -102,36 +95,27 @@ fun RideSelectionScreen(
         )
     )
 
-    // Keep track of whether we've made the *first* request.
     var permissionRequestLaunched by remember { mutableStateOf(false) }
 
-    // Request permissions when the screen launches *if not already granted*.
     LaunchedEffect(key1 = Unit) {
         if (!locationPermissionsState.allPermissionsGranted) {
             locationPermissionsState.launchMultiplePermissionRequest()
-            permissionRequestLaunched = true // We've now made the first request.
+            permissionRequestLaunched = true
         }
     }
 
-    // React to permission grant
     LaunchedEffect(key1 = locationPermissionsState.allPermissionsGranted) {
         if (locationPermissionsState.allPermissionsGranted) {
-            // You could add logic here if needed, e.g., refetching location
             // viewModel.onLocationPermissionGranted()
         }
     }
 
-    // Determine if the banner should be shown.
     val showPermissionBanner = !locationPermissionsState.allPermissionsGranted && permissionRequestLaunched
 
-    // Define the action for the "Allow" button on the banner
     val onAllowClick: () -> Unit = {
         if (locationPermissionsState.shouldShowRationale) {
-            // Case 1: User denied once. Show request dialog again.
             locationPermissionsState.launchMultiplePermissionRequest()
         } else {
-            // Case 2: User permanently denied ("Don't ask again").
-            // Send them to app settings.
             val intent = Intent(
                 Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.fromParts("package", context.packageName, null)
@@ -139,7 +123,19 @@ fun RideSelectionScreen(
             settingsLauncher.launch(intent)
         }
     }
-    // --- END OF ADDED PERMISSION LOGIC ---
+
+    // --- START OF NAVIGATION LOGIC ---
+    LaunchedEffect(key1 = Unit) {
+        viewModel.navigationEvent.collect { event ->
+            when (event) {
+                is RideNavigationEvent.NavigateToBooking -> {
+                    // Navigate to the new booking screen
+                    navController.navigate(Screen.RideBookingScreen.createRoute(event.rideId))
+                }
+            }
+        }
+    }
+    // --- END OF NAVIGATION LOGIC ---
 
     val mapStyleOptions = remember {
         try {
@@ -153,7 +149,6 @@ fun RideSelectionScreen(
         }
     }
 
-    // This LaunchedEffect logic is correct and matches your file
     LaunchedEffect(uiState.pickupLocation, uiState.dropLocation, uiState.routePolyline) {
         val pickup = uiState.pickupLocation
         val drop = uiState.dropLocation
@@ -205,7 +200,6 @@ fun RideSelectionScreen(
                 properties = MapProperties(mapStyleOptions = mapStyleOptions)
             ) {
 
-                // Initialize icons here, inside the map's content scope.
                 val pickupIcon = remember(context) {
                     bitmapDescriptorFromDrawable(context, R.drawable.ic_pickup_marker)
                 }
@@ -226,7 +220,7 @@ fun RideSelectionScreen(
                     Marker(
                         state = MarkerState(position = pickupLatLng),
                         title = "Pickup",
-                        icon = pickupIcon // Use the icon initialized inside the map
+                        icon = pickupIcon
                     )
                 }
 
@@ -234,12 +228,11 @@ fun RideSelectionScreen(
                     Marker(
                         state = MarkerState(position = dropLatLng),
                         title = "Drop",
-                        icon = dropIcon // Use the icon initialized inside the map
+                        icon = dropIcon
                     )
                 }
             }
 
-            // ✅ MODIFIED: Grouped banner and top bar in a Column
             Column(modifier = Modifier.fillMaxWidth()) {
                 AnimatedVisibility(visible = showPermissionBanner) {
                     LocationPermissionBanner(onAllowClick = onAllowClick)
@@ -255,7 +248,11 @@ fun RideSelectionScreen(
             }
 
             RideOptionsBottomSheet(
-                rideOptions = uiState.rideOptions
+                rideOptions = uiState.rideOptions,
+                isBookingLoading = bookingState.isLoading,
+                onBookClick = { selectedRideId ->
+                    viewModel.onBookRideClicked(selectedRideId)
+                }
             )
 
             if (uiState.isLoading || uiState.isFetchingLocation) {
@@ -399,7 +396,11 @@ fun LocationTopBar(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BoxScope.RideOptionsBottomSheet(rideOptions: List<RideOption>) {
+fun BoxScope.RideOptionsBottomSheet(
+    rideOptions: List<RideOption>,
+    isBookingLoading: Boolean,
+    onBookClick: (Int) -> Unit
+) {
     var selectedRideId by remember { mutableStateOf(1) }
     val areDetailsCalculated = rideOptions.isNotEmpty() && rideOptions.all { !it.isLoadingPrice }
 
@@ -425,34 +426,37 @@ fun BoxScope.RideOptionsBottomSheet(rideOptions: List<RideOption>) {
                     }
                 }
 
-                // ✅✅✅ START OF FIX ✅✅✅
-                // Removed the "Offers" Row and its Arrangement.SpaceBetween
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
-                    // horizontalArrangement = Arrangement.SpaceBetween // ❌ REMOVED
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { /* TODO */ }) {
                         Icon(Icons.Default.CreditCard, contentDescription = "Payment", tint = Color.Gray)
                         Text("Cash", fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 8.dp))
                         Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = Color.Gray)
                     }
-                    // ❌ REMOVED "Offers" Row
                 }
-                // ✅✅✅ END OF FIX ✅✅✅
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
-                    onClick = { /* TODO */ },
+                    onClick = { onBookClick(selectedRideId) },
                     modifier = Modifier.fillMaxWidth().padding(horizontal=16.dp).height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
-                    enabled = areDetailsCalculated
+                    enabled = areDetailsCalculated && !isBookingLoading
                 ) {
-                    val selectedRideName = rideOptions.find { it.id == selectedRideId }?.name ?: "Ride"
-                    Text("Book $selectedRideName", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    if (isBookingLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        val selectedRideName = rideOptions.find { it.id == selectedRideId }?.name ?: "Ride"
+                        Text("Book $selectedRideName", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
                 }
             }
         },
@@ -494,21 +498,6 @@ fun RideOptionItem(ride: RideOption, isSelected: Boolean, onClick: () -> Unit) {
                     Text("1", fontSize=12.sp, color = Color.Gray)
                 }
             }
-
-            // ✅✅✅ START OF FIX ✅✅✅
-            // Removed the Text composable that showed the drop-off time
-            /*
-            ride.estimatedDurationMinutes?.let { duration ->
-                val dropTime = calculateDropOffTime(0, duration) // 0 ETA, just duration
-                Text(
-                    "Est. Drop $dropTime", // e.g., "Est. Drop 5:15 pm"
-                    fontSize = 13.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
-            }
-            */
-            // ✅✅✅ END OF FIX ✅✅✅
         }
 
         Spacer(modifier = Modifier.width(16.dp))
@@ -541,23 +530,6 @@ fun RideOptionItem(ride: RideOption, isSelected: Boolean, onClick: () -> Unit) {
     }
 }
 
-// ❌❌❌ REMOVED unused function ❌❌❌
-/*
-fun calculateDropOffTime(etaMinutes: Int, durationMinutes: Int?): String {
-    val calendar = Calendar.getInstance()
-    calendar.add(Calendar.MINUTE, etaMinutes + (durationMinutes ?: 0))
-    val format = SimpleDateFormat("h:mm a", Locale.getDefault())
-    return format.format(calendar.time).lowercase()
-}
-*/
-
-// ✅ --- START OF ADDED BANNER COMPOSABLE ---
-/**
- * A banner composable that informs the user about denied location permissions
- * and provides an action to grant them.
- *
- * @param onAllowClick The action to perform when the "Allow" button is clicked.
- */
 @Composable
 fun LocationPermissionBanner(
     onAllowClick: () -> Unit
@@ -582,7 +554,7 @@ fun LocationPermissionBanner(
         TextButton(onClick = onAllowClick) {
             Text(
                 "ALLOW",
-                color = MaterialTheme.colorScheme.primary, // Use app's theme color
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
             )
