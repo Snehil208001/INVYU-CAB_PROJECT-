@@ -158,15 +158,18 @@ class AuthViewModel @Inject constructor(
                     _isLoading.value = false
                     when (result.data) {
                         is UserCheckStatus.Exists -> {
-                            // ✅ --- START OF FIX: SAVE THE USER ID ---
+                            // ✅ --- START OF FIX: SAVE USER ID, ROLE, AND STATUS ---
                             // This is the fix. We save the userId from the use case response.
-                            // Your log showed this ID was '32'.
                             val userId = result.data.userId
+                            val userRole = result.data.role
+
                             userPreferencesRepository.saveUserId(userId.toString())
-                            Log.d(TAG, "User ID $userId saved to preferences for sign-in.")
+                            userPreferencesRepository.saveUserRole(userRole)
+                            userPreferencesRepository.saveUserStatus("active")
+
+                            Log.d(TAG, "User ID $userId, Role $userRole, Status 'active' saved to preferences for sign-in.")
                             // ✅ --- END OF FIX ---
 
-                            val userRole = result.data.role
                             sendEvent(UiEvent.Navigate(
                                 Screen.OtpScreen.createRoute(
                                     phone = signInPhone,

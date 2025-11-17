@@ -193,6 +193,12 @@ class OtpViewModel @Inject constructor(
                     _isLoading.value = false
                     isAutoVerificationRunning = false
 
+                    // ✅ --- START OF FIX: SAVE ROLE AND STATUS ON SIGN-IN ---
+                    userPreferencesRepository.saveUserRole(role)
+                    userPreferencesRepository.saveUserStatus("active")
+                    Log.d(TAG, "Sign-in: Saved role '$role' and status 'active'.")
+                    // ✅ --- END OF FIX ---
+
                     val route = when (role.lowercase()) {
                         "driver" -> Screen.DriverScreen.route
                         "admin" -> Screen.AdminScreen.route
@@ -239,11 +245,13 @@ class OtpViewModel @Inject constructor(
                 is Resource.Success -> {
                     Log.d(TAG, "CreateUser successful. User ID: ${result.data?.userId}")
 
-                    // ✅ --- START OF FIX: SAVE THE USER ID ---
+                    // ✅ --- START OF FIX: SAVE THE USER ID, ROLE, and STATUS ---
                     val newUserId = result.data?.userId
                     if (newUserId != null) {
                         userPreferencesRepository.saveUserId(newUserId)
-                        Log.d(TAG, "User ID saved to preferences.")
+                        userPreferencesRepository.saveUserRole(finalRole)
+                        userPreferencesRepository.saveUserStatus("active")
+                        Log.d(TAG, "Sign-up: Saved User ID $newUserId, Role '$finalRole', and Status 'active'.")
                     } else {
                         Log.e(TAG, "CreateUser succeeded but userId was null in response.")
                     }
@@ -274,8 +282,10 @@ class OtpViewModel @Inject constructor(
     private fun formatDobForApi(dobString: String?): String? {
         if (dobString.isNullOrBlank()) return null
         return try {
-            // This format must match the one in DriverDetailsScreen
-            val parser = SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH)
+            // ✅ --- START OF FIX: CHANGED PARSER FORMAT ---
+            // The log "Could not parse date: 2025-11-17" shows the date is in yyyy-MM-dd format
+            val parser = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
+            // ✅ --- END OF FIX ---
             val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
             val date = parser.parse(dobString)
             formatter.format(date!!)

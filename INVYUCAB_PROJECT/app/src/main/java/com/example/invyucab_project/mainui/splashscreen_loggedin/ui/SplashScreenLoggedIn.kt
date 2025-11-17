@@ -33,12 +33,21 @@ fun SplashScreenLoggedIn(
         // ✅✅✅ START OF MODIFICATION ✅✅✅
         // Check if the user is logged in
         val isUserLoggedIn = viewModel.isUserLoggedIn()
+        val userRole = viewModel.getUserRole() // Get the user's role (e.g., "driver")
 
         // Determine the next destination
         val nextDestination = if (isUserLoggedIn) {
-            Screen.HomeScreen.route // User is logged in
+            // User is logged in, navigate based on role
+            // FIX: Check the lowercase version of the role for consistency
+            when (userRole?.lowercase()) {
+                "driver" -> Screen.DriverScreen.route
+                "admin" -> Screen.AdminScreen.route
+                "user" -> Screen.HomeScreen.route
+                else -> Screen.HomeScreen.route // Default to HomeScreen for "user" or if role is null
+            }
         } else {
-            Screen.OnboardingScreen.route // User is NOT logged in
+            // User is NOT logged in
+            Screen.OnboardingScreen.route
         }
 
         // Navigate to the correct destination

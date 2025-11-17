@@ -17,6 +17,10 @@ class UserPreferencesRepository @Inject constructor(
         // ✅ --- ADDED KEY FOR USER ID ---
         const val KEY_USER_ID = "user_id"
         // ✅ --- END OF CHANGE ---
+
+        // ✅ --- ADDED KEY FOR USER ROLE ---
+        const val KEY_USER_ROLE = "user_role"
+        // ✅ --- END OF CHANGE ---
     }
 
     /**
@@ -35,6 +39,15 @@ class UserPreferencesRepository @Inject constructor(
     }
     // ✅ --- END OF CHANGE ---
 
+    // ✅ --- NEW FUNCTION TO SAVE USER ROLE ---
+    /**
+     * Saves the user's role (e.g., "User", "Driver") to SharedPreferences.
+     */
+    fun saveUserRole(role: String) {
+        prefs.edit().putString(KEY_USER_ROLE, role).apply()
+    }
+    // ✅ --- END OF CHANGE ---
+
     /**
      * Clears the user's status from SharedPreferences (e.g., on logout).
      */
@@ -42,6 +55,7 @@ class UserPreferencesRepository @Inject constructor(
         prefs.edit()
             .remove(KEY_USER_STATUS)
             .remove(KEY_USER_ID) // ✅ Also remove user ID on logout
+            .remove(KEY_USER_ROLE) // ✅ Also remove user role on logout
             .apply()
     }
 
@@ -60,6 +74,16 @@ class UserPreferencesRepository @Inject constructor(
      */
     fun getUserId(): String? {
         return prefs.getString(KEY_USER_ID, null)
+    }
+    // ✅ --- END OF CHANGE ---
+
+    // ✅ --- NEW FUNCTION TO GET USER ROLE ---
+    /**
+     * Retrieves the current user's role.
+     * Returns null if no role is saved.
+     */
+    fun getUserRole(): String? {
+        return prefs.getString(KEY_USER_ROLE, null)
     }
     // ✅ --- END OF CHANGE ---
 

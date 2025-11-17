@@ -16,4 +16,13 @@ class SplashScreenViewModel @Inject constructor(
     fun isUserLoggedIn(): Boolean {
         return userPreferencesRepository.getUserStatus() == "active"
     }
+
+    // ✅ --- NEW FUNCTION TO GET USER ROLE ---
+    /**
+     * Retrieves the current user's role from preferences.
+     */
+    fun getUserRole(): String? {
+        return userPreferencesRepository.getUserRole()
+    }
+    // ✅ --- END OF CHANGE ---
 }
