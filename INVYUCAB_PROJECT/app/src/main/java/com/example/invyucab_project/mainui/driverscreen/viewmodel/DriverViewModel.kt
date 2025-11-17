@@ -48,11 +48,12 @@ class DriverViewModel @Inject constructor(
     init {
         // Get location as soon as the ViewModel is created
         getCurrentLocation()
-        // Check for vehicle details when ViewModel starts
-        checkVehicleDetails()
+        // ✅ --- FIX: Call is removed from init. It will now be called by the screen's lifecycle. ---
+        // checkVehicleDetails()
     }
 
-    private fun checkVehicleDetails() {
+    // ✅ --- FIX: 'private' is removed to allow the screen to call this. ---
+    fun checkVehicleDetails() {
         viewModelScope.launch {
             // Use getUserId() as this is what we save during sign-in/sign-up
             val driverId = userPreferencesRepository.getUserId()

@@ -30,6 +30,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+// ✅ --- FIX: ADD THESE IMPORTS ---
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+// ---
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -73,6 +78,25 @@ fun DriverScreen(
     // ✅✅✅ END OF NEW CODE ✅✅✅
 
     val selectedBottomNavItem = "Rides"
+
+    // ✅ --- START: LIFECYCLE OBSERVER FIX ---
+    // This will re-run the check every time the screen becomes visible (ON_RESUME)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // This now gets called every time you navigate back to this screen
+                viewModel.checkVehicleDetails()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        // When the composable leaves the screen, remove the observer
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+    // ✅ --- END: LIFECYCLE OBSERVER FIX ---
 
     // --- Event Collection for Navigation ---
     LaunchedEffect(key1 = true) {

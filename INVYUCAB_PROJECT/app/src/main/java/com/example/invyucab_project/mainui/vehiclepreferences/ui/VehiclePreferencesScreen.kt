@@ -10,6 +10,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+// ✅ --- IMPORT ADDED FOR THE FIX ---
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -19,8 +21,6 @@ import androidx.navigation.NavController
 import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.mainui.vehiclepreferences.viewmodel.VehiclePreferencesViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
-// ✅ --- START: Corrected Import ---
-// ✅ --- END: Corrected Import ---
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,13 +38,13 @@ fun VehiclePreferencesScreen(
     val isTypeDropdownExpanded by viewModel.isTypeDropdownExpanded.collectAsState()
     val vehicleTypes = viewModel.vehicleTypes
 
-    // ✅ --- START: Corrected 'isLoading' ---
-    // 'isLoading' is already a State in BaseViewModel, no collectAsState needed
+    val isEditMode by viewModel.isEditMode.collectAsState()
     val isLoading by viewModel.isLoading
-    // ✅ --- END: Corrected 'isLoading' ---
-
     val apiError by viewModel.apiError
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // ✅ --- GET THE FOCUS MANAGER ---
+    val focusManager = LocalFocusManager.current
 
     // --- Event Collection for Navigation/Snackbars ---
     LaunchedEffect(key1 = true) {
@@ -94,19 +94,19 @@ fun VehiclePreferencesScreen(
                 value = vehicleNumber,
                 onValueChange = viewModel::onVehicleNumberChange,
                 label = "Vehicle Number",
-                readOnly = isLoading // This will now work
+                readOnly = isLoading
             )
 
             VehicleTextField(
                 value = model,
                 onValueChange = viewModel::onModelChange,
                 label = "Model",
-                readOnly = isLoading // This will now work
+                readOnly = isLoading
             )
 
             ExposedDropdownMenuBox(
                 expanded = isTypeDropdownExpanded,
-                onExpandedChange = { if (!isLoading) viewModel.onSetTypeDropdownExpanded(it) }, // This will now work
+                onExpandedChange = { if (!isLoading) viewModel.onSetTypeDropdownExpanded(it) },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
@@ -120,11 +120,14 @@ fun VehiclePreferencesScreen(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = Color.White,
                         unfocusedContainerColor = Color.White,
-                        disabledBorderColor = Color.Gray.copy(alpha = 0.5f)
+                        disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
+                        disabledTextColor = if (isLoading) Color.Gray.copy(alpha = 0.8f) else Color.Black,
+                        disabledLabelColor = Color.Gray.copy(alpha = 0.5f)
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .menuAnchor() // This will now work
+                        .menuAnchor(),
+                    enabled = !isLoading
                 )
                 ExposedDropdownMenu(
                     expanded = isTypeDropdownExpanded,
@@ -145,7 +148,7 @@ fun VehiclePreferencesScreen(
                 value = color,
                 onValueChange = viewModel::onColorChange,
                 label = "Color",
-                readOnly = isLoading // This will now work
+                readOnly = isLoading
             )
 
             VehicleTextField(
@@ -154,14 +157,20 @@ fun VehiclePreferencesScreen(
                 label = "Capacity",
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Done,
-                readOnly = isLoading // This will now work
+                readOnly = isLoading
             )
 
             Spacer(modifier = Modifier.weight(1f))
 
             Button(
-                onClick = { viewModel.onAddVehicleClicked() },
-                enabled = !isLoading, // This will now work
+                onClick = {
+                    // ✅ --- THIS IS THE FIX ---
+                    // Clear focus from any TextField BEFORE starting the ViewModel logic
+                    focusManager.clearFocus()
+                    // ---
+                    viewModel.onAddVehicleClicked()
+                },
+                enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -174,7 +183,11 @@ fun VehiclePreferencesScreen(
                         strokeWidth = 3.dp
                     )
                 } else {
-                    Text("Add Vehicle", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = if (isEditMode) "Update Vehicle" else "Add Vehicle",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
@@ -200,7 +213,14 @@ private fun VehicleTextField(
             keyboardType = keyboardType,
             imeAction = imeAction
         ),
-        readOnly = readOnly
+        readOnly = readOnly,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White,
+            disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
+            disabledTextColor = if (readOnly) Color.Gray.copy(alpha = 0.8f) else Color.Black,
+            disabledLabelColor = Color.Gray.copy(alpha = 0.5f)
+        )
     )
 }
 

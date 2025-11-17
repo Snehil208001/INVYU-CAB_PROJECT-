@@ -1,13 +1,15 @@
 package com.example.invyucab_project.mainui.vehiclepreferences.viewmodel
 
 
-import android.util.Log // ✅ --- IMPORT ADDED ---
+import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.data.models.AddVehicleRequest
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
 import com.example.invyucab_project.domain.usecase.AddVehicleUseCase
+// ✅ --- IMPORT ADDED ---
+import com.example.invyucab_project.domain.usecase.GetVehicleDetailsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +22,9 @@ import javax.inject.Inject
 @HiltViewModel
 class VehiclePreferencesViewModel @Inject constructor(
     private val addVehicleUseCase: AddVehicleUseCase,
-    private val userPreferencesRepository: UserPreferencesRepository
+    private val userPreferencesRepository: UserPreferencesRepository,
+    // ✅ --- DEPENDENCY INJECTED ---
+    private val getVehicleDetailsUseCase: GetVehicleDetailsUseCase
 ) : BaseViewModel() {
 
     private val _vehicleNumber = MutableStateFlow("")
@@ -41,8 +45,66 @@ class VehiclePreferencesViewModel @Inject constructor(
     private val _isTypeDropdownExpanded = MutableStateFlow(false)
     val isTypeDropdownExpanded = _isTypeDropdownExpanded.asStateFlow()
 
+    // ✅ --- NEW STATE FOR BUTTON TEXT ---
+    private val _isEditMode = MutableStateFlow(false)
+    val isEditMode = _isEditMode.asStateFlow()
+
     val vehicleTypes = listOf("bike", "auto", "car")
 
+    // ✅ --- INIT BLOCK ADDED ---
+    init {
+        loadExistingVehicleDetails()
+    }
+
+    // ✅ --- NEW FUNCTION TO LOAD DATA ---
+    private fun loadExistingVehicleDetails() {
+        viewModelScope.launch {
+            val driverId = userPreferencesRepository.getUserId()
+            if (driverId == null) {
+                Log.w("VehicleVM", "No Driver ID found, skipping vehicle load.")
+                // User will just see an empty "add" form, which is correct
+                return@launch
+            }
+
+            Log.d("VehicleVM", "Loading existing vehicle details for driver: $driverId")
+            getVehicleDetailsUseCase(driverId).onEach { result ->
+                when (result) {
+                    is Resource.Loading -> {
+                        _isLoading.value = true
+                    }
+                    is Resource.Success -> {
+                        _isLoading.value = false
+                        result.data?.let { vehicle ->
+                            // Vehicle found, populate the form fields
+                            Log.d("VehicleVM", "Vehicle found: $vehicle. Populating fields.")
+
+                            // Use Elvis operator (?:) to provide a default empty string if null
+                            _vehicleNumber.update { vehicle.vehicleNumber ?: "" }
+                            _model.update { vehicle.model ?: "" }
+                            _type.update { vehicle.type ?: "" }
+                            _color.update { vehicle.color ?: "" }
+                            _capacity.update { vehicle.capacity ?: "" }
+
+                            // Set mode to "edit"
+                            _isEditMode.value = true
+                        } ?: run {
+                            // No vehicle found, user will see the empty "add" form
+                            Log.d("VehicleVM", "No existing vehicle registered.")
+                            _isEditMode.value = false
+                        }
+                    }
+                    is Resource.Error -> {
+                        _isLoading.value = false
+                        // Don't block the user, just log the error.
+                        // They can still try to add a vehicle.
+                        Log.e("VehicleVM", "Error loading vehicle details: ${result.message}")
+                        _apiError.value = "Couldn't load existing details. You can add a new one."
+                        _isEditMode.value = false
+                    }
+                }
+            }.launchIn(viewModelScope)
+        }
+    }
 
     fun onVehicleNumberChange(newValue: String) {
         _vehicleNumber.update { newValue }
@@ -65,8 +127,8 @@ class VehiclePreferencesViewModel @Inject constructor(
     }
 
     fun onAddVehicleClicked() {
-        // ✅ --- LOGGING ADDED ---
-        Log.d("VehicleVM", "onAddVehicleClicked called.")
+        // This function now handles both "Add" and "Update"
+        Log.d("VehicleVM", "onAddVehicleClicked called. Mode: ${if (_isEditMode.value) "Update" else "Add"}")
 
         val number = _vehicleNumber.value
         val model = _model.value
@@ -77,12 +139,11 @@ class VehiclePreferencesViewModel @Inject constructor(
         // Simple validation
         if (number.isBlank() || model.isBlank() || type.isBlank() || color.isBlank() || capacity.isBlank()) {
             _apiError.value = "All fields are required"
-            // ✅ --- LOGGING ADDED ---
             Log.e("VehicleVM", "Validation failed: All fields are required.")
             return
         }
 
-        // ✅ --- Set loading to true immediately ---
+        // ✅ --- THIS IS WHERE THE LOADER STARTS ---
         _isLoading.value = true
 
         viewModelScope.launch {
@@ -90,13 +151,11 @@ class VehiclePreferencesViewModel @Inject constructor(
 
             if (driverId == null) {
                 _apiError.value = "Could not find user ID. Please log in again."
-                // ✅ --- LOGGING AND LOADING FIX ---
                 Log.e("VehicleVM", "Validation failed: driverId is null.")
                 _isLoading.value = false // Stop loading
                 return@launch
             }
 
-            // ✅ --- LOGGING ADDED ---
             Log.d("VehicleVM", "Validation passed. Driver ID: $driverId. Calling use case...")
 
             val request = AddVehicleRequest(
@@ -114,11 +173,14 @@ class VehiclePreferencesViewModel @Inject constructor(
                         // Already loading
                     }
                     is Resource.Success -> {
+                        // ✅ --- THIS IS WHERE THE LOADER STOPS ---
                         _isLoading.value = false
-                        sendEvent(UiEvent.ShowSnackbar("Vehicle Added Successfully!"))
+                        val message = if (_isEditMode.value) "Vehicle Updated Successfully!" else "Vehicle Added Successfully!"
+                        sendEvent(UiEvent.ShowSnackbar(message))
                         sendEvent(UiEvent.NavigateBack)
                     }
                     is Resource.Error -> {
+                        // ✅ --- THIS IS WHERE THE LOADER STOPS ---
                         _isLoading.value = false
                         _apiError.value = result.message ?: "An unknown error occurred"
                     }
