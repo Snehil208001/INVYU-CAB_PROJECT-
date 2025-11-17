@@ -130,7 +130,7 @@ fun DriverScreen(
             ModalDrawerSheet {
                 // TODO: Replace with actual driver info from ViewModel
                 DrawerHeader(
-                    driverName = "John Doe",
+                    driverName = "Snehil",
                     driverRating = "4.9",
                     profileImageUrl = "https://example.com/driver_profile.jpg"
                 )

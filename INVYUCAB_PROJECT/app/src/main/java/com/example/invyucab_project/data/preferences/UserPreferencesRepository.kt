@@ -21,6 +21,10 @@ class UserPreferencesRepository @Inject constructor(
         // ✅ --- ADDED KEY FOR USER ROLE ---
         const val KEY_USER_ROLE = "user_role"
         // ✅ --- END OF CHANGE ---
+
+        // ✅ --- ADDED KEY FOR DRIVER ID ---
+        const val KEY_DRIVER_ID = "driver_id"
+        // ✅ --- END OF CHANGE ---
     }
 
     /**
@@ -48,6 +52,15 @@ class UserPreferencesRepository @Inject constructor(
     }
     // ✅ --- END OF CHANGE ---
 
+    // ✅ --- NEW FUNCTION TO SAVE DRIVER ID ---
+    /**
+     * Saves the driver's unique ID (as a String) to SharedPreferences.
+     */
+    fun saveDriverId(driverId: String) {
+        prefs.edit().putString(KEY_DRIVER_ID, driverId).apply()
+    }
+    // ✅ --- END OF CHANGE ---
+
     /**
      * Clears the user's status from SharedPreferences (e.g., on logout).
      */
@@ -56,6 +69,7 @@ class UserPreferencesRepository @Inject constructor(
             .remove(KEY_USER_STATUS)
             .remove(KEY_USER_ID) // ✅ Also remove user ID on logout
             .remove(KEY_USER_ROLE) // ✅ Also remove user role on logout
+            .remove(KEY_DRIVER_ID) // ✅ Also remove driver ID on logout
             .apply()
     }
 
@@ -84,6 +98,16 @@ class UserPreferencesRepository @Inject constructor(
      */
     fun getUserRole(): String? {
         return prefs.getString(KEY_USER_ROLE, null)
+    }
+    // ✅ --- END OF CHANGE ---
+
+    // ✅ --- NEW FUNCTION TO GET DRIVER ID ---
+    /**
+     * Retrieves the current driver's ID.
+     * Returns null if no ID is saved.
+     */
+    fun getDriverId(): String? {
+        return prefs.getString(KEY_DRIVER_ID, null)
     }
     // ✅ --- END OF CHANGE ---
 
