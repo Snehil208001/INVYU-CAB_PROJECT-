@@ -1,5 +1,9 @@
 package com.example.invyucab_project.mainui.authscreen.viewmodel
 
+// ✅ --- START OF FIX: IMPORTS ADDED ---
+import android.util.Log
+import com.example.invyucab_project.data.preferences.UserPreferencesRepository
+// ✅ --- END OF FIX ---
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -25,8 +29,15 @@ import javax.inject.Inject
 class AuthViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val credentialManager: CredentialManager,
-    private val checkUserUseCase: CheckUserUseCase
+    private val checkUserUseCase: CheckUserUseCase,
+    // ✅ --- START OF FIX: REPOSITORY INJECTED ---
+    private val userPreferencesRepository: UserPreferencesRepository
+    // ✅ --- END OF FIX ---
 ) : BaseViewModel() {
+
+    // ✅ --- START OF FIX: TAG ADDED FOR LOGGING ---
+    private val TAG = "AuthViewModel"
+    // ✅ --- END OF FIX ---
 
     var selectedTab by mutableStateOf(AuthTab.SIGN_UP)
         private set
@@ -118,7 +129,7 @@ class AuthViewModel @Inject constructor(
                                 )
                             ))
                         }
-                        // ✅✅✅ START OF FIX ✅✅✅
+                        // ✅✅✅ START OF FIX ✅✅✅ (This was in your original code)
                         // Add an else branch to handle the 'null' case
                         else -> {
                             _apiError.value = "An unexpected error occurred."
@@ -147,6 +158,14 @@ class AuthViewModel @Inject constructor(
                     _isLoading.value = false
                     when (result.data) {
                         is UserCheckStatus.Exists -> {
+                            // ✅ --- START OF FIX: SAVE THE USER ID ---
+                            // This is the fix. We save the userId from the use case response.
+                            // Your log showed this ID was '32'.
+                            val userId = result.data.userId
+                            userPreferencesRepository.saveUserId(userId.toString())
+                            Log.d(TAG, "User ID $userId saved to preferences for sign-in.")
+                            // ✅ --- END OF FIX ---
+
                             val userRole = result.data.role
                             sendEvent(UiEvent.Navigate(
                                 Screen.OtpScreen.createRoute(
@@ -162,7 +181,7 @@ class AuthViewModel @Inject constructor(
                         is UserCheckStatus.DoesNotExist -> {
                             _apiError.value = "This phone number is not registered. Please Register."
                         }
-                        // ✅✅✅ START OF FIX ✅✅✅
+                        // ✅✅✅ START OF FIX ✅✅✅ (This was in your original code)
                         // Add an else branch to handle the 'null' case
                         else -> {
                             _apiError.value = "An unexpected error occurred."

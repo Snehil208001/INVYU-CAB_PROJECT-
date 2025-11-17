@@ -11,6 +11,9 @@ import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.data.models.CreateUserRequest
+// ✅ --- START OF FIX: IMPORT ADDED ---
+import com.example.invyucab_project.data.preferences.UserPreferencesRepository
+// ✅ --- END OF FIX ---
 import com.example.invyucab_project.domain.usecase.CreateUserUseCase
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
@@ -34,6 +37,9 @@ import javax.inject.Inject
 class OtpViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val createUserUseCase: CreateUserUseCase,
+    // ✅ --- START OF FIX: REPOSITORY INJECTED ---
+    private val userPreferencesRepository: UserPreferencesRepository,
+    // ✅ --- END OF FIX ---
     savedStateHandle: SavedStateHandle
 ) : BaseViewModel() {
 
@@ -232,6 +238,17 @@ class OtpViewModel @Inject constructor(
                 }
                 is Resource.Success -> {
                     Log.d(TAG, "CreateUser successful. User ID: ${result.data?.userId}")
+
+                    // ✅ --- START OF FIX: SAVE THE USER ID ---
+                    val newUserId = result.data?.userId
+                    if (newUserId != null) {
+                        userPreferencesRepository.saveUserId(newUserId)
+                        Log.d(TAG, "User ID saved to preferences.")
+                    } else {
+                        Log.e(TAG, "CreateUser succeeded but userId was null in response.")
+                    }
+                    // ✅ --- END OF FIX ---
+
                     // User is created.
                     _isLoading.value = false
                     isAutoVerificationRunning = false

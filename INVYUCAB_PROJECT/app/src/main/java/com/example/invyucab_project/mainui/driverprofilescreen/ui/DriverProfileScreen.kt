@@ -119,7 +119,7 @@ fun DriverProfileScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Ozzie Berkstresser",
+                text = "Snehil",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black
