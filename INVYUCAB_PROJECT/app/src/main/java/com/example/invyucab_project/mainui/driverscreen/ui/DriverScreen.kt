@@ -1,10 +1,12 @@
 package com.example.invyucab_project.mainui.driverscreen.ui
 
 import android.Manifest
+import android.app.Activity // ✅ --- ADDED IMPORT ---
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.util.Log
+import androidx.activity.compose.BackHandler // ✅ --- ADDED IMPORT ---
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -82,6 +84,13 @@ fun DriverScreen(
     val selectedBottomNavItem = "Rides"
 
     val context = LocalContext.current
+
+    // --- ✅ START: ADDED CODE FOR SYSTEM BACK BUTTON ---
+    val activity = (LocalContext.current as? Activity)
+    BackHandler {
+        activity?.finish()
+    }
+    // --- ✅ END: ADDED CODE FOR SYSTEM BACK BUTTON ---
 
     // --- ✅ START OF PERMISSION LOGIC (HANDLES BOTH ISSUES) ---
 
@@ -307,21 +316,9 @@ fun DriverScreen(
                     onTripClicked = {
                         // TODO: Navigate to "Current Trip" or "Trip History" screen
                     },
-                    // ✅ --- CODE HAS BEEN FIXED HERE ---
                     onProfileClicked = {
-                        navController.navigate(Screen.DriverProfileScreen.route) {
-                            // Pop up to the start destination of the graph to
-                            // avoid building a large back stack.
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = true
-                            }
-                            // Avoid multiple copies of the same destination
-                            launchSingleTop = true
-                            // Restore state when re-selecting a tab
-                            restoreState = true
-                        }
+                        navController.navigate(Screen.DriverProfileScreen.route)
                     }
-                    // ✅ --- END OF FIX ---
                 )
             }
         ) { paddingValues ->

@@ -1,9 +1,11 @@
 package com.example.invyucab_project.mainui.homescreen.ui
 
 // --- START OF ADDED IMPORTS ---
+import android.app.Activity // ✅ --- ADDED IMPORT ---
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.BackHandler // ✅ --- ADDED IMPORT ---
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.Warning
@@ -92,6 +94,13 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // --- START OF ✅ ADDED CODE FOR SYSTEM BACK BUTTON ---
+    val activity = (LocalContext.current as? Activity)
+    BackHandler {
+        activity?.finish()
+    }
+    // --- END OF ✅ ADDED CODE FOR SYSTEM BACK BUTTON ---
 
     // --- START OF ✅ MODIFIED CODE ---
     val apiError by viewModel.apiError // ✅ MODIFIED: Read the State directly
