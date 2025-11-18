@@ -1,7 +1,12 @@
 package com.example.invyucab_project.mainui.driverscreen.ui
 
+import android.Manifest
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.util.Log
-// ✅✅✅ START OF NEW CODE ✅✅✅
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -20,7 +25,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
-// ✅✅✅ END OF NEW CODE ✅✅✅
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,11 +34,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-// ✅ --- FIX: ADD THESE IMPORTS ---
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-// ---
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -53,6 +55,8 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
@@ -60,7 +64,7 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import kotlinx.coroutines.launch
 import java.lang.Exception
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun DriverScreen(
     navController: NavController,
@@ -73,30 +77,97 @@ fun DriverScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // ✅✅✅ START OF NEW CODE ✅✅✅
     val showVehicleBanner by viewModel.showVehicleBanner.collectAsState()
-    // ✅✅✅ END OF NEW CODE ✅✅✅
 
     val selectedBottomNavItem = "Rides"
 
-    // ✅ --- START: LIFECYCLE OBSERVER FIX ---
-    // This will re-run the check every time the screen becomes visible (ON_RESUME)
+    val context = LocalContext.current
+
+    // --- ✅ START OF PERMISSION LOGIC (HANDLES BOTH ISSUES) ---
+
+    // --- 1. Launcher for App PERMISSIONS (App Settings) ---
+    val permissionSettingsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        // This block executes when returning from settings.
+        viewModel.getCurrentLocation()
+    }
+
+    // --- 2. Launcher for Location SERVICES (GPS Toggle) ---
+    val locationServiceLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        // User has returned from the location settings screen.
+        // Re-check if they turned it on.
+        viewModel.getCurrentLocation()
+    }
+
+    // --- 3. State for App PERMISSIONS ---
+    val locationPermissionsState = rememberMultiplePermissionsState(
+        permissions = listOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+    )
+
+    var permissionRequestLaunched by remember { mutableStateOf(false) }
+
+    LaunchedEffect(key1 = Unit) {
+        if (!locationPermissionsState.allPermissionsGranted) {
+            locationPermissionsState.launchMultiplePermissionRequest()
+            permissionRequestLaunched = true
+        }
+    }
+
+    LaunchedEffect(key1 = locationPermissionsState.allPermissionsGranted) {
+        if (locationPermissionsState.allPermissionsGranted) {
+            // Permission was just granted, fetch location
+            viewModel.getCurrentLocation()
+        }
+    }
+
+    val showLocationPermissionBanner = !locationPermissionsState.allPermissionsGranted && permissionRequestLaunched
+
+    // --- 4. Click Handler for App PERMISSION Banner ---
+    val onAllowClick: () -> Unit = {
+        if (locationPermissionsState.shouldShowRationale) {
+            // Case 1: User denied once. Show request dialog again.
+            locationPermissionsState.launchMultiplePermissionRequest()
+        } else {
+            // Case 2: User permanently denied ("Don't ask again").
+            // Send to settings.
+            val intent = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", context.packageName, null)
+            )
+            permissionSettingsLauncher.launch(intent)
+        }
+    }
+    // --- ✅ END OF PERMISSION LOGIC ---
+
+
+    // ✅ --- START: LIFECYCLE OBSERVER ---
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                // This now gets called every time you navigate back to this screen
                 viewModel.checkVehicleDetails()
+
+                // Re-check location permissions and service
+                if (locationPermissionsState.allPermissionsGranted) {
+                    viewModel.getCurrentLocation()
+                } else {
+                    permissionRequestLaunched = true
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
 
-        // When the composable leaves the screen, remove the observer
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-    // ✅ --- END: LIFECYCLE OBSERVER FIX ---
+    // ✅ --- END: LIFECYCLE OBSERVER ---
 
     // --- Event Collection for Navigation ---
     LaunchedEffect(key1 = true) {
@@ -110,24 +181,41 @@ fun DriverScreen(
                 is BaseViewModel.UiEvent.ShowSnackbar -> {
                     snackbarHostState.showSnackbar(event.message)
                 }
-                // ✅ --- THIS IS THE FIX ---
-                // Add an else branch to make the 'when' exhaustive
                 else -> {}
-                // ✅ --- END OF FIX ---
             }
         }
     }
 
-    // --- Error Handling for GPS ---
+    // --- ✅ START: FULL Error Handling (FOR GPS SERVICE) ---
     LaunchedEffect(apiError) {
-        if (apiError != null) {
-            snackbarHostState.showSnackbar(
-                message = apiError!!,
-                duration = SnackbarDuration.Short
-            )
+        apiError?.let { message ->
+
+            // Check if this is the specific GPS error
+            if (message.contains("location services (GPS)")) {
+                // Show snackbar with "Turn On" action
+                val result = snackbarHostState.showSnackbar(
+                    message = message,
+                    actionLabel = "Turn On",
+                    duration = SnackbarDuration.Long // Keep it on screen longer
+                )
+
+                if (result == SnackbarResult.ActionPerformed) {
+                    // User clicked "Turn On"
+                    val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                    locationServiceLauncher.launch(intent)
+                }
+
+            } else {
+                // Show a normal snackbar for all other errors
+                snackbarHostState.showSnackbar(
+                    message = message,
+                    duration = SnackbarDuration.Short
+                )
+            }
             viewModel.clearApiError()
         }
     }
+    // --- ✅ END: FULL Error Handling ---
 
     // --- Map Camera State ---
     val defaultLocation = LatLng(25.5941, 85.1376) // Patna (fallback)
@@ -145,7 +233,6 @@ fun DriverScreen(
     }
 
     // --- Load Custom Map Style ---
-    val context = LocalContext.current
     val mapStyleOptions = remember {
         try {
             val json = context.resources
@@ -164,7 +251,6 @@ fun DriverScreen(
         gesturesEnabled = !cameraPositionState.isMoving,
         drawerContent = {
             ModalDrawerSheet {
-                // TODO: Replace with actual driver info from ViewModel
                 DrawerHeader(
                     driverName = "Snehil",
                     driverRating = "4.9",
@@ -236,32 +322,46 @@ fun DriverScreen(
                     modifier = Modifier.fillMaxSize(),
                     cameraPositionState = cameraPositionState,
                     properties = MapProperties(
-                        isMyLocationEnabled = true,
+                        // ✅ THIS IS THE FIX: Only enable if permissions are granted
+                        isMyLocationEnabled = locationPermissionsState.allPermissionsGranted,
                         mapStyleOptions = mapStyleOptions
                     ),
                     uiSettings = MapUiSettings(
-                        myLocationButtonEnabled = true,
+                        // ✅ THIS IS THE FIX: Only enable if permissions are granted
+                        myLocationButtonEnabled = locationPermissionsState.allPermissionsGranted,
                         zoomControlsEnabled = false
                     )
                 )
 
-                // ✅✅✅ START OF NEW CODE ✅✅✅
-                // This banner will show on top of the map, below the app bar.
-                AnimatedVisibility(
-                    visible = showVehicleBanner,
-                    enter = slideInVertically { -it } + fadeIn(),
-                    exit = slideOutVertically { -it } + fadeOut(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopCenter)
-                ) {
-                    VehicleBanner(
-                        onClick = {
-                            navController.navigate(Screen.VehiclePreferencesScreen.route)
-                        }
-                    )
+                // ✅ WRAP BANNERS IN A COLUMN to prevent overlap
+                Column(modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)) {
+
+                    // --- ✅ LOCATION PERMISSION BANNER ---
+                    AnimatedVisibility(
+                        visible = showLocationPermissionBanner,
+                        enter = slideInVertically { -it } + fadeIn(),
+                        exit = slideOutVertically { -it } + fadeOut(),
+                    ) {
+                        LocationPermissionBanner(
+                            onAllowClick = onAllowClick
+                        )
+                    }
+
+                    // --- VEHICLE BANNER ---
+                    AnimatedVisibility(
+                        visible = showVehicleBanner,
+                        enter = slideInVertically { -it } + fadeIn(),
+                        exit = slideOutVertically { -it } + fadeOut(),
+                    ) {
+                        VehicleBanner(
+                            onClick = {
+                                navController.navigate(Screen.VehiclePreferencesScreen.route)
+                            }
+                        )
+                    }
                 }
-                // ✅✅✅ END OF NEW CODE ✅✅✅
 
                 Box(
                     modifier = Modifier
@@ -302,7 +402,42 @@ fun DriverScreen(
     }
 }
 
-// ✅✅✅ START OF NEW CODE ✅✅✅
+// --- ✅ LOCATION PERMISSION BANNER ---
+@Composable
+fun LocationPermissionBanner(
+    onAllowClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFFFFBE6)) // Light yellow background
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            // ✅ UPDATED TEXT
+            text = "To go online and receive rides, turn on location.",
+            modifier = Modifier.weight(1f),
+            color = Color.Black,
+            fontSize = 14.sp
+        )
+
+        Spacer(Modifier.width(8.dp))
+
+        TextButton(onClick = onAllowClick) {
+            Text(
+                "ALLOW",
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+        }
+    }
+}
+
+
+// --- ✅ VEHICLE BANNER ---
 @Composable
 fun VehicleBanner(
     onClick: () -> Unit
@@ -329,7 +464,6 @@ fun VehicleBanner(
         )
     }
 }
-// ✅✅✅ END OF NEW CODE ✅✅✅
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
