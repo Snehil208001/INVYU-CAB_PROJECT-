@@ -79,9 +79,21 @@ fun DriverProfileScreen(
         bottomBar = {
             DriverBottomBar(
                 selectedItem = selectedBottomNavItem,
+                // ✅ --- CODE HAS BEEN FIXED HERE ---
                 onMyRidesClicked = {
-                    navController.popBackStack()
+                    navController.navigate(Screen.DriverScreen.route) {
+                        // Pop up to the start destination of the graph to
+                        // avoid building a large back stack.
+                        popUpTo(navController.graph.startDestinationId) {
+                            saveState = true
+                        }
+                        // Avoid multiple copies of the same destination
+                        launchSingleTop = true
+                        // Restore state when re-selecting a tab
+                        restoreState = true
+                    }
                 },
+                // ✅ --- END OF FIX ---
                 onTripClicked = {
                     // TODO: Navigate
                 },

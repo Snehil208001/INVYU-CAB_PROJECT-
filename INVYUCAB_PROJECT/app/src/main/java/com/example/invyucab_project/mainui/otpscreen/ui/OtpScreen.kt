@@ -52,12 +52,22 @@ fun OtpScreen(
             when (event) {
                 is BaseViewModel.UiEvent.Navigate -> {
                     navController.navigate(event.route) {
-                        // Clear OTP screen from back stack
-                        popUpTo(Screen.OtpScreen.route) { inclusive = true }
-                        // If going to Home, clear everything back to Auth
-                        if (event.route == Screen.HomeScreen.route) {
+
+                        // ✅ --- NAVIGATION BUG FIX ---
+                        // If navigating to a main "logged in" screen (Home, Driver, Admin),
+                        // clear the *entire* auth flow from the back stack.
+                        // Popping up to AuthScreen (inclusive) removes both
+                        // AuthScreen and OtpScreen from the stack.
+                        if (event.route == Screen.HomeScreen.route ||
+                            event.route == Screen.DriverScreen.route ||
+                            event.route == Screen.AdminScreen.route
+                        ) {
                             popUpTo(Screen.AuthScreen.route) { inclusive = true }
+                        } else {
+                            // Default behavior (if any other nav happens): just pop this OTP screen
+                            popUpTo(Screen.OtpScreen.route) { inclusive = true }
                         }
+                        // ✅ --- END OF BUG FIX ---
                     }
                 }
                 is BaseViewModel.UiEvent.ShowSnackbar -> {
