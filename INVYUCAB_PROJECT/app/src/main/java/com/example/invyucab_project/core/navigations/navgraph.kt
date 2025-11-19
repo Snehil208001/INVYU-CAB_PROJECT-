@@ -12,7 +12,6 @@ import com.example.invyucab_project.mainui.allservicesscreen.ui.AllServicesScree
 import com.example.invyucab_project.mainui.authscreen.ui.AuthScreen
 import com.example.invyucab_project.mainui.driverdetailsscreen.ui.DriverDetailsScreen
 import com.example.invyucab_project.mainui.driverdocument.ui.DriverDocumentsScreen
-// ✅ --- NEW IMPORT ---
 import com.example.invyucab_project.mainui.driverprofilescreen.ui.DriverProfileScreen
 import com.example.invyucab_project.mainui.driverscreen.ui.DriverScreen
 import com.example.invyucab_project.mainui.homescreen.ui.HomeScreen
@@ -22,6 +21,7 @@ import com.example.invyucab_project.mainui.profilescreen.editprofilescreen.ui.Ed
 import com.example.invyucab_project.mainui.profilescreen.memberlevelscreen.ui.MemberLevelScreen
 import com.example.invyucab_project.mainui.profilescreen.paymentmethodscreen.ui.PaymentMethodScreen
 import com.example.invyucab_project.mainui.profilescreen.ui.ProfileScreen
+import com.example.invyucab_project.mainui.ridebookingscreen.ui.RideBookingScreen // ✅ Ensure this import is present
 import com.example.invyucab_project.mainui.rideselectionscreen.ui.RideSelectionScreen
 import com.example.invyucab_project.mainui.roleselectionscreen.ui.RoleSelectionScreen
 import com.example.invyucab_project.mainui.splashscreen_loggedin.ui.SplashScreenLoggedIn
@@ -128,11 +128,9 @@ fun NavGraph(
             VehiclePreferencesScreen(navController = navController)
         }
 
-        // ✅ --- NEW SCREEN COMPOSABLE ---
         composable(Screen.DriverProfileScreen.route) {
             DriverProfileScreen(navController = navController)
         }
-        // ✅ ------------------------------
 
         composable(Screen.EditProfileScreen.route) {
             EditProfileScreen(navController = navController)
@@ -169,5 +167,23 @@ fun NavGraph(
         ) {
             RideSelectionScreen(navController = navController)
         }
+
+        // ✅ --- FIXED CODE ---
+        composable(
+            route = Screen.RideBookingScreen.route,
+            arguments = listOf(
+                navArgument("rideId") { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            // 1. Extract the rideId from the arguments
+            val rideId = backStackEntry.arguments?.getInt("rideId")
+
+            // 2. Pass it to the screen (converting Int to String as your screen expects String?)
+            RideBookingScreen(
+                navController = navController,
+                rideId = rideId?.toString()
+            )
+        }
+        // ✅ --- END OF FIXED CODE ---
     }
 }

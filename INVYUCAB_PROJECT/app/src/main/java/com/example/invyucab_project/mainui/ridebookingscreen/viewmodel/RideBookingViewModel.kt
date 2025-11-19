@@ -1,6 +1,5 @@
 package com.example.invyucab_project.mainui.ridebookingscreen.viewmodel
 
-
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -21,7 +20,8 @@ class RideBookingViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(RideBookingUiState())
     val uiState = _uiState.asStateFlow()
 
-    private val rideId: String? = savedStateHandle.get<String>("rideId")
+    // ✅ FIXED: Retrieve as Int (because NavType.IntType was used), then convert to String
+    private val rideId: String? = savedStateHandle.get<Int>("rideId")?.toString()
 
     init {
         _uiState.update { it.copy(rideId = rideId) }

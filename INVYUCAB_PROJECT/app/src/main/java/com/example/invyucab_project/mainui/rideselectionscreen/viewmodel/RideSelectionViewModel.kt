@@ -10,11 +10,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.common.Resource
-import com.example.invyucab_project.data.models.CreateRideRequest // ✅ ADDED
-import com.example.invyucab_project.data.models.CreateRideResponse // ✅ ADDED
+import com.example.invyucab_project.data.models.CreateRideRequest
+import com.example.invyucab_project.data.models.CreateRideResponse
+import com.example.invyucab_project.data.preferences.UserPreferencesRepository // ✅ ADDED IMPORT
 import com.example.invyucab_project.domain.model.RideOption
 import com.example.invyucab_project.domain.model.RideSelectionState
-import com.example.invyucab_project.domain.usecase.CreateRideUseCase // ✅ ADDED
+import com.example.invyucab_project.domain.usecase.CreateRideUseCase
 import com.example.invyucab_project.domain.usecase.GetDirectionsAndRouteUseCase
 import com.example.invyucab_project.domain.usecase.GetPlaceDetailsUseCase
 import com.example.invyucab_project.domain.usecase.GetRidePricingUseCase
@@ -33,7 +34,8 @@ class RideSelectionViewModel @Inject constructor(
     private val getPlaceDetailsUseCase: GetPlaceDetailsUseCase,
     private val getDirectionsAndRouteUseCase: GetDirectionsAndRouteUseCase,
     private val getRidePricingUseCase: GetRidePricingUseCase,
-    private val createRideUseCase: CreateRideUseCase, // ✅ ADDED
+    private val createRideUseCase: CreateRideUseCase,
+    private val userPreferencesRepository: UserPreferencesRepository, // ✅ INJECTED REPOSITORY
     private val fusedLocationClient: FusedLocationProviderClient,
     savedStateHandle: SavedStateHandle
 ) : BaseViewModel() {
@@ -41,15 +43,13 @@ class RideSelectionViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(RideSelectionState())
     val uiState = _uiState.asStateFlow()
 
-    // --- START OF ADDED CODE ---
-    // This state will be for the "Book" button's loading spinner
+    // --- Booking Loading State ---
     private val _bookingState = MutableStateFlow(BookingState())
     val bookingState = _bookingState.asStateFlow()
 
-    // This is for navigation after a successful booking
+    // --- Navigation Event ---
     private val _navigationEvent = MutableSharedFlow<RideNavigationEvent>()
     val navigationEvent = _navigationEvent.asSharedFlow()
-    // --- END OF ADDED CODE ---
 
     // --- Dropped PlaceId and Description ---
     private val dropPlaceId: String? = savedStateHandle.get<String>("dropPlaceId")
@@ -297,12 +297,24 @@ class RideSelectionViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    // --- START OF ADDED CODE ---
+    // --- START OF FIXED CODE ---
     fun onBookRideClicked(selectedRideId: Int) {
         val currentState = _uiState.value
         val selectedRide = currentState.rideOptions.find { it.id == selectedRideId }
         val pickup = currentState.pickupLocation
         val drop = currentState.dropLocation
+
+        // ✅ 1. Get the actual User ID from preferences
+        val userIdString = userPreferencesRepository.getUserId()
+        val userId = userIdString?.toIntOrNull()
+
+        // Check if User ID exists
+        if (userId == null) {
+            _uiState.update {
+                it.copy(errorMessage = "User not identified. Please log in again.")
+            }
+            return
+        }
 
         // Ensure we have all the data we need
         if (selectedRide == null || pickup == null || drop == null || selectedRide.price == null) {
@@ -312,14 +324,17 @@ class RideSelectionViewModel @Inject constructor(
             return
         }
 
-        // Construct the request
+        // ✅ 2. Safe price parsing (removes '₹' or 'Rs.' etc)
+        val priceValue = selectedRide.price.replace(Regex("[^\\d.]"), "").toDoubleOrNull() ?: 0.0
+
+        // Construct the request with the REAL riderId
         val request = CreateRideRequest(
-            riderId = 1, // TODO: Replace this with the actual logged-in user's ID
+            riderId = userId, // ✅ Using real user ID
             pickupLatitude = pickup.latitude,
             pickupLongitude = pickup.longitude,
             dropLatitude = drop.latitude,
             dropLongitude = drop.longitude,
-            estimatedPrice = selectedRide.price.replace("₹", "").toDoubleOrNull() ?: 0.0,
+            estimatedPrice = priceValue,
             status = "requested"
         )
 
@@ -344,7 +359,7 @@ class RideSelectionViewModel @Inject constructor(
             }
         }.launchIn(viewModelScope)
     }
-    // --- END OF ADDED CODE ---
+    // --- END OF FIXED CODE ---
 
 
     /**
@@ -379,7 +394,6 @@ class RideSelectionViewModel @Inject constructor(
     }
 }
 
-// --- START OF ADDED CODE ---
 data class BookingState(
     val isLoading: Boolean = false
 )
@@ -387,4 +401,3 @@ data class BookingState(
 sealed class RideNavigationEvent {
     data class NavigateToBooking(val rideId: Int) : RideNavigationEvent()
 }
-// --- END OF ADDED CODE ---
