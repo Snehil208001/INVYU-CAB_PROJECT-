@@ -12,7 +12,7 @@ import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.data.models.CreateRideRequest
 import com.example.invyucab_project.data.models.CreateRideResponse
-import com.example.invyucab_project.data.preferences.UserPreferencesRepository // ✅ ADDED IMPORT
+import com.example.invyucab_project.data.preferences.UserPreferencesRepository
 import com.example.invyucab_project.domain.model.RideOption
 import com.example.invyucab_project.domain.model.RideSelectionState
 import com.example.invyucab_project.domain.usecase.CreateRideUseCase
@@ -35,7 +35,7 @@ class RideSelectionViewModel @Inject constructor(
     private val getDirectionsAndRouteUseCase: GetDirectionsAndRouteUseCase,
     private val getRidePricingUseCase: GetRidePricingUseCase,
     private val createRideUseCase: CreateRideUseCase,
-    private val userPreferencesRepository: UserPreferencesRepository, // ✅ INJECTED REPOSITORY
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val fusedLocationClient: FusedLocationProviderClient,
     savedStateHandle: SavedStateHandle
 ) : BaseViewModel() {
@@ -297,39 +297,29 @@ class RideSelectionViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    // --- START OF FIXED CODE ---
     fun onBookRideClicked(selectedRideId: Int) {
         val currentState = _uiState.value
         val selectedRide = currentState.rideOptions.find { it.id == selectedRideId }
         val pickup = currentState.pickupLocation
         val drop = currentState.dropLocation
 
-        // ✅ 1. Get the actual User ID from preferences
         val userIdString = userPreferencesRepository.getUserId()
         val userId = userIdString?.toIntOrNull()
 
-        // Check if User ID exists
         if (userId == null) {
-            _uiState.update {
-                it.copy(errorMessage = "User not identified. Please log in again.")
-            }
+            _uiState.update { it.copy(errorMessage = "User not identified. Please log in again.") }
             return
         }
 
-        // Ensure we have all the data we need
         if (selectedRide == null || pickup == null || drop == null || selectedRide.price == null) {
-            _uiState.update {
-                it.copy(errorMessage = "Cannot book ride, missing details.")
-            }
+            _uiState.update { it.copy(errorMessage = "Cannot book ride, missing details.") }
             return
         }
 
-        // ✅ 2. Safe price parsing (removes '₹' or 'Rs.' etc)
         val priceValue = selectedRide.price.replace(Regex("[^\\d.]"), "").toDoubleOrNull() ?: 0.0
 
-        // Construct the request with the REAL riderId
         val request = CreateRideRequest(
-            riderId = userId, // ✅ Using real user ID
+            riderId = userId,
             pickupLatitude = pickup.latitude,
             pickupLongitude = pickup.longitude,
             dropLatitude = drop.latitude,
@@ -345,29 +335,29 @@ class RideSelectionViewModel @Inject constructor(
                 }
                 is Resource.Success -> {
                     _bookingState.update { it.copy(isLoading = false) }
-                    // Send event to UI to navigate
-                    result.data?.let {
-                        _navigationEvent.emit(RideNavigationEvent.NavigateToBooking(it.rideId))
+                    // ✅ FIXED: Pass all location details to the navigation event
+                    result.data?.let { response ->
+                        _navigationEvent.emit(RideNavigationEvent.NavigateToBooking(
+                            rideId = response.rideId,
+                            pickup = pickup,
+                            drop = drop,
+                            pickupAddress = currentState.pickupDescription,
+                            dropAddress = currentState.dropDescription,
+                            dropPlaceId = dropPlaceId ?: ""
+                        ))
                     }
                 }
                 is Resource.Error -> {
                     _bookingState.update { it.copy(isLoading = false) }
-                    _uiState.update {
-                        it.copy(errorMessage = result.message ?: "Booking failed")
-                    }
+                    _uiState.update { it.copy(errorMessage = result.message ?: "Booking failed") }
                 }
             }
         }.launchIn(viewModelScope)
     }
-    // --- END OF FIXED CODE ---
 
 
-    /**
-     * This inner class is used to fix a crash with Android Studio's Live Edit feature.
-     */
     private inner class MyLocationCallback : LocationCallback() {
         override fun onLocationResult(locationResult: LocationResult) {
-            // We only need one update, so remove the callback immediately
             fusedLocationClient.removeLocationUpdates(this)
 
             locationResult.lastLocation?.let { location ->
@@ -376,10 +366,8 @@ class RideSelectionViewModel @Inject constructor(
                     isFetchingLocation = false,
                     pickupLocation = currentLatLng
                 )}
-                // Now that we have the location, proceed to fetch the route
                 onLocationsReady(currentLatLng)
             } ?: run {
-                // This block runs if lastLocation is somehow null
                 _uiState.update { it.copy(
                     errorMessage = "Could not fetch current location.",
                     isFetchingLocation = false
@@ -398,6 +386,14 @@ data class BookingState(
     val isLoading: Boolean = false
 )
 
+// ✅ FIXED: Updated Sealed Class to hold detailed data
 sealed class RideNavigationEvent {
-    data class NavigateToBooking(val rideId: Int) : RideNavigationEvent()
+    data class NavigateToBooking(
+        val rideId: Int,
+        val pickup: LatLng,
+        val drop: LatLng,
+        val pickupAddress: String,
+        val dropAddress: String,
+        val dropPlaceId: String
+    ) : RideNavigationEvent()
 }

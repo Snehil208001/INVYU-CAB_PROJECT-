@@ -4,6 +4,10 @@ package com.example.invyucab_project.mainui.ridebookingscreen.ui
 // import com.airbnb.lottie.compose.LottieCompositionSpec // ✅ TEMPORARILY COMMENTED OUT
 // import com.airbnb.lottie.compose.LottieConstants // ✅ TEMPORARILY COMMENTED OUT
 // import com.airbnb.lottie.compose.rememberLottieComposition // ✅ TEMPORARILY COMMENTED OUT
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +39,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -48,6 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -56,12 +62,19 @@ import com.example.invyucab_project.data.models.RideBookingUiState
 import com.example.invyucab_project.mainui.ridebookingscreen.viewmodel.RideBookingViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -124,6 +137,41 @@ fun RideBookingScreen(
                     val cameraPositionState = rememberCameraPositionState {
                         position = CameraPosition.fromLatLngZoom(LatLng(25.5941, 85.1376), 12f)
                     }
+
+                    // Automatically move camera to fit route or markers
+                    LaunchedEffect(uiState.pickupLocation, uiState.dropLocation, uiState.routePolyline) {
+                        val pickup = uiState.pickupLocation
+                        val drop = uiState.dropLocation
+                        val polyline = uiState.routePolyline
+
+                        val boundsBuilder = LatLngBounds.Builder()
+                        var hasPoints = false
+
+                        if (polyline.isNotEmpty()) {
+                            polyline.forEach { boundsBuilder.include(it) }
+                            hasPoints = true
+                        } else {
+                            pickup?.let {
+                                boundsBuilder.include(it)
+                                hasPoints = true
+                            }
+                            drop?.let {
+                                boundsBuilder.include(it)
+                                hasPoints = true
+                            }
+                        }
+
+                        if (hasPoints) {
+                            try {
+                                cameraPositionState.animate(
+                                    CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), 100)
+                                )
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                    }
+
                     GoogleMap(
                         modifier = Modifier.fillMaxSize(),
                         cameraPositionState = cameraPositionState,
@@ -134,7 +182,38 @@ fun RideBookingScreen(
                         ),
                         properties = MapProperties(mapStyleOptions = mapStyleOptions)
                     ) {
-                        // TODO: Add markers and polyline from uiState
+                        val pickupIcon = remember(context) {
+                            bitmapDescriptorFromVector(context, R.drawable.ic_pickup_marker)
+                        }
+                        val dropIcon = remember(context) {
+                            bitmapDescriptorFromVector(context, R.drawable.ic_dropoff_marker)
+                        }
+
+                        // Draw Polyline
+                        if (uiState.routePolyline.isNotEmpty()) {
+                            Polyline(
+                                points = uiState.routePolyline,
+                                color = Color.Black,
+                                width = 10f
+                            )
+                        }
+
+                        // Draw Markers
+                        uiState.pickupLocation?.let { location ->
+                            Marker(
+                                state = MarkerState(position = location),
+                                title = "Pickup",
+                                icon = pickupIcon
+                            )
+                        }
+
+                        uiState.dropLocation?.let { location ->
+                            Marker(
+                                state = MarkerState(position = location),
+                                title = "Drop",
+                                icon = dropIcon
+                            )
+                        }
                     }
                 }
 
@@ -151,6 +230,26 @@ fun RideBookingScreen(
                 )
             }
         }
+    }
+}
+
+// Helper function for map icons
+fun bitmapDescriptorFromVector(
+    context: Context,
+    @DrawableRes vectorResId: Int
+): BitmapDescriptor? {
+    return try {
+        val vectorDrawable = ContextCompat.getDrawable(context, vectorResId)
+        vectorDrawable?.run {
+            setBounds(0, 0, intrinsicWidth, intrinsicHeight)
+            val bitmap = Bitmap.createBitmap(intrinsicWidth, intrinsicHeight, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            draw(canvas)
+            BitmapDescriptorFactory.fromBitmap(bitmap)
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
     }
 }
 

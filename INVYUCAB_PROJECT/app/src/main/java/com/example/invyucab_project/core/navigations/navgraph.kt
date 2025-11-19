@@ -168,22 +168,28 @@ fun NavGraph(
             RideSelectionScreen(navController = navController)
         }
 
-        // ✅ --- FIXED CODE ---
+        // ✅ --- UPDATED CODE FOR FUNCTIONAL MAP ---
         composable(
+            // Defined in Screen.kt to accept pickup/drop coordinates and details
             route = Screen.RideBookingScreen.route,
             arguments = listOf(
-                navArgument("rideId") { type = NavType.IntType }
+                navArgument("rideId") { type = NavType.IntType },
+                navArgument("pickupLat") { type = NavType.StringType },
+                navArgument("pickupLng") { type = NavType.StringType },
+                navArgument("dropLat") { type = NavType.StringType },
+                navArgument("dropLng") { type = NavType.StringType },
+                navArgument("pickupAddress") { type = NavType.StringType; nullable = true },
+                navArgument("dropAddress") { type = NavType.StringType; nullable = true },
+                navArgument("dropPlaceId") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
-            // 1. Extract the rideId from the arguments
+            // The ViewModel will extract all these arguments via SavedStateHandle
             val rideId = backStackEntry.arguments?.getInt("rideId")
-
-            // 2. Pass it to the screen (converting Int to String as your screen expects String?)
             RideBookingScreen(
                 navController = navController,
                 rideId = rideId?.toString()
             )
         }
-        // ✅ --- END OF FIXED CODE ---
+        // ✅ --- END OF UPDATED CODE ---
     }
 }

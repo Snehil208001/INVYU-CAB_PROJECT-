@@ -103,9 +103,22 @@ sealed class Screen(val route: String) {
         }
     }
 
-    // --- START OF ADDED CODE ---
-    data object RideBookingScreen : Screen("ride_booking_screen/{rideId}") {
-        fun createRoute(rideId: Int) = "ride_booking_screen/$rideId"
+    // --- UPDATED RideBookingScreen ---
+    data object RideBookingScreen : Screen("ride_booking_screen/{rideId}/{pickupLat}/{pickupLng}/{dropLat}/{dropLng}?pickupAddress={pickupAddress}&dropAddress={dropAddress}&dropPlaceId={dropPlaceId}") {
+        fun createRoute(
+            rideId: Int,
+            pickupLat: Double,
+            pickupLng: Double,
+            dropLat: Double,
+            dropLng: Double,
+            pickupAddress: String,
+            dropAddress: String,
+            dropPlaceId: String
+        ): String {
+            val encodedPickup = URLEncoder.encode(pickupAddress, StandardCharsets.UTF_8.toString())
+            val encodedDrop = URLEncoder.encode(dropAddress, StandardCharsets.UTF_8.toString())
+            return "ride_booking_screen/$rideId/$pickupLat/$pickupLng/$dropLat/$dropLng?pickupAddress=$encodedPickup&dropAddress=$encodedDrop&dropPlaceId=$dropPlaceId"
+        }
     }
-    // --- END OF ADDED CODE ---
+    // --- END OF UPDATED CODE ---
 }

@@ -129,8 +129,17 @@ fun RideSelectionScreen(
         viewModel.navigationEvent.collect { event ->
             when (event) {
                 is RideNavigationEvent.NavigateToBooking -> {
-                    // Navigate to the new booking screen
-                    navController.navigate(Screen.RideBookingScreen.createRoute(event.rideId))
+                    // ✅ FIXED: Navigate with all parameters
+                    navController.navigate(Screen.RideBookingScreen.createRoute(
+                        rideId = event.rideId,
+                        pickupLat = event.pickup.latitude,
+                        pickupLng = event.pickup.longitude,
+                        dropLat = event.drop.latitude,
+                        dropLng = event.drop.longitude,
+                        pickupAddress = event.pickupAddress,
+                        dropAddress = event.dropAddress,
+                        dropPlaceId = event.dropPlaceId
+                    ))
                 }
             }
         }
