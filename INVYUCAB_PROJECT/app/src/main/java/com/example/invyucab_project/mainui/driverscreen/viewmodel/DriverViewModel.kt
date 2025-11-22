@@ -15,14 +15,27 @@ import com.example.invyucab_project.domain.usecase.LogoutUserUseCase
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+// --- ✅ ADDED: Simple Data Model for Ride Requests in the UI ---
+data class RideRequestItem(
+    val rideId: Int,
+    val pickupLat: Double,
+    val pickupLng: Double,
+    val dropLat: Double,
+    val dropLng: Double,
+    val price: Double,
+    val pickupAddress: String = "fetching address...",
+    val dropAddress: String = "fetching address..."
+)
 
 @HiltViewModel
 class DriverViewModel @Inject constructor(
@@ -31,7 +44,8 @@ class DriverViewModel @Inject constructor(
     private val fusedLocationClient: FusedLocationProviderClient,
     private val locationManager: LocationManager,
     private val userPreferencesRepository: UserPreferencesRepository,
-    private val getVehicleDetailsUseCase: GetVehicleDetailsUseCase
+    private val getVehicleDetailsUseCase: GetVehicleDetailsUseCase,
+    // private val appRepository: AppRepository // ✅ TODO: Inject Repository here for API calls
 ) : BaseViewModel() {
 
     private val _isActive = MutableStateFlow(false)
@@ -45,11 +59,15 @@ class DriverViewModel @Inject constructor(
     private val _showVehicleBanner = MutableStateFlow(false)
     val showVehicleBanner: StateFlow<Boolean> = _showVehicleBanner.asStateFlow()
 
+    // --- ✅ ADDED: State for Incoming Ride Requests ---
+    private val _rideRequests = MutableStateFlow<List<RideRequestItem>>(emptyList())
+    val rideRequests: StateFlow<List<RideRequestItem>> = _rideRequests.asStateFlow()
+
+    private var pollingJob: Job? = null
+
     init {
         // Get location as soon as the ViewModel is created
         getCurrentLocation()
-        // ✅ --- FIX: Call is removed from init. It will now be called by the screen's lifecycle. ---
-        // checkVehicleDetails()
     }
 
     // ✅ --- FIX: 'private' is removed to allow the screen to call this. ---
@@ -150,15 +168,79 @@ class DriverViewModel @Inject constructor(
 
     fun onActiveToggleChanged(active: Boolean) {
         _isActive.value = active
-        viewModelScope.launch {
-            if (active) {
-                Log.d("DriverViewModel", "Driver is now ACTIVE")
-                // TODO: Call API to set driver status to "active"
-            } else {
-                Log.d("DriverViewModel", "Driver is now INACTIVE")
-                // TODO: Call API to set driver status to "inactive"
+        if (active) {
+            Log.d("DriverViewModel", "Driver is now ACTIVE. Starting to look for rides...")
+            // ✅ ADDED: Start polling for rides when active
+            startLookingForRides()
+        } else {
+            Log.d("DriverViewModel", "Driver is now INACTIVE. Stopping search.")
+            // ✅ ADDED: Stop polling
+            stopLookingForRides()
+            _rideRequests.value = emptyList() // Clear old requests
+        }
+    }
+
+    // --- ✅ ADDED: Polling Logic to Fetch Available Rides ---
+    private fun startLookingForRides() {
+        pollingJob?.cancel()
+        pollingJob = viewModelScope.launch {
+            while (_isActive.value) {
+                try {
+                    // ✅ TODO: Call your real API here
+                    // val response = appRepository.getAvailableRides()
+
+                    // --- MOCK DATA FOR DEMONSTRATION (Remove this when API is ready) ---
+                    val mockRide = RideRequestItem(
+                        rideId = 101,
+                        pickupLat = 25.61, pickupLng = 85.14,
+                        dropLat = 25.59, dropLng = 85.13,
+                        price = 250.0,
+                        pickupAddress = "Bailey Road, Patna",
+                        dropAddress = "Gandhi Maidan, Patna"
+                    )
+                    // Simulate finding a ride every 5 seconds if list is empty
+                    if (_rideRequests.value.isEmpty()) {
+                        _rideRequests.value = listOf(mockRide)
+                        // sendEvent(UiEvent.ShowSnackbar("New Ride Request Found!"))
+                    }
+                    // -----------------------------------------------------------
+
+                } catch (e: Exception) {
+                    Log.e("DriverViewModel", "Error fetching rides: ${e.message}")
+                }
+                delay(5000) // Check every 5 seconds
             }
         }
+    }
+
+    private fun stopLookingForRides() {
+        pollingJob?.cancel()
+        pollingJob = null
+    }
+
+    // --- ✅ ADDED: Accept Ride Logic ---
+    fun onAcceptRide(ride: RideRequestItem) {
+        viewModelScope.launch {
+            _apiError.value = "Accepting ride..." // Show simple loading indicator via error/msg
+
+            // ✅ TODO: Call API to accept ride
+            // val driverId = userPreferencesRepository.getUserId()?.toInt()
+            // val result = appRepository.acceptRide(ride.rideId, driverId)
+
+            // For now, simulate success:
+            delay(1000)
+            stopLookingForRides() // Stop looking for new ones
+            _rideRequests.value = emptyList() // Clear the list
+
+            // Navigate to a "Navigation to Pickup" screen (You can create this later)
+            // sendEvent(UiEvent.Navigate(Screen.NavigationScreen.route))
+            sendEvent(UiEvent.ShowSnackbar("Ride Accepted! Navigate to pickup."))
+        }
+    }
+
+    fun onDeclineRide(ride: RideRequestItem) {
+        // Remove this specific ride from the list locally
+        _rideRequests.value = _rideRequests.value.filter { it.rideId != ride.rideId }
     }
 
     fun onLogoutClicked() {

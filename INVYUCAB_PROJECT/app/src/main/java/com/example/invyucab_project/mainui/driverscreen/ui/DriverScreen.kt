@@ -1,12 +1,12 @@
 package com.example.invyucab_project.mainui.driverscreen.ui
 
 import android.Manifest
-import android.app.Activity // ✅ --- ADDED IMPORT ---
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.util.Log
-import androidx.activity.compose.BackHandler // ✅ --- ADDED IMPORT ---
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -53,16 +53,8 @@ import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.driverscreen.viewmodel.DriverViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.INVYUCAB_PROJECTTheme
-import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.MapProperties
-import com.google.maps.android.compose.MapUiSettings
-import com.google.maps.android.compose.rememberCameraPositionState
 import kotlinx.coroutines.launch
 import java.lang.Exception
 
@@ -73,7 +65,7 @@ fun DriverScreen(
     viewModel: DriverViewModel = hiltViewModel()
 ) {
     val isActive by viewModel.isActive.collectAsState()
-    val currentLocation by viewModel.currentLocation.collectAsState()
+    val currentLocation by viewModel.currentLocation.collectAsState() // Kept if needed for other logic, though map is gone
     val apiError by viewModel.apiError
     val snackbarHostState = remember { SnackbarHostState() }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -92,13 +84,12 @@ fun DriverScreen(
     }
     // --- ✅ END: ADDED CODE FOR SYSTEM BACK BUTTON ---
 
-    // --- ✅ START OF PERMISSION LOGIC (HANDLES BOTH ISSUES) ---
+    // --- ✅ START OF PERMISSION LOGIC ---
 
     // --- 1. Launcher for App PERMISSIONS (App Settings) ---
     val permissionSettingsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
-        // This block executes when returning from settings.
         viewModel.getCurrentLocation()
     }
 
@@ -106,8 +97,6 @@ fun DriverScreen(
     val locationServiceLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
-        // User has returned from the location settings screen.
-        // Re-check if they turned it on.
         viewModel.getCurrentLocation()
     }
 
@@ -130,7 +119,6 @@ fun DriverScreen(
 
     LaunchedEffect(key1 = locationPermissionsState.allPermissionsGranted) {
         if (locationPermissionsState.allPermissionsGranted) {
-            // Permission was just granted, fetch location
             viewModel.getCurrentLocation()
         }
     }
@@ -140,11 +128,8 @@ fun DriverScreen(
     // --- 4. Click Handler for App PERMISSION Banner ---
     val onAllowClick: () -> Unit = {
         if (locationPermissionsState.shouldShowRationale) {
-            // Case 1: User denied once. Show request dialog again.
             locationPermissionsState.launchMultiplePermissionRequest()
         } else {
-            // Case 2: User permanently denied ("Don't ask again").
-            // Send to settings.
             val intent = Intent(
                 Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.fromParts("package", context.packageName, null)
@@ -162,7 +147,6 @@ fun DriverScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.checkVehicleDetails()
 
-                // Re-check location permissions and service
                 if (locationPermissionsState.allPermissionsGranted) {
                     viewModel.getCurrentLocation()
                 } else {
@@ -198,24 +182,17 @@ fun DriverScreen(
     // --- ✅ START: FULL Error Handling (FOR GPS SERVICE) ---
     LaunchedEffect(apiError) {
         apiError?.let { message ->
-
-            // Check if this is the specific GPS error
             if (message.contains("location services (GPS)")) {
-                // Show snackbar with "Turn On" action
                 val result = snackbarHostState.showSnackbar(
                     message = message,
                     actionLabel = "Turn On",
-                    duration = SnackbarDuration.Long // Keep it on screen longer
+                    duration = SnackbarDuration.Long
                 )
-
                 if (result == SnackbarResult.ActionPerformed) {
-                    // User clicked "Turn On"
                     val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
                     locationServiceLauncher.launch(intent)
                 }
-
             } else {
-                // Show a normal snackbar for all other errors
                 snackbarHostState.showSnackbar(
                     message = message,
                     duration = SnackbarDuration.Short
@@ -226,38 +203,9 @@ fun DriverScreen(
     }
     // --- ✅ END: FULL Error Handling ---
 
-    // --- Map Camera State ---
-    val defaultLocation = LatLng(25.5941, 85.1376) // Patna (fallback)
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(defaultLocation, 15f)
-    }
-
-    // --- Animate Map to Current Location ---
-    LaunchedEffect(currentLocation) {
-        currentLocation?.let {
-            cameraPositionState.animate(
-                CameraUpdateFactory.newLatLngZoom(it, 16f)
-            )
-        }
-    }
-
-    // --- Load Custom Map Style ---
-    val mapStyleOptions = remember {
-        try {
-            val json = context.resources
-                .openRawResource(R.raw.map_style_retro)
-                .bufferedReader()
-                .use { it.readText() }
-            MapStyleOptions(json)
-        } catch (e: Exception) {
-            Log.e("DriverScreen", "Can't load map style", e)
-            null
-        }
-    }
-
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = !cameraPositionState.isMoving,
+        gesturesEnabled = true, // Enabled gestures since map is gone
         drawerContent = {
             ModalDrawerSheet {
                 DrawerHeader(
@@ -290,7 +238,7 @@ fun DriverScreen(
                     selected = false,
                     onClick = {
                         scope.launch { drawerState.close() }
-                        viewModel.onLogoutClicked() // Call logout function
+                        viewModel.onLogoutClicked()
                     },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
@@ -327,22 +275,9 @@ fun DriverScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                GoogleMap(
-                    modifier = Modifier.fillMaxSize(),
-                    cameraPositionState = cameraPositionState,
-                    properties = MapProperties(
-                        // ✅ THIS IS THE FIX: Only enable if permissions are granted
-                        isMyLocationEnabled = locationPermissionsState.allPermissionsGranted,
-                        mapStyleOptions = mapStyleOptions
-                    ),
-                    uiSettings = MapUiSettings(
-                        // ✅ THIS IS THE FIX: Only enable if permissions are granted
-                        myLocationButtonEnabled = locationPermissionsState.allPermissionsGranted,
-                        zoomControlsEnabled = false
-                    )
-                )
+                // Map Removed
 
-                // ✅ WRAP BANNERS IN A COLUMN to prevent overlap
+                // ✅ WRAP BANNERS IN A COLUMN
                 Column(modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)) {
@@ -372,6 +307,7 @@ fun DriverScreen(
                     }
                 }
 
+                // Status Indicator
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -425,7 +361,6 @@ fun LocationPermissionBanner(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            // ✅ UPDATED TEXT
             text = "To go online and receive rides, turn on location.",
             modifier = Modifier.weight(1f),
             color = Color.Black,
