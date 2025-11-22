@@ -81,4 +81,26 @@ class AppRepository @Inject constructor(
         return customApiService.createRide(request)
     }
     // --- END OF ADDED CODE ---
+
+    // --- Update Driver Location ---
+    suspend fun updateDriverLocation(driverId: Int, lat: Double, lng: Double, isActive: Boolean): Response<UpdateDriverLocationResponse> {
+        val request = UpdateDriverLocationRequest(driverId, lat, lng, isActive)
+        return customApiService.updateDriverLocation(request)
+    }
+
+    // --- Get Upcoming Rides ---
+    suspend fun getDriverUpcomingRides(driverId: Int, lat: Double, lng: Double): Response<DriverUpcomingRidesResponse> {
+        val request = DriverUpcomingRidesRequest(
+            driverId = driverId,
+            driverLatitude = lat.toString(),
+            driverLongitude = lng.toString()
+        )
+        return customApiService.getDriverUpcomingRides(request)
+    }
+
+    // --- ✅ NEW: Accept Ride ---
+    suspend fun acceptRide(rideId: Int, driverId: Int): Response<AcceptRideResponse> {
+        val request = AcceptRideRequest(rideId, driverId)
+        return customApiService.acceptRide(request)
+    }
 }

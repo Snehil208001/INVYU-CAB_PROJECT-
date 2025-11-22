@@ -18,7 +18,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.FlashOn
@@ -51,6 +54,7 @@ import com.example.invyucab_project.R
 import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.driverscreen.viewmodel.DriverViewModel
+import com.example.invyucab_project.mainui.driverscreen.viewmodel.RideRequestItem
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.INVYUCAB_PROJECTTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -65,42 +69,38 @@ fun DriverScreen(
     viewModel: DriverViewModel = hiltViewModel()
 ) {
     val isActive by viewModel.isActive.collectAsState()
-    val currentLocation by viewModel.currentLocation.collectAsState() // Kept if needed for other logic, though map is gone
+    val currentLocation by viewModel.currentLocation.collectAsState()
     val apiError by viewModel.apiError
     val snackbarHostState = remember { SnackbarHostState() }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
     val showVehicleBanner by viewModel.showVehicleBanner.collectAsState()
+    // ✅ Observe ride requests
+    val rideRequests by viewModel.rideRequests.collectAsState()
 
     val selectedBottomNavItem = "Rides"
 
     val context = LocalContext.current
 
-    // --- ✅ START: ADDED CODE FOR SYSTEM BACK BUTTON ---
     val activity = (LocalContext.current as? Activity)
     BackHandler {
         activity?.finish()
     }
-    // --- ✅ END: ADDED CODE FOR SYSTEM BACK BUTTON ---
 
-    // --- ✅ START OF PERMISSION LOGIC ---
-
-    // --- 1. Launcher for App PERMISSIONS (App Settings) ---
+    // --- PERMISSION LOGIC ---
     val permissionSettingsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
         viewModel.getCurrentLocation()
     }
 
-    // --- 2. Launcher for Location SERVICES (GPS Toggle) ---
     val locationServiceLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
         viewModel.getCurrentLocation()
     }
 
-    // --- 3. State for App PERMISSIONS ---
     val locationPermissionsState = rememberMultiplePermissionsState(
         permissions = listOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -125,7 +125,6 @@ fun DriverScreen(
 
     val showLocationPermissionBanner = !locationPermissionsState.allPermissionsGranted && permissionRequestLaunched
 
-    // --- 4. Click Handler for App PERMISSION Banner ---
     val onAllowClick: () -> Unit = {
         if (locationPermissionsState.shouldShowRationale) {
             locationPermissionsState.launchMultiplePermissionRequest()
@@ -137,10 +136,8 @@ fun DriverScreen(
             permissionSettingsLauncher.launch(intent)
         }
     }
-    // --- ✅ END OF PERMISSION LOGIC ---
 
-
-    // ✅ --- START: LIFECYCLE OBSERVER ---
+    // --- LIFECYCLE OBSERVER ---
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -160,9 +157,8 @@ fun DriverScreen(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-    // ✅ --- END: LIFECYCLE OBSERVER ---
 
-    // --- Event Collection for Navigation ---
+    // --- Event Collection ---
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collect { event ->
             when (event) {
@@ -179,7 +175,7 @@ fun DriverScreen(
         }
     }
 
-    // --- ✅ START: FULL Error Handling (FOR GPS SERVICE) ---
+    // --- ERROR HANDLING ---
     LaunchedEffect(apiError) {
         apiError?.let { message ->
             if (message.contains("location services (GPS)")) {
@@ -201,11 +197,10 @@ fun DriverScreen(
             viewModel.clearApiError()
         }
     }
-    // --- ✅ END: FULL Error Handling ---
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = true, // Enabled gestures since map is gone
+        gesturesEnabled = true,
         drawerContent = {
             ModalDrawerSheet {
                 DrawerHeader(
@@ -228,7 +223,6 @@ fun DriverScreen(
                     selected = false,
                     onClick = {
                         scope.launch { drawerState.close() }
-                        // navController.navigate("earnings_screen_route")
                     },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
@@ -252,18 +246,14 @@ fun DriverScreen(
                     isActive = isActive,
                     onToggleChanged = { viewModel.onActiveToggleChanged(it) },
                     onProfileClicked = { scope.launch { drawerState.open() } },
-                    onSearchClicked = { /* TODO: Implement search functionality */ }
+                    onSearchClicked = { /* TODO */ }
                 )
             },
             bottomBar = {
                 DriverBottomBar(
                     selectedItem = selectedBottomNavItem,
-                    onMyRidesClicked = {
-                        // Already on this screen, do nothing or refresh
-                    },
-                    onTripClicked = {
-                        // TODO: Navigate to "Current Trip" or "Trip History" screen
-                    },
+                    onMyRidesClicked = {},
+                    onTripClicked = {},
                     onProfileClicked = {
                         navController.navigate(Screen.DriverProfileScreen.route)
                     }
@@ -275,25 +265,18 @@ fun DriverScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // Map Removed
 
-                // ✅ WRAP BANNERS IN A COLUMN
-                Column(modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)) {
+                Column(modifier = Modifier.fillMaxSize()) {
 
-                    // --- ✅ LOCATION PERMISSION BANNER ---
+                    // --- BANNERS ---
                     AnimatedVisibility(
                         visible = showLocationPermissionBanner,
                         enter = slideInVertically { -it } + fadeIn(),
                         exit = slideOutVertically { -it } + fadeOut(),
                     ) {
-                        LocationPermissionBanner(
-                            onAllowClick = onAllowClick
-                        )
+                        LocationPermissionBanner(onAllowClick = onAllowClick)
                     }
 
-                    // --- VEHICLE BANNER ---
                     AnimatedVisibility(
                         visible = showVehicleBanner,
                         enter = slideInVertically { -it } + fadeIn(),
@@ -305,9 +288,35 @@ fun DriverScreen(
                             }
                         )
                     }
+
+                    // --- ✅ ADDED: Ride Request List ---
+                    if (isActive) {
+                        if (rideRequests.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text("Looking for rides...", color = Color.Gray)
+                            }
+                        } else {
+                            LazyColumn(
+                                contentPadding = PaddingValues(bottom = 100.dp), // Space for status bar
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(rideRequests) { ride ->
+                                    RideRequestCard(
+                                        ride = ride,
+                                        onAccept = { viewModel.onAcceptRide(ride) },
+                                        onDecline = { viewModel.onDeclineRide(ride) }
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("You are offline. Go Active to see rides.", color = Color.Gray)
+                        }
+                    }
                 }
 
-                // Status Indicator
+                // Status Indicator (Bottom)
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -347,7 +356,67 @@ fun DriverScreen(
     }
 }
 
-// --- ✅ LOCATION PERMISSION BANNER ---
+// --- ✅ ADDED: Ride Request Card UI ---
+@Composable
+fun RideRequestCard(
+    ride: RideRequestItem,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "New Ride Request!",
+                style = MaterialTheme.typography.titleMedium,
+                color = CabMintGreen,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text("Pickup: ${ride.pickupAddress}", fontWeight = FontWeight.SemiBold)
+            Text("Drop: ${ride.dropAddress}", fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "₹${ride.price}",
+                style = MaterialTheme.typography.headlineSmall,
+                color = Color.Black,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Button(
+                    onClick = onDecline,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Decline", color = Color.White)
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Button(
+                    onClick = onAccept,
+                    colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Accept", color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+
 @Composable
 fun LocationPermissionBanner(
     onAllowClick: () -> Unit
@@ -355,7 +424,7 @@ fun LocationPermissionBanner(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFFFFBE6)) // Light yellow background
+            .background(Color(0xFFFFFBE6))
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -380,8 +449,6 @@ fun LocationPermissionBanner(
     }
 }
 
-
-// --- ✅ VEHICLE BANNER ---
 @Composable
 fun VehicleBanner(
     onClick: () -> Unit
@@ -389,7 +456,7 @@ fun VehicleBanner(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFFFFBE6)) // Light yellow
+            .background(Color(0xFFFFFBE6))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -397,7 +464,7 @@ fun VehicleBanner(
         Icon(
             imageVector = Icons.Default.Warning,
             contentDescription = "Warning",
-            tint = Color(0xFFF57F17) // Amber
+            tint = Color(0xFFF57F17)
         )
         Spacer(modifier = Modifier.width(12.dp))
         Text(

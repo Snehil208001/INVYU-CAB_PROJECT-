@@ -3,7 +3,7 @@ package com.example.invyucab_project.data.models
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
-// ... (All other existing models like CheckUserRequest, CreateUserRequest, etc.)
+// --- EXISTING MODELS (Keep these as they are) ---
 
 @JsonClass(generateAdapter = true)
 data class CheckUserRequest(
@@ -45,7 +45,7 @@ data class CreateUserRequest(
 
 @JsonClass(generateAdapter = true)
 data class CreateUserResponse(
-    @Json(name = "user_id") val userId: Int, // Changed to Int to match new log
+    @Json(name = "user_id") val userId: Int,
     @Json(name = "message") val message: String
 )
 
@@ -97,9 +97,6 @@ data class AddVehicleResponse(
     @Json(name = "data") val data: Int?
 )
 
-
-// --- Vehicle Details Models ---
-
 @JsonClass(generateAdapter = true)
 data class GetVehicleDetailsRequest(
     @Json(name = "driver_id") val driverId: String
@@ -115,14 +112,77 @@ data class VehicleDetails(
     @Json(name = "capacity") val capacity: String?
 )
 
-// ✅✅✅ START OF FIX ✅✅✅
-// Making this data class robust to handle the inconsistent backend responses
 @JsonClass(generateAdapter = true)
 data class GetVehicleDetailsResponse(
-    @Json(name = "success") val success: Boolean?, // Made nullable
-    @Json(name = "succcess") val succcess: Boolean?, // Added typo field
-    @Json(name = "isDriverPresent") val isDriverPresent: Boolean?, // Added new field
-    @Json(name = "data") val data: List<VehicleDetails>?, // Keep as List
-    @Json(name = "error") val error: String? // Added error field
+    @Json(name = "success") val success: Boolean?,
+    @Json(name = "succcess") val succcess: Boolean?,
+    @Json(name = "isDriverPresent") val isDriverPresent: Boolean?,
+    @Json(name = "data") val data: List<VehicleDetails>?,
+    @Json(name = "error") val error: String?
 )
-// ✅✅✅ END OF FIX ✅✅✅
+
+@JsonClass(generateAdapter = true)
+data class UpdateDriverLocationRequest(
+    @Json(name = "driver_id") val driverId: Int,
+    @Json(name = "latitude") val latitude: Double,
+    @Json(name = "longitude") val longitude: Double,
+    @Json(name = "is_active") val isActive: Boolean
+)
+
+@JsonClass(generateAdapter = true)
+data class UpdateDriverLocationResponse(
+    @Json(name = "message") val message: String?,
+    @Json(name = "success") val success: Boolean?
+)
+
+@JsonClass(generateAdapter = true)
+data class DriverUpcomingRidesRequest(
+    @Json(name = "driver_id") val driverId: Int,
+    @Json(name = "driver_latitude") val driverLatitude: String,
+    @Json(name = "driver_longitude") val driverLongitude: String
+)
+
+@JsonClass(generateAdapter = true)
+data class UpcomingRide(
+    @Json(name = "ride_id") val rideId: Int?,
+
+    @Json(name = "pickup_latitude") val pickupLatitude: String?,
+    @Json(name = "pickup_longitude") val pickupLongitude: String?,
+    @Json(name = "drop_latitude") val dropLatitude: String?,
+    @Json(name = "drop_longitude") val dropLongitude: String?,
+
+    @Json(name = "pickup_address") val pickupAddress: String?,
+    @Json(name = "pickup_location") val pickupLocation: String?,
+    @Json(name = "drop_address") val dropAddress: String?,
+    @Json(name = "drop_location") val dropLocation: String?,
+
+    // Price Fields
+    @Json(name = "estimated_price") val estimatedPrice: Any?,
+    @Json(name = "fare") val fare: Any?,
+    @Json(name = "total_price") val totalPrice: Any?,
+    @Json(name = "price") val price: Any?,
+    @Json(name = "amount") val amount: Any?,
+    @Json(name = "total_amount") val totalAmount: Any?,
+    @Json(name = "estimated_fare") val estimatedFare: Any?,
+    @Json(name = "cost") val cost: Any?
+)
+
+@JsonClass(generateAdapter = true)
+data class DriverUpcomingRidesResponse(
+    @Json(name = "success") val success: Boolean?,
+    @Json(name = "data") val data: List<UpcomingRide>?,
+    @Json(name = "message") val message: String?
+)
+
+// ✅✅✅ NEW: Accept Ride Models ✅✅✅
+@JsonClass(generateAdapter = true)
+data class AcceptRideRequest(
+    @Json(name = "ride_id") val rideId: Int,
+    @Json(name = "driver_id") val driverId: Int
+)
+
+@JsonClass(generateAdapter = true)
+data class AcceptRideResponse(
+    @Json(name = "success") val success: Boolean?,
+    @Json(name = "message") val message: String?
+)

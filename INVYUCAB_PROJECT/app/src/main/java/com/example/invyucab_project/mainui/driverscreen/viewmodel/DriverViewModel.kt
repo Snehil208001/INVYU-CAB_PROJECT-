@@ -1,6 +1,8 @@
 package com.example.invyucab_project.mainui.driverscreen.viewmodel
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.location.Geocoder
 import android.location.Location
 import android.location.LocationManager
 import android.os.Looper
@@ -10,11 +12,14 @@ import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
+import com.example.invyucab_project.data.repository.AppRepository
 import com.example.invyucab_project.domain.usecase.GetVehicleDetailsUseCase
 import com.example.invyucab_project.domain.usecase.LogoutUserUseCase
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,9 +28,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.Locale
 import javax.inject.Inject
 
-// --- ✅ ADDED: Simple Data Model for Ride Requests in the UI ---
 data class RideRequestItem(
     val rideId: Int,
     val pickupLat: Double,
@@ -33,86 +39,61 @@ data class RideRequestItem(
     val dropLat: Double,
     val dropLng: Double,
     val price: Double,
-    val pickupAddress: String = "fetching address...",
-    val dropAddress: String = "fetching address..."
+    val pickupAddress: String,
+    val dropAddress: String
 )
 
 @HiltViewModel
 class DriverViewModel @Inject constructor(
     private val logoutUserUseCase: LogoutUserUseCase,
-    // --- Injected Location Services ---
     private val fusedLocationClient: FusedLocationProviderClient,
     private val locationManager: LocationManager,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val getVehicleDetailsUseCase: GetVehicleDetailsUseCase,
-    // private val appRepository: AppRepository // ✅ TODO: Inject Repository here for API calls
+    private val appRepository: AppRepository,
+    @ApplicationContext private val context: Context
 ) : BaseViewModel() {
 
     private val _isActive = MutableStateFlow(false)
     val isActive: StateFlow<Boolean> = _isActive.asStateFlow()
 
-    // --- State for the map's camera ---
     private val _currentLocation = MutableStateFlow<LatLng?>(null)
     val currentLocation: StateFlow<LatLng?> = _currentLocation.asStateFlow()
 
-    // --- State for the vehicle banner ---
     private val _showVehicleBanner = MutableStateFlow(false)
     val showVehicleBanner: StateFlow<Boolean> = _showVehicleBanner.asStateFlow()
 
-    // --- ✅ ADDED: State for Incoming Ride Requests ---
     private val _rideRequests = MutableStateFlow<List<RideRequestItem>>(emptyList())
     val rideRequests: StateFlow<List<RideRequestItem>> = _rideRequests.asStateFlow()
+
+    // ✅✅✅ NEW: Keep track of rides we have declined locally
+    private val _declinedRideIds = mutableSetOf<Int>()
 
     private var pollingJob: Job? = null
 
     init {
-        // Get location as soon as the ViewModel is created
         getCurrentLocation()
     }
 
-    // ✅ --- FIX: 'private' is removed to allow the screen to call this. ---
+    // --- Vehicle Logic ---
     fun checkVehicleDetails() {
         viewModelScope.launch {
-            // Use getUserId() as this is what we save during sign-in/sign-up
             val driverId = userPreferencesRepository.getUserId()
-
             if (driverId == null) {
-                Log.w("DriverViewModel", "Driver ID not found in preferences. Showing banner.")
                 _showVehicleBanner.value = true
                 return@launch
             }
-
-            Log.d("DriverViewModel", "Checking vehicle for driverId: $driverId")
             getVehicleDetailsUseCase(driverId).onEach { result ->
                 when (result) {
-                    is Resource.Loading -> {
-                        // Don't need to show full-screen loader for this
-                    }
-                    is Resource.Success -> {
-                        if (result.data == null) {
-                            // This means no vehicle is registered
-                            Log.d("DriverViewModel", "No vehicle found. Showing banner.")
-                            _showVehicleBanner.value = true
-                        } else {
-                            // Vehicle found, hide banner
-                            Log.d("DriverViewModel", "Vehicle found. Hiding banner.")
-                            _showVehicleBanner.value = false
-                        }
-                    }
-                    is Resource.Error -> {
-                        // Per your request: If the API fails, show the banner
-                        // so the user can add a vehicle.
-                        Log.e("DriverViewModel", "API Error checking vehicle: ${result.message}. Showing banner.")
-                        _apiError.value = result.message ?: "Could not verify vehicle"
-                        _showVehicleBanner.value = true
-                    }
+                    is Resource.Success -> _showVehicleBanner.value = (result.data == null)
+                    is Resource.Error -> _showVehicleBanner.value = true
+                    else -> {}
                 }
             }.launchIn(viewModelScope)
         }
     }
 
-    // --- Location Logic (from HomeViewModel) ---
-
+    // --- Location Logic ---
     private fun isLocationEnabled(): Boolean {
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
                 locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
@@ -128,6 +109,7 @@ class DriverViewModel @Inject constructor(
         fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
             if (location != null) {
                 _currentLocation.value = LatLng(location.latitude, location.longitude)
+                updateBackendLocation(location)
             } else {
                 requestNewLocation()
             }
@@ -152,10 +134,8 @@ class DriverViewModel @Inject constructor(
             override fun onLocationResult(locationResult: LocationResult) {
                 fusedLocationClient.removeLocationUpdates(this)
                 locationResult.lastLocation?.let { location ->
-                    // ✅✅✅ START OF FIX ✅✅✅
-                    // Corrected the typo from 'location.L' to 'location.longitude'
                     _currentLocation.value = LatLng(location.latitude, location.longitude)
-                    // ✅✅✅ END OF FIX ✅✅✅
+                    updateBackendLocation(location)
                 } ?: run {
                     _apiError.value = "Could not fetch current location."
                 }
@@ -164,51 +144,125 @@ class DriverViewModel @Inject constructor(
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
     }
 
-    // --- Screen Logic ---
+    private fun updateBackendLocation(location: Location) {
+        viewModelScope.launch {
+            try {
+                val driverIdStr = userPreferencesRepository.getUserId()
+                val driverId = driverIdStr?.toIntOrNull()
 
-    fun onActiveToggleChanged(active: Boolean) {
-        _isActive.value = active
-        if (active) {
-            Log.d("DriverViewModel", "Driver is now ACTIVE. Starting to look for rides...")
-            // ✅ ADDED: Start polling for rides when active
-            startLookingForRides()
-        } else {
-            Log.d("DriverViewModel", "Driver is now INACTIVE. Stopping search.")
-            // ✅ ADDED: Stop polling
-            stopLookingForRides()
-            _rideRequests.value = emptyList() // Clear old requests
+                if (driverId != null) {
+                    appRepository.updateDriverLocation(driverId, location.latitude, location.longitude, _isActive.value)
+                }
+            } catch (e: Exception) {
+                Log.e("DriverViewModel", "Error updating location: ${e.message}")
+            }
         }
     }
 
-    // --- ✅ ADDED: Polling Logic to Fetch Available Rides ---
+    // --- Status Toggle ---
+    fun onActiveToggleChanged(active: Boolean) {
+        _isActive.value = active
+        if (active) {
+            startLookingForRides()
+            _currentLocation.value?.let {
+                val loc = Location("").apply { latitude = it.latitude; longitude = it.longitude }
+                updateBackendLocation(loc)
+            }
+        } else {
+            stopLookingForRides()
+            _rideRequests.value = emptyList()
+            _declinedRideIds.clear() // Clear declined list when going offline/online reset
+
+            _currentLocation.value?.let {
+                val loc = Location("").apply { latitude = it.latitude; longitude = it.longitude }
+                updateBackendLocation(loc)
+            }
+        }
+    }
+
+    // --- Parsing Helper ---
+    private fun parsePrice(value: Any?): Double {
+        if (value == null) return 0.0
+        return try {
+            when (value) {
+                is Number -> value.toDouble()
+                is String -> {
+                    val cleanString = value.replace(Regex("[^0-9.]"), "")
+                    cleanString.toDoubleOrNull() ?: 0.0
+                }
+                else -> 0.0
+            }
+        } catch (e: Exception) {
+            0.0
+        }
+    }
+
+    // --- Polling Logic ---
     private fun startLookingForRides() {
         pollingJob?.cancel()
         pollingJob = viewModelScope.launch {
             while (_isActive.value) {
                 try {
-                    // ✅ TODO: Call your real API here
-                    // val response = appRepository.getAvailableRides()
+                    val loc = _currentLocation.value
+                    val driverIdStr = userPreferencesRepository.getUserId()
+                    val driverId = driverIdStr?.toIntOrNull()
 
-                    // --- MOCK DATA FOR DEMONSTRATION (Remove this when API is ready) ---
-                    val mockRide = RideRequestItem(
-                        rideId = 101,
-                        pickupLat = 25.61, pickupLng = 85.14,
-                        dropLat = 25.59, dropLng = 85.13,
-                        price = 250.0,
-                        pickupAddress = "Bailey Road, Patna",
-                        dropAddress = "Gandhi Maidan, Patna"
-                    )
-                    // Simulate finding a ride every 5 seconds if list is empty
-                    if (_rideRequests.value.isEmpty()) {
-                        _rideRequests.value = listOf(mockRide)
-                        // sendEvent(UiEvent.ShowSnackbar("New Ride Request Found!"))
+                    if (loc != null && driverId != null) {
+                        val response = appRepository.getDriverUpcomingRides(
+                            driverId = driverId,
+                            lat = loc.latitude,
+                            lng = loc.longitude
+                        )
+
+                        if (response.isSuccessful && response.body()?.success == true) {
+                            val ridesData = response.body()?.data ?: emptyList()
+
+                            val mappedRides = ridesData.mapNotNull { ride ->
+                                // ✅✅✅ FIX: If we already declined this ID, skip it!
+                                if (ride.rideId != null && !_declinedRideIds.contains(ride.rideId)) {
+
+                                    val finalPrice = parsePrice(ride.estimatedPrice).takeIf { it > 0 }
+                                        ?: parsePrice(ride.fare).takeIf { it > 0 }
+                                        ?: parsePrice(ride.totalPrice).takeIf { it > 0 }
+                                        ?: parsePrice(ride.price).takeIf { it > 0 }
+                                        ?: parsePrice(ride.amount).takeIf { it > 0 }
+                                        ?: parsePrice(ride.totalAmount).takeIf { it > 0 }
+                                        ?: parsePrice(ride.estimatedFare).takeIf { it > 0 }
+                                        ?: parsePrice(ride.cost).takeIf { it > 0 }
+                                        ?: 0.0
+
+                                    val pLat = ride.pickupLatitude?.toDoubleOrNull() ?: 0.0
+                                    val pLng = ride.pickupLongitude?.toDoubleOrNull() ?: 0.0
+                                    val dLat = ride.dropLatitude?.toDoubleOrNull() ?: 0.0
+                                    val dLng = ride.dropLongitude?.toDoubleOrNull() ?: 0.0
+
+                                    val finalPickupAddress = if (!ride.pickupAddress.isNullOrEmpty()) ride.pickupAddress
+                                    else if (!ride.pickupLocation.isNullOrEmpty()) ride.pickupLocation
+                                    else getAddressFromCoordinates(pLat, pLng)
+
+                                    val finalDropAddress = if (!ride.dropAddress.isNullOrEmpty()) ride.dropAddress
+                                    else if (!ride.dropLocation.isNullOrEmpty()) ride.dropLocation
+                                    else getAddressFromCoordinates(dLat, dLng)
+
+                                    RideRequestItem(
+                                        rideId = ride.rideId,
+                                        pickupLat = pLat,
+                                        pickupLng = pLng,
+                                        dropLat = dLat,
+                                        dropLng = dLng,
+                                        price = finalPrice,
+                                        pickupAddress = finalPickupAddress,
+                                        dropAddress = finalDropAddress
+                                    )
+                                } else null
+                            }
+                            _rideRequests.value = mappedRides
+                        }
                     }
-                    // -----------------------------------------------------------
-
                 } catch (e: Exception) {
                     Log.e("DriverViewModel", "Error fetching rides: ${e.message}")
                 }
-                delay(5000) // Check every 5 seconds
+                delay(5000)
             }
         }
     }
@@ -218,35 +272,64 @@ class DriverViewModel @Inject constructor(
         pollingJob = null
     }
 
-    // --- ✅ ADDED: Accept Ride Logic ---
-    fun onAcceptRide(ride: RideRequestItem) {
-        viewModelScope.launch {
-            _apiError.value = "Accepting ride..." // Show simple loading indicator via error/msg
-
-            // ✅ TODO: Call API to accept ride
-            // val driverId = userPreferencesRepository.getUserId()?.toInt()
-            // val result = appRepository.acceptRide(ride.rideId, driverId)
-
-            // For now, simulate success:
-            delay(1000)
-            stopLookingForRides() // Stop looking for new ones
-            _rideRequests.value = emptyList() // Clear the list
-
-            // Navigate to a "Navigation to Pickup" screen (You can create this later)
-            // sendEvent(UiEvent.Navigate(Screen.NavigationScreen.route))
-            sendEvent(UiEvent.ShowSnackbar("Ride Accepted! Navigate to pickup."))
+    private suspend fun getAddressFromCoordinates(lat: Double, lng: Double): String {
+        if (lat == 0.0 || lng == 0.0) return "Invalid Location"
+        return withContext(Dispatchers.IO) {
+            try {
+                val geocoder = Geocoder(context, Locale.getDefault())
+                @Suppress("DEPRECATION")
+                val addresses = geocoder.getFromLocation(lat, lng, 1)
+                if (!addresses.isNullOrEmpty()) {
+                    addresses[0].getAddressLine(0) ?: "Lat: $lat, Lng: $lng"
+                } else {
+                    "Lat: ${String.format("%.4f", lat)}, Lng: ${String.format("%.4f", lng)}"
+                }
+            } catch (e: Exception) {
+                "Lat: ${String.format("%.4f", lat)}, Lng: ${String.format("%.4f", lng)}"
+            }
         }
     }
 
+    fun onAcceptRide(ride: RideRequestItem) {
+        viewModelScope.launch {
+            _apiError.value = "Accepting ride..."
+            try {
+                val driverIdStr = userPreferencesRepository.getUserId()
+                val driverId = driverIdStr?.toIntOrNull()
+
+                if (driverId != null) {
+                    val response = appRepository.acceptRide(ride.rideId, driverId)
+
+                    if (response.isSuccessful && response.body()?.success == true) {
+                        sendEvent(UiEvent.ShowSnackbar(response.body()?.message ?: "Ride Accepted!"))
+                        stopLookingForRides()
+                        _rideRequests.value = emptyList()
+                        // _declinedRideIds.clear() // Optional: Clear if you want a fresh start after a ride
+                    } else {
+                        val errorMsg = response.body()?.message ?: "Failed to accept ride."
+                        sendEvent(UiEvent.ShowSnackbar(errorMsg))
+                    }
+                } else {
+                    sendEvent(UiEvent.ShowSnackbar("Driver ID not found."))
+                }
+            } catch (e: Exception) {
+                sendEvent(UiEvent.ShowSnackbar("Error: ${e.message}"))
+            }
+        }
+    }
+
+    // ✅✅✅ FIX: Add the Ride ID to the Ignore List when declined
     fun onDeclineRide(ride: RideRequestItem) {
-        // Remove this specific ride from the list locally
+        // 1. Add to ignore set
+        _declinedRideIds.add(ride.rideId)
+
+        // 2. Remove immediately from UI
         _rideRequests.value = _rideRequests.value.filter { it.rideId != ride.rideId }
     }
 
     fun onLogoutClicked() {
         viewModelScope.launch {
             logoutUserUseCase()
-            // Send navigation event using the BaseViewModel's eventFlow
             sendEvent(UiEvent.Navigate(Screen.AuthScreen.route))
         }
     }
