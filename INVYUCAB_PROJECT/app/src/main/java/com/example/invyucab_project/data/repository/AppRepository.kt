@@ -16,12 +16,10 @@ class AppRepository @Inject constructor(
     private val userPreferencesRepository: UserPreferencesRepository
 ) {
 
-    // --- ONBOARDING ---
     suspend fun saveOnboardingCompleted() {
         userPreferencesRepository.saveOnboardingCompleted()
     }
 
-    // --- AUTH / USER FUNCTIONS ---
     suspend fun checkUser(phoneNumber: String): Response<CheckUserResponse> {
         val request = CheckUserRequest(phoneNumber = phoneNumber)
         return customApiService.checkUser(request)
@@ -31,16 +29,10 @@ class AppRepository @Inject constructor(
         return customApiService.createUser(request)
     }
 
-    /**
-     * Adds a vehicle for a driver.
-     */
     suspend fun addVehicle(request: AddVehicleRequest): AddVehicleResponse {
         return customApiService.addVehicle(request)
     }
 
-    /**
-     * Gets a driver's registered vehicle details.
-     */
     suspend fun getVehicleDetails(driverId: String): Response<GetVehicleDetailsResponse> {
         val request = GetVehicleDetailsRequest(driverId = driverId)
         return customApiService.getVehicleDetails(request)
@@ -58,8 +50,6 @@ class AppRepository @Inject constructor(
         userPreferencesRepository.clearUserStatus()
     }
 
-    // --- MAPS / RIDE FUNCTIONS ---
-
     suspend fun getPlaceAutocomplete(query: String, sessionToken: String): PlacesAutocompleteResponse {
         return googleMapsApiService.getPlaceAutocomplete(query, sessionToken)
     }
@@ -76,19 +66,15 @@ class AppRepository @Inject constructor(
         return customApiService.getPricing(request)
     }
 
-    // --- START OF ADDED CODE ---
     suspend fun createRide(request: CreateRideRequest): Response<CreateRideResponse> {
         return customApiService.createRide(request)
     }
-    // --- END OF ADDED CODE ---
 
-    // --- Update Driver Location ---
     suspend fun updateDriverLocation(driverId: Int, lat: Double, lng: Double, isActive: Boolean): Response<UpdateDriverLocationResponse> {
         val request = UpdateDriverLocationRequest(driverId, lat, lng, isActive)
         return customApiService.updateDriverLocation(request)
     }
 
-    // --- Get Upcoming Rides ---
     suspend fun getDriverUpcomingRides(driverId: Int, lat: Double, lng: Double): Response<DriverUpcomingRidesResponse> {
         val request = DriverUpcomingRidesRequest(
             driverId = driverId,
@@ -98,9 +84,14 @@ class AppRepository @Inject constructor(
         return customApiService.getDriverUpcomingRides(request)
     }
 
-    // --- ✅ NEW: Accept Ride ---
     suspend fun acceptRide(rideId: Int, driverId: Int): Response<AcceptRideResponse> {
         val request = AcceptRideRequest(rideId, driverId)
         return customApiService.acceptRide(request)
+    }
+
+    // --- ✅ NEW: Get Driver Total Rides ---
+    suspend fun getDriverTotalRides(driverId: Int): Response<DriverTotalRidesResponse> {
+        val request = DriverTotalRidesRequest(driverId = driverId)
+        return customApiService.getDriverTotalRides(request)
     }
 }

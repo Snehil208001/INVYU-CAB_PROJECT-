@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "INVYU(CAB_PROJECT)"
+rootProject.name = "Tride"
 include(":app")

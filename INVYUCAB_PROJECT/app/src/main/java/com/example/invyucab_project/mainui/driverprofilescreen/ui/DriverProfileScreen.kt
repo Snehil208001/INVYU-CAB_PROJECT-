@@ -3,23 +3,17 @@ package com.example.invyucab_project.mainui.driverprofilescreen.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-// ... (other imports)
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-// ... (other imports)
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
-// ... (other imports)
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,14 +22,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import coil.compose.rememberAsyncImagePainter
 import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.driverprofilescreen.viewmodel.DriverProfileViewModel
@@ -48,7 +39,6 @@ fun DriverProfileScreen(
     viewModel: DriverProfileViewModel = hiltViewModel()
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    val selectedBottomNavItem = "Profile"
 
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collect { event ->
@@ -61,10 +51,7 @@ fun DriverProfileScreen(
                 is BaseViewModel.UiEvent.ShowSnackbar -> {
                     snackbarHostState.showSnackbar(event.message)
                 }
-                // ✅ --- THIS IS THE FIX ---
-                // Add an else branch to make the 'when' exhaustive
                 else -> {}
-                // ✅ --- END OF FIX ---
             }
         }
     }
@@ -76,32 +63,7 @@ fun DriverProfileScreen(
                 onBackClicked = { navController.popBackStack() }
             )
         },
-        bottomBar = {
-            DriverBottomBar(
-                selectedItem = selectedBottomNavItem,
-                // ✅ --- CODE HAS BEEN FIXED HERE ---
-                onMyRidesClicked = {
-                    navController.navigate(Screen.DriverScreen.route) {
-                        // Pop up to the start destination of the graph to
-                        // avoid building a large back stack.
-                        popUpTo(navController.graph.startDestinationId) {
-                            saveState = true
-                        }
-                        // Avoid multiple copies of the same destination
-                        launchSingleTop = true
-                        // Restore state when re-selecting a tab
-                        restoreState = true
-                    }
-                },
-                // ✅ --- END OF FIX ---
-                onTripClicked = {
-                    // TODO: Navigate
-                },
-                onProfileClicked = {
-                    // Do nothing
-                }
-            )
-        },
+        // ✅ BottomAppBar removed from here
         containerColor = Color.White
     ) { padding ->
         Column(
@@ -273,77 +235,5 @@ private fun ProfileOptionRow(
                 tint = CabMintGreen
             )
         }
-    }
-}
-
-// ... (BottomBar and BottomNavItem composables remain unchanged) ...
-
-@Composable
-private fun DriverBottomBar(
-    selectedItem: String,
-    onMyRidesClicked: () -> Unit,
-    onTripClicked: () -> Unit,
-    onProfileClicked: () -> Unit
-) {
-    BottomAppBar(
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 8.dp
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            BottomNavItem(
-                text = "Rides",
-                icon = Icons.Default.DirectionsCar,
-                isSelected = selectedItem == "Rides",
-                onClick = onMyRidesClicked
-            )
-            BottomNavItem(
-                text = "Trip",
-                icon = Icons.Default.Star,
-                isSelected = selectedItem == "Trip",
-                onClick = onTripClicked
-            )
-            BottomNavItem(
-                text = "Profile",
-                icon = Icons.Default.Person,
-                isSelected = selectedItem == "Profile",
-                onClick = onProfileClicked
-            )
-        }
-    }
-}
-
-@Composable
-private fun BottomNavItem(
-    text: String,
-    icon: ImageVector,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val activeColor = CabMintGreen
-    val inactiveColor = Color.Gray
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = Modifier
-            .fillMaxHeight()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = text,
-            tint = if (isSelected) activeColor else inactiveColor
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (isSelected) activeColor else inactiveColor
-        )
     }
 }

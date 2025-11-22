@@ -21,10 +21,33 @@ data class CreateRideRequest(
 
 /**
  * Response body for the create ride API.
- * Updated to match the server response: {"success":true,"data":6}
  */
 data class CreateRideResponse(
     @Json(name = "success") val success: Boolean,
-    // The server returns the ID (Int) inside the "data" field
     @Json(name = "data") val rideId: Int
+)
+
+// --- ✅ ADDED: Total Rides Models ---
+
+data class DriverTotalRidesRequest(
+    @Json(name = "driver_id") val driverId: Int
+)
+
+data class DriverTotalRidesResponse(
+    @Json(name = "success") val success: Boolean,
+    @Json(name = "message") val message: String? = null,
+    @Json(name = "data") val data: List<RideHistoryItem>? = null
+)
+
+data class RideHistoryItem(
+    @Json(name = "ride_id") val rideId: Int?,
+    @Json(name = "pickup_address") val pickupAddress: String? = null,
+    @Json(name = "pickup_location") val pickupLocation: String? = null,
+    @Json(name = "drop_address") val dropAddress: String? = null,
+    @Json(name = "drop_location") val dropLocation: String? = null,
+    @Json(name = "total_amount") val totalAmount: Any? = null, // Use Any to handle String/Double safely
+    @Json(name = "price") val price: Any? = null,
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "date") val date: String? = null,
+    @Json(name = "created_at") val createdAt: String? = null
 )

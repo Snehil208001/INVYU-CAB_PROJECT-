@@ -26,20 +26,19 @@ interface CustomApiService {
     @POST("riding_app/v1/get_driver_vehicle_detailes")
     suspend fun getVehicleDetails(@Body request: GetVehicleDetailsRequest): Response<GetVehicleDetailsResponse>
 
-    // --- START OF ADDED CODE ---
     @POST("riding_app/v1/create_rides")
     suspend fun createRide(@Body request: CreateRideRequest): Response<CreateRideResponse>
-    // --- END OF ADDED CODE ---
 
-    // --- Update Driver Location ---
     @POST("riding_app/v1/update_driver_location")
     suspend fun updateDriverLocation(@Body request: UpdateDriverLocationRequest): Response<UpdateDriverLocationResponse>
 
-    // --- Get Driver Upcoming Rides ---
     @POST("riding_app/v1/driver_upcomming_rides")
     suspend fun getDriverUpcomingRides(@Body request: DriverUpcomingRidesRequest): Response<DriverUpcomingRidesResponse>
 
-    // --- ✅ NEW: Accept Ride API ---
     @POST("riding_app/v1/accept_rides_from_driverside")
     suspend fun acceptRide(@Body request: AcceptRideRequest): Response<AcceptRideResponse>
+
+    // --- ✅ NEW: Get Driver Total Rides ---
+    @POST("riding_app/v1/driver_total_rides")
+    suspend fun getDriverTotalRides(@Body request: DriverTotalRidesRequest): Response<DriverTotalRidesResponse>
 }

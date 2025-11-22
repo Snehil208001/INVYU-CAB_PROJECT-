@@ -5,7 +5,6 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,8 +24,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
@@ -50,17 +51,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
-import com.example.invyucab_project.R
 import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.driverscreen.viewmodel.DriverViewModel
+import com.example.invyucab_project.mainui.driverscreen.viewmodel.RideHistoryUiModel
 import com.example.invyucab_project.mainui.driverscreen.viewmodel.RideRequestItem
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.INVYUCAB_PROJECTTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import kotlinx.coroutines.launch
-import java.lang.Exception
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
@@ -76,13 +76,15 @@ fun DriverScreen(
     val scope = rememberCoroutineScope()
 
     val showVehicleBanner by viewModel.showVehicleBanner.collectAsState()
-    // ✅ Observe ride requests
+    // Observe ride requests
     val rideRequests by viewModel.rideRequests.collectAsState()
 
-    val selectedBottomNavItem = "Rides"
+    // Observe Total Rides History
+    val totalRides by viewModel.totalRides.collectAsState()
+
+    var selectedBottomNavItem by remember { mutableStateOf("Upcoming") }
 
     val context = LocalContext.current
-
     val activity = (LocalContext.current as? Activity)
     BackHandler {
         activity?.finish()
@@ -155,6 +157,13 @@ fun DriverScreen(
 
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // --- Fetch Total Rides when tab changes ---
+    LaunchedEffect(selectedBottomNavItem) {
+        if (selectedBottomNavItem == "Total") {
+            viewModel.fetchTotalRides()
         }
     }
 
@@ -252,8 +261,9 @@ fun DriverScreen(
             bottomBar = {
                 DriverBottomBar(
                     selectedItem = selectedBottomNavItem,
-                    onMyRidesClicked = {},
-                    onTripClicked = {},
+                    onOngoingRidesClicked = { selectedBottomNavItem = "Ongoing" },
+                    onUpcomingRidesClicked = { selectedBottomNavItem = "Upcoming" },
+                    onTotalRidesClicked = { selectedBottomNavItem = "Total" },
                     onProfileClicked = {
                         navController.navigate(Screen.DriverProfileScreen.route)
                     }
@@ -268,7 +278,7 @@ fun DriverScreen(
 
                 Column(modifier = Modifier.fillMaxSize()) {
 
-                    // --- BANNERS ---
+                    // --- BANNERS (Always visible if conditions met) ---
                     AnimatedVisibility(
                         visible = showLocationPermissionBanner,
                         enter = slideInVertically { -it } + fadeIn(),
@@ -289,29 +299,72 @@ fun DriverScreen(
                         )
                     }
 
-                    // --- ✅ ADDED: Ride Request List ---
-                    if (isActive) {
-                        if (rideRequests.isEmpty()) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("Looking for rides...", color = Color.Gray)
-                            }
-                        } else {
-                            LazyColumn(
-                                contentPadding = PaddingValues(bottom = 100.dp), // Space for status bar
-                                modifier = Modifier.fillMaxSize()
+                    // --- CONTENT SWITCHING BASED ON TAB ---
+                    when (selectedBottomNavItem) {
+                        "Ongoing" -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
                             ) {
-                                items(rideRequests) { ride ->
-                                    RideRequestCard(
-                                        ride = ride,
-                                        onAccept = { viewModel.onAcceptRide(ride) },
-                                        onDecline = { viewModel.onDeclineRide(ride) }
-                                    )
+                                Text("No ongoing rides", color = Color.Gray)
+                            }
+                        }
+
+                        "Upcoming" -> {
+                            if (isActive) {
+                                if (rideRequests.isEmpty()) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("Looking for rides...", color = Color.Gray)
+                                    }
+                                } else {
+                                    LazyColumn(
+                                        contentPadding = PaddingValues(bottom = 100.dp),
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        items(rideRequests) { ride ->
+                                            // ✅ Updated Call: Removed onDecline
+                                            RideRequestCard(
+                                                ride = ride,
+                                                onAccept = { viewModel.onAcceptRide(ride) }
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("You are offline. Go Active to see rides.", color = Color.Gray)
                                 }
                             }
                         }
-                    } else {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("You are offline. Go Active to see rides.", color = Color.Gray)
+
+                        "Total" -> {
+                            if (totalRides.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("No ride history found.", color = Color.Gray)
+                                }
+                            } else {
+                                LazyColumn(
+                                    contentPadding = PaddingValues(bottom = 100.dp),
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    items(totalRides) { ride ->
+                                        RideHistoryCard(ride = ride)
+                                    }
+                                }
+                            }
+                        }
+
+                        else -> {
+                            // Fallback
                         }
                     }
                 }
@@ -356,12 +409,11 @@ fun DriverScreen(
     }
 }
 
-// --- ✅ ADDED: Ride Request Card UI ---
+// --- ✅ UPDATED: Ride Request Card UI (Removed Decline Button) ---
 @Composable
 fun RideRequestCard(
     ride: RideRequestItem,
-    onAccept: () -> Unit,
-    onDecline: () -> Unit
+    onAccept: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -392,24 +444,77 @@ fun RideRequestCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // ✅ Only Accept Button remaining
+            Button(
+                onClick = onAccept,
+                colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Accept", color = Color.White)
+            }
+        }
+    }
+}
+
+// --- Ride History Card UI ---
+@Composable
+fun RideHistoryCard(ride: RideHistoryUiModel) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Button(
-                    onClick = onDecline,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                    modifier = Modifier.weight(1f)
+                Text(
+                    text = "Ride #${ride.rideId}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color.Gray
+                )
+                Text(
+                    text = ride.date,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text("Pickup: ${ride.pickup}", style = MaterialTheme.typography.bodyMedium)
+            Text("Drop: ${ride.drop}", style = MaterialTheme.typography.bodyMedium)
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Divider(color = Color.LightGray, thickness = 0.5.dp)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "₹${ride.price}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+
+                Surface(
+                    color = if (ride.status.equals("completed", ignoreCase = true)) CabMintGreen else Color.Gray,
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Decline", color = Color.White)
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Button(
-                    onClick = onAccept,
-                    colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Accept", color = Color.White)
+                    Text(
+                        text = ride.status.uppercase(),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
@@ -533,8 +638,9 @@ private fun DriverTopAppBar(
 @Composable
 private fun DriverBottomBar(
     selectedItem: String,
-    onMyRidesClicked: () -> Unit,
-    onTripClicked: () -> Unit,
+    onOngoingRidesClicked: () -> Unit,
+    onUpcomingRidesClicked: () -> Unit,
+    onTotalRidesClicked: () -> Unit,
     onProfileClicked: () -> Unit
 ) {
     BottomAppBar(
@@ -547,16 +653,22 @@ private fun DriverBottomBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             BottomNavItem(
-                text = "Rides",
+                text = "Ongoing",
                 icon = Icons.Default.DirectionsCar,
-                isSelected = selectedItem == "Rides",
-                onClick = onMyRidesClicked
+                isSelected = selectedItem == "Ongoing",
+                onClick = onOngoingRidesClicked
             )
             BottomNavItem(
-                text = "Trip",
-                icon = Icons.Default.Star,
-                isSelected = selectedItem == "Trip",
-                onClick = onTripClicked
+                text = "Upcoming",
+                icon = Icons.Default.Schedule,
+                isSelected = selectedItem == "Upcoming",
+                onClick = onUpcomingRidesClicked
+            )
+            BottomNavItem(
+                text = "Total",
+                icon = Icons.Default.History,
+                isSelected = selectedItem == "Total",
+                onClick = onTotalRidesClicked
             )
             BottomNavItem(
                 text = "Profile",
@@ -584,7 +696,7 @@ private fun BottomNavItem(
         modifier = Modifier
             .fillMaxHeight()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 8.dp)
     ) {
         Icon(
             imageVector = icon,
@@ -595,7 +707,8 @@ private fun BottomNavItem(
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall,
-            color = if (isSelected) activeColor else inactiveColor
+            color = if (isSelected) activeColor else inactiveColor,
+            fontSize = 10.sp
         )
     }
 }

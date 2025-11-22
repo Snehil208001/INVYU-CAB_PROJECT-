@@ -43,6 +43,16 @@ data class RideRequestItem(
     val dropAddress: String
 )
 
+// ✅ UI Model for History
+data class RideHistoryUiModel(
+    val rideId: Int,
+    val pickup: String,
+    val drop: String,
+    val price: String,
+    val status: String,
+    val date: String
+)
+
 @HiltViewModel
 class DriverViewModel @Inject constructor(
     private val logoutUserUseCase: LogoutUserUseCase,
@@ -66,9 +76,11 @@ class DriverViewModel @Inject constructor(
     private val _rideRequests = MutableStateFlow<List<RideRequestItem>>(emptyList())
     val rideRequests: StateFlow<List<RideRequestItem>> = _rideRequests.asStateFlow()
 
-    // ✅✅✅ NEW: Keep track of rides we have declined locally
-    private val _declinedRideIds = mutableSetOf<Int>()
+    // ✅ NEW: Total Rides State
+    private val _totalRides = MutableStateFlow<List<RideHistoryUiModel>>(emptyList())
+    val totalRides: StateFlow<List<RideHistoryUiModel>> = _totalRides.asStateFlow()
 
+    private val _declinedRideIds = mutableSetOf<Int>()
     private var pollingJob: Job? = null
 
     init {
@@ -171,7 +183,7 @@ class DriverViewModel @Inject constructor(
         } else {
             stopLookingForRides()
             _rideRequests.value = emptyList()
-            _declinedRideIds.clear() // Clear declined list when going offline/online reset
+            _declinedRideIds.clear()
 
             _currentLocation.value?.let {
                 val loc = Location("").apply { latitude = it.latitude; longitude = it.longitude }
@@ -180,7 +192,6 @@ class DriverViewModel @Inject constructor(
         }
     }
 
-    // --- Parsing Helper ---
     private fun parsePrice(value: Any?): Double {
         if (value == null) return 0.0
         return try {
@@ -194,6 +205,40 @@ class DriverViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             0.0
+        }
+    }
+
+    // --- ✅ NEW: Fetch Total Rides ---
+    fun fetchTotalRides() {
+        viewModelScope.launch {
+            try {
+                val driverIdStr = userPreferencesRepository.getUserId()
+                val driverId = driverIdStr?.toIntOrNull()
+
+                if (driverId != null) {
+                    val response = appRepository.getDriverTotalRides(driverId)
+                    if (response.isSuccessful && response.body()?.success == true) {
+                        val rides = response.body()?.data ?: emptyList()
+                        _totalRides.value = rides.map { item ->
+                            val pickup = item.pickupAddress ?: item.pickupLocation ?: "Unknown Pickup"
+                            val drop = item.dropAddress ?: item.dropLocation ?: "Unknown Drop"
+                            val priceVal = parsePrice(item.totalAmount ?: item.price)
+                            val dateVal = item.date ?: item.createdAt ?: ""
+
+                            RideHistoryUiModel(
+                                rideId = item.rideId ?: 0,
+                                pickup = pickup,
+                                drop = drop,
+                                price = String.format("%.2f", priceVal),
+                                status = item.status ?: "completed",
+                                date = dateVal
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("DriverViewModel", "Error fetching total rides: ${e.message}")
+            }
         }
     }
 
@@ -218,9 +263,7 @@ class DriverViewModel @Inject constructor(
                             val ridesData = response.body()?.data ?: emptyList()
 
                             val mappedRides = ridesData.mapNotNull { ride ->
-                                // ✅✅✅ FIX: If we already declined this ID, skip it!
                                 if (ride.rideId != null && !_declinedRideIds.contains(ride.rideId)) {
-
                                     val finalPrice = parsePrice(ride.estimatedPrice).takeIf { it > 0 }
                                         ?: parsePrice(ride.fare).takeIf { it > 0 }
                                         ?: parsePrice(ride.totalPrice).takeIf { it > 0 }
@@ -304,7 +347,6 @@ class DriverViewModel @Inject constructor(
                         sendEvent(UiEvent.ShowSnackbar(response.body()?.message ?: "Ride Accepted!"))
                         stopLookingForRides()
                         _rideRequests.value = emptyList()
-                        // _declinedRideIds.clear() // Optional: Clear if you want a fresh start after a ride
                     } else {
                         val errorMsg = response.body()?.message ?: "Failed to accept ride."
                         sendEvent(UiEvent.ShowSnackbar(errorMsg))
@@ -318,12 +360,8 @@ class DriverViewModel @Inject constructor(
         }
     }
 
-    // ✅✅✅ FIX: Add the Ride ID to the Ignore List when declined
     fun onDeclineRide(ride: RideRequestItem) {
-        // 1. Add to ignore set
         _declinedRideIds.add(ride.rideId)
-
-        // 2. Remove immediately from UI
         _rideRequests.value = _rideRequests.value.filter { it.rideId != ride.rideId }
     }
 
