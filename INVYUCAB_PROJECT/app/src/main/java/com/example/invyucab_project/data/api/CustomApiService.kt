@@ -41,7 +41,10 @@ interface CustomApiService {
     @POST("riding_app/v1/driver_total_rides")
     suspend fun getDriverTotalRides(@Body request: DriverTotalRidesRequest): Response<DriverTotalRidesResponse>
 
-    // --- ✅ ADDED: Get Driver Ongoing Rides ---
     @POST("riding_app/v1/get_driver_ongoing_rides")
     suspend fun getDriverOngoingRides(@Body request: DriverOngoingRidesRequest): Response<DriverOngoingRidesResponse>
+
+    // --- ✅ ADDED: Start Ride Endpoint ---
+    @POST("riding_app/v1/start_ride_from_driver_side")
+    suspend fun startRideFromDriverSide(@Body request: StartRideRequest): Response<StartRideResponse>
 }

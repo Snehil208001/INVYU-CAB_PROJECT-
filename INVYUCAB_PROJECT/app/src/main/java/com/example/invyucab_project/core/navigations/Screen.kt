@@ -103,7 +103,6 @@ sealed class Screen(val route: String) {
         }
     }
 
-    // --- UPDATED RideBookingScreen ---
     data object RideBookingScreen : Screen("ride_booking_screen/{rideId}/{pickupLat}/{pickupLng}/{dropLat}/{dropLng}?pickupAddress={pickupAddress}&dropAddress={dropAddress}&dropPlaceId={dropPlaceId}") {
         fun createRoute(
             rideId: Int,
@@ -120,5 +119,21 @@ sealed class Screen(val route: String) {
             return "ride_booking_screen/$rideId/$pickupLat/$pickupLng/$dropLat/$dropLng?pickupAddress=$encodedPickup&dropAddress=$encodedDrop&dropPlaceId=$dropPlaceId"
         }
     }
-    // --- END OF UPDATED CODE ---
+
+    // --- ✅ ADDED: Ride Tracking Screen Object ---
+    object RideTrackingScreen : Screen("ride_tracking_screen/{rideId}/{riderId}/{driverId}/{role}?pickupLat={pickupLat}&pickupLng={pickupLng}&dropLat={dropLat}&dropLng={dropLng}&otp={otp}") {
+        fun createRoute(
+            rideId: Int,
+            riderId: Int,
+            driverId: Int,
+            role: String,
+            pickupLat: Double,
+            pickupLng: Double,
+            dropLat: Double,
+            dropLng: Double,
+            otp: String = "1234"
+        ): String {
+            return "ride_tracking_screen/$rideId/$riderId/$driverId/$role?pickupLat=$pickupLat&pickupLng=$pickupLng&dropLat=$dropLat&dropLng=$dropLng&otp=$otp"
+        }
+    }
 }

@@ -45,14 +45,14 @@ data class RideHistoryItem(
     @Json(name = "pickup_location") val pickupLocation: String? = null,
     @Json(name = "drop_address") val dropAddress: String? = null,
     @Json(name = "drop_location") val dropLocation: String? = null,
-    @Json(name = "total_amount") val totalAmount: Any? = null, // Use Any to handle String/Double safely
+    @Json(name = "total_amount") val totalAmount: Any? = null,
     @Json(name = "price") val price: Any? = null,
     @Json(name = "status") val status: String? = null,
     @Json(name = "date") val date: String? = null,
     @Json(name = "created_at") val createdAt: String? = null
 )
 
-// --- ✅ ADDED: Ongoing Rides Models ---
+// --- Ongoing Rides Models ---
 
 data class DriverOngoingRidesRequest(
     @Json(name = "driver_id") val driverId: Int
@@ -65,6 +65,7 @@ data class DriverOngoingRidesResponse(
 
 data class OngoingRideItem(
     @Json(name = "ride_id") val rideId: Int?,
+    @Json(name = "rider_id") val riderId: Int? = null, // ✅ Added rider_id
     @Json(name = "pickup_address") val pickupAddress: String? = null,
     @Json(name = "pickup_location") val pickupLocation: String? = null,
     @Json(name = "drop_address") val dropAddress: String? = null,
@@ -76,4 +77,19 @@ data class OngoingRideItem(
     @Json(name = "pickup_longitude") val pickupLongitude: String? = null,
     @Json(name = "drop_latitude") val dropLatitude: String? = null,
     @Json(name = "drop_longitude") val dropLongitude: String? = null
+)
+
+// --- ✅ ADDED: Start Ride Models ---
+
+data class StartRideRequest(
+    @Json(name = "ride_id") val rideId: Int,
+    @Json(name = "rider_id") val riderId: Int,
+    @Json(name = "driver_id") val driverId: Int,
+    @Json(name = "user_pin") val userPin: Int,
+    @Json(name = "started_at") val startedAt: String
+)
+
+data class StartRideResponse(
+    @Json(name = "success") val success: Boolean,
+    @Json(name = "message") val message: String? = null
 )

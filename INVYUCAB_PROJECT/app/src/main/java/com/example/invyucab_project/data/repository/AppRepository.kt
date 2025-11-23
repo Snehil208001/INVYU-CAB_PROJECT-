@@ -3,7 +3,6 @@ package com.example.invyucab_project.data.repository
 import com.example.invyucab_project.data.api.CustomApiService
 import com.example.invyucab_project.data.api.GoogleMapsApiService
 import com.example.invyucab_project.data.models.*
-import com.example.invyucab_project.data.models.PlacesAutocompleteResponse
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
 import retrofit2.Response
 import javax.inject.Inject
@@ -94,9 +93,13 @@ class AppRepository @Inject constructor(
         return customApiService.getDriverTotalRides(request)
     }
 
-    // --- ✅ ADDED: Get Driver Ongoing Rides ---
     suspend fun getDriverOngoingRides(driverId: Int): Response<DriverOngoingRidesResponse> {
         val request = DriverOngoingRidesRequest(driverId = driverId)
         return customApiService.getDriverOngoingRides(request)
+    }
+
+    // --- ✅ ADDED: Start Ride Function ---
+    suspend fun startRideFromDriverSide(request: StartRideRequest): Response<StartRideResponse> {
+        return customApiService.startRideFromDriverSide(request)
     }
 }

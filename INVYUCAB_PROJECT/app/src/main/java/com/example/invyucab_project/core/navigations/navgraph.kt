@@ -6,7 +6,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-// ... (All other imports)
 import com.example.invyucab_project.mainui.adminscreen.ui.AdminScreen
 import com.example.invyucab_project.mainui.allservicesscreen.ui.AllServicesScreen
 import com.example.invyucab_project.mainui.authscreen.ui.AuthScreen
@@ -21,13 +20,15 @@ import com.example.invyucab_project.mainui.profilescreen.editprofilescreen.ui.Ed
 import com.example.invyucab_project.mainui.profilescreen.memberlevelscreen.ui.MemberLevelScreen
 import com.example.invyucab_project.mainui.profilescreen.paymentmethodscreen.ui.PaymentMethodScreen
 import com.example.invyucab_project.mainui.profilescreen.ui.ProfileScreen
-import com.example.invyucab_project.mainui.ridebookingscreen.ui.RideBookingScreen // ✅ Ensure this import is present
+import com.example.invyucab_project.mainui.ridebookingscreen.ui.RideBookingScreen
 import com.example.invyucab_project.mainui.rideselectionscreen.ui.RideSelectionScreen
 import com.example.invyucab_project.mainui.roleselectionscreen.ui.RoleSelectionScreen
 import com.example.invyucab_project.mainui.splashscreen_loggedin.ui.SplashScreenLoggedIn
 import com.example.invyucab_project.mainui.travelscreen.ui.TravelScreen
 import com.example.invyucab_project.mainui.userdetailsscreen.ui.UserDetailsScreen
 import com.example.invyucab_project.mainui.vehiclepreferences.ui.VehiclePreferencesScreen
+// ✅ Import the new screen
+import com.example.invyucab_project.mainui.ridetrackingscreen.ui.RideTrackingScreen
 
 @Composable
 fun NavGraph(
@@ -38,7 +39,6 @@ fun NavGraph(
         navController = navController,
         startDestination = startDestination
     ) {
-        // ... (SplashScreen, OnboardingScreen, AuthScreen) ...
         composable(Screen.SplashScreenLoggedIn.route) {
             SplashScreenLoggedIn(navController = navController)
         }
@@ -145,32 +145,16 @@ fun NavGraph(
         composable(
             route = Screen.RideSelectionScreen.route,
             arguments = listOf(
-                navArgument("dropPlaceId") {
-                    type = NavType.StringType
-                    nullable = true
-                },
-                navArgument("dropDescription") {
-                    type = NavType.StringType
-                    nullable = true
-                },
-                navArgument("pickupPlaceId") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = "current_location"
-                },
-                navArgument("pickupDescription") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = "Your Current Location"
-                }
+                navArgument("dropPlaceId") { type = NavType.StringType; nullable = true },
+                navArgument("dropDescription") { type = NavType.StringType; nullable = true },
+                navArgument("pickupPlaceId") { type = NavType.StringType; nullable = true; defaultValue = "current_location" },
+                navArgument("pickupDescription") { type = NavType.StringType; nullable = true; defaultValue = "Your Current Location" }
             )
         ) {
             RideSelectionScreen(navController = navController)
         }
 
-        // ✅ --- UPDATED CODE FOR FUNCTIONAL MAP ---
         composable(
-            // Defined in Screen.kt to accept pickup/drop coordinates and details
             route = Screen.RideBookingScreen.route,
             arguments = listOf(
                 navArgument("rideId") { type = NavType.IntType },
@@ -183,13 +167,50 @@ fun NavGraph(
                 navArgument("dropPlaceId") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
-            // The ViewModel will extract all these arguments via SavedStateHandle
             val rideId = backStackEntry.arguments?.getInt("rideId")
             RideBookingScreen(
                 navController = navController,
                 rideId = rideId?.toString()
             )
         }
-        // ✅ --- END OF UPDATED CODE ---
+
+        // ✅ --- ADDED: RIDE TRACKING NAVIGATION ---
+        composable(
+            route = Screen.RideTrackingScreen.route,
+            arguments = listOf(
+                navArgument("rideId") { type = NavType.IntType },
+                navArgument("riderId") { type = NavType.IntType },
+                navArgument("driverId") { type = NavType.IntType },
+                navArgument("role") { type = NavType.StringType },
+                navArgument("pickupLat") { type = NavType.FloatType },
+                navArgument("pickupLng") { type = NavType.FloatType },
+                navArgument("dropLat") { type = NavType.FloatType },
+                navArgument("dropLng") { type = NavType.FloatType },
+                navArgument("otp") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val rideId = backStackEntry.arguments?.getInt("rideId") ?: 0
+            val riderId = backStackEntry.arguments?.getInt("riderId") ?: 0
+            val driverId = backStackEntry.arguments?.getInt("driverId") ?: 0
+            val role = backStackEntry.arguments?.getString("role") ?: "driver"
+            val pickupLat = backStackEntry.arguments?.getFloat("pickupLat")?.toDouble() ?: 0.0
+            val pickupLng = backStackEntry.arguments?.getFloat("pickupLng")?.toDouble() ?: 0.0
+            val dropLat = backStackEntry.arguments?.getFloat("dropLat")?.toDouble() ?: 0.0
+            val dropLng = backStackEntry.arguments?.getFloat("dropLng")?.toDouble() ?: 0.0
+            val otp = backStackEntry.arguments?.getString("otp") ?: ""
+
+            RideTrackingScreen(
+                navController = navController,
+                rideId = rideId,
+                riderId = riderId,
+                driverId = driverId,
+                role = role,
+                pickupLat = pickupLat,
+                pickupLng = pickupLng,
+                dropLat = dropLat,
+                dropLng = dropLng,
+                otp = otp
+            )
+        }
     }
 }

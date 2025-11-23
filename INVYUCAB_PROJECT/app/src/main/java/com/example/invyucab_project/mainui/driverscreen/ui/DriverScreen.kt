@@ -180,7 +180,7 @@ fun DriverScreen(
             when (event) {
                 is BaseViewModel.UiEvent.Navigate -> {
                     navController.navigate(event.route) {
-                        popUpTo(Screen.DriverScreen.route) { inclusive = true }
+                        // Keep DriverScreen in back stack to allow return
                     }
                 }
                 is BaseViewModel.UiEvent.ShowSnackbar -> {
@@ -320,7 +320,7 @@ fun DriverScreen(
                                         // ✅ Updated Ongoing Ride Card
                                         OngoingRideCard(
                                             ride = ride,
-                                            onAccept = { viewModel.onAcceptOngoingRide(ride) },
+                                            onAccept = { viewModel.onStartRideClicked(ride) },
                                             onCancel = { viewModel.onCancelOngoingRide(ride) }
                                         )
                                     }
@@ -355,7 +355,7 @@ fun DriverScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("You are offline. Go Active to see rides.", color = Color.Gray)
+                                    Text("You are offline. Go Online to see rides.", color = Color.Gray)
                                 }
                             }
                         }
@@ -412,7 +412,7 @@ fun DriverScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isActive) "You're Active" else "You're Inactive",
+                            text = if (isActive) "You're Online" else "You're Offline",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
@@ -569,14 +569,14 @@ fun OngoingRideCard(
                     colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Accept", color = Color.White)
+                    Text("Start Now", color = Color.White)
                 }
             }
         }
     }
 }
 
-// --- ✅ UPDATED: Ride Request Card UI (Upcoming) ---
+// --- ✅ UPDATED & RESTORED: Ride Request Card UI (Upcoming) ---
 @Composable
 fun RideRequestCard(
     ride: RideRequestItem,
@@ -838,7 +838,7 @@ private fun DriverTopAppBar(
         },
         title = {
             Text(
-                text = if (isActive) "Active" else "Inactive",
+                text = if (isActive) "Online" else "Offline",
                 color = Color.White,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold

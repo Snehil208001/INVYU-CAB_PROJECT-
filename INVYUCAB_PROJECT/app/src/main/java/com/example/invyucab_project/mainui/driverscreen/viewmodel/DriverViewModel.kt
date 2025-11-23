@@ -37,6 +37,7 @@ import javax.inject.Inject
 
 data class RideRequestItem(
     val rideId: Int,
+    val riderId: Int = 0, // ✅ ADDED: riderId
     val pickupLat: Double,
     val pickupLng: Double,
     val dropLat: Double,
@@ -44,9 +45,8 @@ data class RideRequestItem(
     val price: Double,
     val pickupAddress: String,
     val dropAddress: String,
-    // ✅ ADDED: Distance fields
-    val pickupDistance: String = "0 km", // Distance from Driver to Pickup
-    val tripDistance: String = "0 km"    // Distance from Pickup to Drop
+    val pickupDistance: String = "0 km",
+    val tripDistance: String = "0 km"
 )
 
 data class RideHistoryUiModel(
@@ -290,6 +290,7 @@ class DriverViewModel @Inject constructor(
                                 else getAddressFromCoordinates(dLat, dLng)
 
                                 val finalPrice = parsePrice(item.totalAmount ?: item.price ?: item.estimatedPrice)
+                                val riderId = item.riderId ?: 0 // ✅ Handle riderId
 
                                 // Calculate Distances
                                 val distDriverToPickup = if (currentLoc != null) {
@@ -301,6 +302,7 @@ class DriverViewModel @Inject constructor(
                                 mappedRides.add(
                                     RideRequestItem(
                                         rideId = item.rideId,
+                                        riderId = riderId,
                                         pickupLat = pLat,
                                         pickupLng = pLng,
                                         dropLat = dLat,
@@ -325,8 +327,32 @@ class DriverViewModel @Inject constructor(
         }
     }
 
-    fun onAcceptOngoingRide(ride: RideRequestItem) {
-        sendEvent(UiEvent.ShowSnackbar("Ongoing acceptance/status update clicked for Ride #${ride.rideId}"))
+    // --- ✅ UPDATED: Start Ride Click Handler ---
+    fun onStartRideClicked(ride: RideRequestItem) {
+        viewModelScope.launch {
+            val driverIdStr = userPreferencesRepository.getUserId()
+            val driverId = driverIdStr?.toIntOrNull()
+
+            if (driverId != null) {
+                sendEvent(
+                    UiEvent.Navigate(
+                        Screen.RideTrackingScreen.createRoute(
+                            rideId = ride.rideId,
+                            riderId = ride.riderId,
+                            driverId = driverId,
+                            role = "driver",
+                            pickupLat = ride.pickupLat,
+                            pickupLng = ride.pickupLng,
+                            dropLat = ride.dropLat,
+                            dropLng = ride.dropLng,
+                            otp = "1234" // Using default mock PIN as per prompt logic requirement
+                        )
+                    )
+                )
+            } else {
+                sendEvent(UiEvent.ShowSnackbar("Driver ID missing. Please relogin."))
+            }
+        }
     }
 
     fun onCancelOngoingRide(ride: RideRequestItem) {
@@ -378,12 +404,12 @@ class DriverViewModel @Inject constructor(
                                     else if (!ride.dropLocation.isNullOrEmpty()) ride.dropLocation
                                     else getAddressFromCoordinates(dLat, dLng)
 
-                                    // ✅ Calculate Distances
                                     val distDriverToPickup = calculateDistance(loc.latitude, loc.longitude, pLat, pLng)
                                     val distTrip = calculateDistance(pLat, pLng, dLat, dLng)
 
                                     RideRequestItem(
                                         rideId = ride.rideId,
+                                        riderId = 0, // Upcoming rides api might not send rider_id yet or different model
                                         pickupLat = pLat,
                                         pickupLng = pLng,
                                         dropLat = dLat,
