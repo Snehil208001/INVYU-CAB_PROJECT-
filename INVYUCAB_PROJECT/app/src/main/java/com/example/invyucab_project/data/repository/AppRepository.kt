@@ -89,9 +89,14 @@ class AppRepository @Inject constructor(
         return customApiService.acceptRide(request)
     }
 
-    // --- ✅ NEW: Get Driver Total Rides ---
     suspend fun getDriverTotalRides(driverId: Int): Response<DriverTotalRidesResponse> {
         val request = DriverTotalRidesRequest(driverId = driverId)
         return customApiService.getDriverTotalRides(request)
+    }
+
+    // --- ✅ ADDED: Get Driver Ongoing Rides ---
+    suspend fun getDriverOngoingRides(driverId: Int): Response<DriverOngoingRidesResponse> {
+        val request = DriverOngoingRidesRequest(driverId = driverId)
+        return customApiService.getDriverOngoingRides(request)
     }
 }

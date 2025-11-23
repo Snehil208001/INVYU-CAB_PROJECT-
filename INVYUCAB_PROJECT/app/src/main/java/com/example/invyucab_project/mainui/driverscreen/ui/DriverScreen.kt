@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
@@ -44,6 +45,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,11 +78,9 @@ fun DriverScreen(
     val scope = rememberCoroutineScope()
 
     val showVehicleBanner by viewModel.showVehicleBanner.collectAsState()
-    // Observe ride requests
     val rideRequests by viewModel.rideRequests.collectAsState()
-
-    // Observe Total Rides History
     val totalRides by viewModel.totalRides.collectAsState()
+    val ongoingRides by viewModel.ongoingRides.collectAsState()
 
     var selectedBottomNavItem by remember { mutableStateOf("Upcoming") }
 
@@ -145,7 +145,6 @@ fun DriverScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.checkVehicleDetails()
-
                 if (locationPermissionsState.allPermissionsGranted) {
                     viewModel.getCurrentLocation()
                 } else {
@@ -154,16 +153,24 @@ fun DriverScreen(
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
-    // --- Fetch Total Rides when tab changes ---
+    // --- Auto Switch Tab Listener ---
+    LaunchedEffect(Unit) {
+        viewModel.navigateToTab.collect { tabName ->
+            selectedBottomNavItem = tabName
+        }
+    }
+
+    // --- Fetch Rides when tab changes ---
     LaunchedEffect(selectedBottomNavItem) {
         if (selectedBottomNavItem == "Total") {
             viewModel.fetchTotalRides()
+        } else if (selectedBottomNavItem == "Ongoing") {
+            viewModel.fetchOngoingRides()
         }
     }
 
@@ -221,18 +228,14 @@ fun DriverScreen(
                 NavigationDrawerItem(
                     label = { Text("Home") },
                     selected = true,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                    },
+                    onClick = { scope.launch { drawerState.close() } },
                     icon = { Icon(Icons.Default.Menu, contentDescription = null) },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
                 NavigationDrawerItem(
                     label = { Text("Earnings") },
                     selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                    },
+                    onClick = { scope.launch { drawerState.close() } },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
                 Divider(Modifier.padding(vertical = 8.dp))
@@ -275,10 +278,9 @@ fun DriverScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-
                 Column(modifier = Modifier.fillMaxSize()) {
 
-                    // --- BANNERS (Always visible if conditions met) ---
+                    // --- BANNERS ---
                     AnimatedVisibility(
                         visible = showLocationPermissionBanner,
                         enter = slideInVertically { -it } + fadeIn(),
@@ -299,14 +301,30 @@ fun DriverScreen(
                         )
                     }
 
-                    // --- CONTENT SWITCHING BASED ON TAB ---
+                    // --- CONTENT SWITCHING ---
                     when (selectedBottomNavItem) {
                         "Ongoing" -> {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("No ongoing rides", color = Color.Gray)
+                            if (ongoingRides.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("No ongoing rides", color = Color.Gray)
+                                }
+                            } else {
+                                LazyColumn(
+                                    contentPadding = PaddingValues(bottom = 100.dp),
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    items(ongoingRides) { ride ->
+                                        // ✅ Updated Ongoing Ride Card
+                                        OngoingRideCard(
+                                            ride = ride,
+                                            onAccept = { viewModel.onAcceptOngoingRide(ride) },
+                                            onCancel = { viewModel.onCancelOngoingRide(ride) }
+                                        )
+                                    }
+                                }
                             }
                         }
 
@@ -325,7 +343,6 @@ fun DriverScreen(
                                         modifier = Modifier.fillMaxSize()
                                     ) {
                                         items(rideRequests) { ride ->
-                                            // ✅ Updated Call: Removed onDecline
                                             RideRequestCard(
                                                 ride = ride,
                                                 onAccept = { viewModel.onAcceptRide(ride) }
@@ -363,13 +380,11 @@ fun DriverScreen(
                             }
                         }
 
-                        else -> {
-                            // Fallback
-                        }
+                        else -> { }
                     }
                 }
 
-                // Status Indicator (Bottom)
+                // Status Indicator
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -409,7 +424,159 @@ fun DriverScreen(
     }
 }
 
-// --- ✅ UPDATED: Ride Request Card UI (Removed Decline Button) ---
+// --- ✅ UPDATED: Ongoing Ride Card UI ---
+@Composable
+fun OngoingRideCard(
+    ride: RideRequestItem,
+    onAccept: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Ongoing Ride",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = CabMintGreen,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Ride #${ride.rideId}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = Color.LightGray)
+
+            // ✅ Visible Pickup
+            Row(
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "Pickup",
+                    tint = Color(0xFF4CAF50), // Green for Pickup
+                    modifier = Modifier.size(24.dp).padding(top = 2.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "Pickup Location",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = ride.pickupAddress,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ✅ Visible Drop
+            Row(
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "Drop",
+                    tint = Color(0xFFE53935), // Red for Drop
+                    modifier = Modifier.size(24.dp).padding(top = 2.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "Drop Location",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = ride.dropAddress,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = Color.LightGray)
+
+            // ✅ Distances Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("Pickup Distance", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    Text(ride.pickupDistance, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color.Black)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Trip Distance", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    Text(ride.tripDistance, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color.Black)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Price
+            Text(
+                text = "₹${ride.price}",
+                style = MaterialTheme.typography.headlineSmall,
+                color = Color.Black,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onCancel,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Cancel")
+                }
+
+                Button(
+                    onClick = onAccept,
+                    colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Accept", color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+// --- ✅ UPDATED: Ride Request Card UI (Upcoming) ---
 @Composable
 fun RideRequestCard(
     ride: RideRequestItem,
@@ -424,17 +591,107 @@ fun RideRequestCard(
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "New Ride Request!",
-                style = MaterialTheme.typography.titleMedium,
-                color = CabMintGreen,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "New Ride Request!",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = CabMintGreen,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Ride #${ride.rideId}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
 
-            Text("Pickup: ${ride.pickupAddress}", fontWeight = FontWeight.SemiBold)
-            Text("Drop: ${ride.dropAddress}", fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(8.dp))
+            Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = Color.LightGray)
+
+            // ✅ Visible Pickup
+            Row(
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "Pickup",
+                    tint = Color(0xFF4CAF50), // Green for Pickup
+                    modifier = Modifier.size(24.dp).padding(top = 2.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "Pickup Location",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = ride.pickupAddress,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ✅ Visible Drop
+            Row(
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "Drop",
+                    tint = Color(0xFFE53935), // Red for Drop
+                    modifier = Modifier.size(24.dp).padding(top = 2.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "Drop Location",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = ride.dropAddress,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = Color.LightGray)
+
+            // ✅ Distances Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("Pickup Distance", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    Text(ride.pickupDistance, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color.Black)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Trip Distance", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    Text(ride.tripDistance, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color.Black)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Price
             Text(
                 text = "₹${ride.price}",
                 style = MaterialTheme.typography.headlineSmall,
@@ -444,7 +701,6 @@ fun RideRequestCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ✅ Only Accept Button remaining
             Button(
                 onClick = onAccept,
                 colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
@@ -485,8 +741,8 @@ fun RideHistoryCard(ride: RideHistoryUiModel) {
             }
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text("Pickup: ${ride.pickup}", style = MaterialTheme.typography.bodyMedium)
-            Text("Drop: ${ride.drop}", style = MaterialTheme.typography.bodyMedium)
+            Text("Pickup: ${ride.pickup}", style = MaterialTheme.typography.bodyMedium, color = Color.Black)
+            Text("Drop: ${ride.drop}", style = MaterialTheme.typography.bodyMedium, color = Color.Black)
 
             Spacer(modifier = Modifier.height(8.dp))
             Divider(color = Color.LightGray, thickness = 0.5.dp)
@@ -523,9 +779,7 @@ fun RideHistoryCard(ride: RideHistoryUiModel) {
 
 
 @Composable
-fun LocationPermissionBanner(
-    onAllowClick: () -> Unit
-) {
+fun LocationPermissionBanner(onAllowClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -540,24 +794,15 @@ fun LocationPermissionBanner(
             color = Color.Black,
             fontSize = 14.sp
         )
-
         Spacer(Modifier.width(8.dp))
-
         TextButton(onClick = onAllowClick) {
-            Text(
-                "ALLOW",
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
-            )
+            Text("ALLOW", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         }
     }
 }
 
 @Composable
-fun VehicleBanner(
-    onClick: () -> Unit
-) {
+fun VehicleBanner(onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -566,11 +811,7 @@ fun VehicleBanner(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = Icons.Default.Warning,
-            contentDescription = "Warning",
-            tint = Color(0xFFF57F17)
-        )
+        Icon(Icons.Default.Warning, contentDescription = "Warning", tint = Color(0xFFF57F17))
         Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = "No vehicle registered. Tap to add your vehicle.",
@@ -592,11 +833,7 @@ private fun DriverTopAppBar(
     TopAppBar(
         navigationIcon = {
             IconButton(onClick = onProfileClicked) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Open menu",
-                    tint = Color.White
-                )
+                Icon(Icons.Default.Menu, contentDescription = "Open menu", tint = Color.White)
             }
         },
         title = {
@@ -619,11 +856,7 @@ private fun DriverTopAppBar(
                 )
             )
             IconButton(onClick = onSearchClicked) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Search",
-                    tint = Color.White
-                )
+                Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.White)
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
@@ -643,107 +876,52 @@ private fun DriverBottomBar(
     onTotalRidesClicked: () -> Unit,
     onProfileClicked: () -> Unit
 ) {
-    BottomAppBar(
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 8.dp
-    ) {
+    BottomAppBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 8.dp) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            BottomNavItem(
-                text = "Ongoing",
-                icon = Icons.Default.DirectionsCar,
-                isSelected = selectedItem == "Ongoing",
-                onClick = onOngoingRidesClicked
-            )
-            BottomNavItem(
-                text = "Upcoming",
-                icon = Icons.Default.Schedule,
-                isSelected = selectedItem == "Upcoming",
-                onClick = onUpcomingRidesClicked
-            )
-            BottomNavItem(
-                text = "Total",
-                icon = Icons.Default.History,
-                isSelected = selectedItem == "Total",
-                onClick = onTotalRidesClicked
-            )
-            BottomNavItem(
-                text = "Profile",
-                icon = Icons.Default.Person,
-                isSelected = selectedItem == "Profile",
-                onClick = onProfileClicked
-            )
+            BottomNavItem("Ongoing", Icons.Default.DirectionsCar, selectedItem == "Ongoing", onOngoingRidesClicked)
+            BottomNavItem("Upcoming", Icons.Default.Schedule, selectedItem == "Upcoming", onUpcomingRidesClicked)
+            BottomNavItem("Total", Icons.Default.History, selectedItem == "Total", onTotalRidesClicked)
+            BottomNavItem("Profile", Icons.Default.Person, selectedItem == "Profile", onProfileClicked)
         }
     }
 }
 
 @Composable
-private fun BottomNavItem(
-    text: String,
-    icon: ImageVector,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
+private fun BottomNavItem(text: String, icon: ImageVector, isSelected: Boolean, onClick: () -> Unit) {
     val activeColor = CabMintGreen
     val inactiveColor = Color.Gray
-
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
-        modifier = Modifier
-            .fillMaxHeight()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp)
+        modifier = Modifier.fillMaxHeight().clickable(onClick = onClick).padding(horizontal = 8.dp)
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = text,
-            tint = if (isSelected) activeColor else inactiveColor
-        )
+        Icon(icon, contentDescription = text, tint = if (isSelected) activeColor else inactiveColor)
         Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (isSelected) activeColor else inactiveColor,
-            fontSize = 10.sp
-        )
+        Text(text, style = MaterialTheme.typography.bodySmall, color = if (isSelected) activeColor else inactiveColor, fontSize = 10.sp)
     }
 }
 
 @Composable
 fun DrawerHeader(driverName: String, driverRating: String, profileImageUrl: String) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CabMintGreen)
-            .padding(16.dp),
+        modifier = Modifier.fillMaxWidth().background(CabMintGreen).padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(
             painter = rememberAsyncImagePainter(profileImageUrl),
             contentDescription = "Driver Profile",
-            modifier = Modifier
-                .size(80.dp)
-                .clip(CircleShape)
-                .background(Color.White),
+            modifier = Modifier.size(80.dp).clip(CircleShape).background(Color.White),
             contentScale = ContentScale.Crop
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = driverName,
-            color = Color.White,
-            style = MaterialTheme.typography.titleLarge
-        )
+        Text(text = driverName, color = Color.White, style = MaterialTheme.typography.titleLarge)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Star, contentDescription = "Rating", tint = Color.Yellow)
-            Text(
-                text = driverRating,
-                color = Color.White,
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Text(text = driverRating, color = Color.White, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
