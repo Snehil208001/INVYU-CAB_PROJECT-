@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.core.navigations.Screen
+import com.example.invyucab_project.data.models.StartRideRequest
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
 import com.example.invyucab_project.data.repository.AppRepository
 import com.example.invyucab_project.domain.usecase.GetVehicleDetailsUseCase
@@ -32,12 +33,13 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
 data class RideRequestItem(
     val rideId: Int,
-    val riderId: Int = 0, // ✅ ADDED: riderId
+    val riderId: Int = 0,
     val pickupLat: Double,
     val pickupLng: Double,
     val dropLat: Double,
@@ -93,7 +95,6 @@ class DriverViewModel @Inject constructor(
     private val _declinedRideIds = mutableSetOf<Int>()
     private var pollingJob: Job? = null
 
-    // --- Continuous Location Callback ---
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(locationResult: LocationResult) {
             locationResult.lastLocation?.let { location ->
@@ -109,7 +110,6 @@ class DriverViewModel @Inject constructor(
         getCurrentLocation()
     }
 
-    // --- Helper to calculate distance in KM ---
     private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): String {
         if (lat1 == 0.0 || lon1 == 0.0 || lat2 == 0.0 || lon2 == 0.0) return "N/A"
         val results = FloatArray(1)
@@ -118,7 +118,6 @@ class DriverViewModel @Inject constructor(
         return String.format("%.1f km", distanceInMeters / 1000)
     }
 
-    // --- Vehicle Logic ---
     fun checkVehicleDetails() {
         viewModelScope.launch {
             val driverId = userPreferencesRepository.getUserId()
@@ -136,7 +135,6 @@ class DriverViewModel @Inject constructor(
         }
     }
 
-    // --- Location Logic ---
     private fun isLocationEnabled(): Boolean {
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
                 locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
@@ -148,7 +146,6 @@ class DriverViewModel @Inject constructor(
             _apiError.value = "Please turn on location services (GPS)."
             return
         }
-
         fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
             if (location != null) {
                 _currentLocation.value = LatLng(location.latitude, location.longitude)
@@ -160,11 +157,9 @@ class DriverViewModel @Inject constructor(
     @SuppressLint("MissingPermission")
     private fun startLocationUpdates() {
         if (!isLocationEnabled()) return
-
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
             .setMinUpdateIntervalMillis(3000)
             .build()
-
         fusedLocationClient.requestLocationUpdates(
             locationRequest,
             locationCallback,
@@ -181,7 +176,6 @@ class DriverViewModel @Inject constructor(
             try {
                 val driverIdStr = userPreferencesRepository.getUserId()
                 val driverId = driverIdStr?.toIntOrNull()
-
                 if (driverId != null) {
                     appRepository.updateDriverLocation(driverId, location.latitude, location.longitude, _isActive.value)
                 }
@@ -191,7 +185,6 @@ class DriverViewModel @Inject constructor(
         }
     }
 
-    // --- Status Toggle ---
     fun onActiveToggleChanged(active: Boolean) {
         _isActive.value = active
         if (active) {
@@ -202,7 +195,6 @@ class DriverViewModel @Inject constructor(
             stopLookingForRides()
             _rideRequests.value = emptyList()
             _declinedRideIds.clear()
-
             _currentLocation.value?.let {
                 val loc = Location("").apply { latitude = it.latitude; longitude = it.longitude }
                 updateBackendLocation(loc)
@@ -226,13 +218,11 @@ class DriverViewModel @Inject constructor(
         }
     }
 
-    // --- Fetch History ---
     fun fetchTotalRides() {
         viewModelScope.launch {
             try {
                 val driverIdStr = userPreferencesRepository.getUserId()
                 val driverId = driverIdStr?.toIntOrNull()
-
                 if (driverId != null) {
                     val response = appRepository.getDriverTotalRides(driverId)
                     if (response.isSuccessful && response.body()?.success == true) {
@@ -242,7 +232,6 @@ class DriverViewModel @Inject constructor(
                             val drop = item.dropAddress ?: item.dropLocation ?: "Unknown Drop"
                             val priceVal = parsePrice(item.totalAmount ?: item.price)
                             val dateVal = item.date ?: item.createdAt ?: ""
-
                             RideHistoryUiModel(
                                 rideId = item.rideId ?: 0,
                                 pickup = pickup,
@@ -260,45 +249,35 @@ class DriverViewModel @Inject constructor(
         }
     }
 
-    // --- Fetch Ongoing Rides ---
     fun fetchOngoingRides() {
         viewModelScope.launch {
             try {
                 val driverIdStr = userPreferencesRepository.getUserId()
                 val driverId = driverIdStr?.toIntOrNull()
-
                 if (driverId != null) {
                     val response = appRepository.getDriverOngoingRides(driverId)
                     if (response.isSuccessful && response.body()?.success == true) {
                         val rides = response.body()?.data ?: emptyList()
                         val mappedRides = mutableListOf<RideRequestItem>()
                         val currentLoc = _currentLocation.value
-
                         for (item in rides) {
                             if (item.rideId != null) {
                                 val pLat = item.pickupLatitude?.toDoubleOrNull() ?: 0.0
                                 val pLng = item.pickupLongitude?.toDoubleOrNull() ?: 0.0
                                 val dLat = item.dropLatitude?.toDoubleOrNull() ?: 0.0
                                 val dLng = item.dropLongitude?.toDoubleOrNull() ?: 0.0
-
                                 val pickup = if (!item.pickupAddress.isNullOrBlank()) item.pickupAddress
                                 else if (!item.pickupLocation.isNullOrBlank()) item.pickupLocation
                                 else getAddressFromCoordinates(pLat, pLng)
-
                                 val drop = if (!item.dropAddress.isNullOrBlank()) item.dropAddress
                                 else if (!item.dropLocation.isNullOrBlank()) item.dropLocation
                                 else getAddressFromCoordinates(dLat, dLng)
-
                                 val finalPrice = parsePrice(item.totalAmount ?: item.price ?: item.estimatedPrice)
-                                val riderId = item.riderId ?: 0 // ✅ Handle riderId
-
-                                // Calculate Distances
+                                val riderId = item.riderId ?: 0
                                 val distDriverToPickup = if (currentLoc != null) {
                                     calculateDistance(currentLoc.latitude, currentLoc.longitude, pLat, pLng)
                                 } else "N/A"
-
                                 val distTrip = calculateDistance(pLat, pLng, dLat, dLng)
-
                                 mappedRides.add(
                                     RideRequestItem(
                                         rideId = item.rideId,
@@ -327,12 +306,10 @@ class DriverViewModel @Inject constructor(
         }
     }
 
-    // --- ✅ UPDATED: Start Ride Click Handler ---
     fun onStartRideClicked(ride: RideRequestItem) {
         viewModelScope.launch {
             val driverIdStr = userPreferencesRepository.getUserId()
             val driverId = driverIdStr?.toIntOrNull()
-
             if (driverId != null) {
                 sendEvent(
                     UiEvent.Navigate(
@@ -345,7 +322,7 @@ class DriverViewModel @Inject constructor(
                             pickupLng = ride.pickupLng,
                             dropLat = ride.dropLat,
                             dropLng = ride.dropLng,
-                            otp = "1234" // Using default mock PIN as per prompt logic requirement
+                            otp = "1234"
                         )
                     )
                 )
@@ -359,7 +336,6 @@ class DriverViewModel @Inject constructor(
         sendEvent(UiEvent.ShowSnackbar("Cancel feature for ongoing rides pending."))
     }
 
-    // --- Polling Logic ---
     private fun startLookingForRides() {
         pollingJob?.cancel()
         pollingJob = viewModelScope.launch {
@@ -368,17 +344,14 @@ class DriverViewModel @Inject constructor(
                     val loc = _currentLocation.value
                     val driverIdStr = userPreferencesRepository.getUserId()
                     val driverId = driverIdStr?.toIntOrNull()
-
                     if (loc != null && driverId != null) {
                         val response = appRepository.getDriverUpcomingRides(
                             driverId = driverId,
                             lat = loc.latitude,
                             lng = loc.longitude
                         )
-
                         if (response.isSuccessful && response.body()?.success == true) {
                             val ridesData = response.body()?.data ?: emptyList()
-
                             val mappedRides = ridesData.mapNotNull { ride ->
                                 if (ride.rideId != null && !_declinedRideIds.contains(ride.rideId)) {
                                     val finalPrice = parsePrice(ride.estimatedPrice).takeIf { it > 0 }
@@ -390,26 +363,21 @@ class DriverViewModel @Inject constructor(
                                         ?: parsePrice(ride.estimatedFare).takeIf { it > 0 }
                                         ?: parsePrice(ride.cost).takeIf { it > 0 }
                                         ?: 0.0
-
                                     val pLat = ride.pickupLatitude?.toDoubleOrNull() ?: 0.0
                                     val pLng = ride.pickupLongitude?.toDoubleOrNull() ?: 0.0
                                     val dLat = ride.dropLatitude?.toDoubleOrNull() ?: 0.0
                                     val dLng = ride.dropLongitude?.toDoubleOrNull() ?: 0.0
-
                                     val finalPickupAddress = if (!ride.pickupAddress.isNullOrEmpty()) ride.pickupAddress
                                     else if (!ride.pickupLocation.isNullOrEmpty()) ride.pickupLocation
                                     else getAddressFromCoordinates(pLat, pLng)
-
                                     val finalDropAddress = if (!ride.dropAddress.isNullOrEmpty()) ride.dropAddress
                                     else if (!ride.dropLocation.isNullOrEmpty()) ride.dropLocation
                                     else getAddressFromCoordinates(dLat, dLng)
-
                                     val distDriverToPickup = calculateDistance(loc.latitude, loc.longitude, pLat, pLng)
                                     val distTrip = calculateDistance(pLat, pLng, dLat, dLng)
-
                                     RideRequestItem(
                                         rideId = ride.rideId,
-                                        riderId = 0, // Upcoming rides api might not send rider_id yet or different model
+                                        riderId = 0,
                                         pickupLat = pLat,
                                         pickupLng = pLng,
                                         dropLat = dLat,
@@ -456,26 +424,64 @@ class DriverViewModel @Inject constructor(
         }
     }
 
+    // --- ✅ FIXED: Handle Empty Strings in Navigation ---
     fun onAcceptRide(ride: RideRequestItem) {
         viewModelScope.launch {
-            _apiError.value = "Accepting ride..."
+            _apiError.value = "Accepting & Starting ride..."
             try {
                 val driverIdStr = userPreferencesRepository.getUserId()
                 val driverId = driverIdStr?.toIntOrNull()
 
                 if (driverId != null) {
-                    val response = appRepository.acceptRide(ride.rideId, driverId)
+                    val acceptResponse = appRepository.acceptRide(ride.rideId, driverId)
+                    if (acceptResponse.isSuccessful && acceptResponse.body()?.success == true) {
 
-                    if (response.isSuccessful && response.body()?.success == true) {
-                        sendEvent(UiEvent.ShowSnackbar(response.body()?.message ?: "Ride Accepted!"))
+                        // Start Ride from Driver Side
+                        val startRequest = StartRideRequest(
+                            rideId = ride.rideId,
+                            riderId = ride.riderId,
+                            driverId = driverId,
+                            userPin = 1234, // Mock PIN
+                            startedAt = Date().toString()
+                        )
+                        val startResponse = appRepository.startRideFromDriverSide(startRequest)
 
-                        stopLookingForRides()
-                        _rideRequests.value = emptyList()
-                        fetchOngoingRides()
-                        _navigateToTab.emit("Ongoing")
+                        if (startResponse.isSuccessful && startResponse.body()?.success == true) {
+                            stopLookingForRides()
+                            _rideRequests.value = emptyList()
 
+                            val data = startResponse.body()?.data
+
+                            // ✅ CRITICAL: Prevent navigation failure by handling empty/null strings
+                            val driverName = data?.driverName?.ifBlank { "Unknown_Driver" } ?: "Unknown_Driver"
+                            val vehicleModel = data?.vehicleModel?.ifBlank { "Unknown_Vehicle" } ?: "Unknown_Vehicle"
+                            val otp = data?.otp?.ifBlank { "1234" } ?: "1234"
+
+                            Log.d("DriverViewModel", "Navigating to BookingDetail: $driverName, $vehicleModel, $otp")
+
+                            sendEvent(
+                                UiEvent.Navigate(
+                                    Screen.BookingDetailScreen.createRoute(
+                                        driverName = driverName,
+                                        vehicleModel = vehicleModel,
+                                        otp = otp,
+                                        rideId = ride.rideId,
+                                        riderId = ride.riderId,
+                                        driverId = driverId,
+                                        role = "driver",
+                                        pickupLat = ride.pickupLat,
+                                        pickupLng = ride.pickupLng,
+                                        dropLat = ride.dropLat,
+                                        dropLng = ride.dropLng
+                                    )
+                                )
+                            )
+                        } else {
+                            val errorMsg = startResponse.body()?.message ?: "Failed to start ride."
+                            sendEvent(UiEvent.ShowSnackbar(errorMsg))
+                        }
                     } else {
-                        val errorMsg = response.body()?.message ?: "Failed to accept ride."
+                        val errorMsg = acceptResponse.body()?.message ?: "Failed to accept ride."
                         sendEvent(UiEvent.ShowSnackbar(errorMsg))
                     }
                 } else {
@@ -483,6 +489,7 @@ class DriverViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 sendEvent(UiEvent.ShowSnackbar("Error: ${e.message}"))
+                e.printStackTrace()
             }
         }
     }

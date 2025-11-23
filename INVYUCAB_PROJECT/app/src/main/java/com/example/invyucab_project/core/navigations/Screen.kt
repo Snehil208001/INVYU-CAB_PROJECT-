@@ -120,7 +120,6 @@ sealed class Screen(val route: String) {
         }
     }
 
-    // --- ✅ ADDED: Ride Tracking Screen Object ---
     object RideTrackingScreen : Screen("ride_tracking_screen/{rideId}/{riderId}/{driverId}/{role}?pickupLat={pickupLat}&pickupLng={pickupLng}&dropLat={dropLat}&dropLng={dropLng}&otp={otp}") {
         fun createRoute(
             rideId: Int,
@@ -134,6 +133,29 @@ sealed class Screen(val route: String) {
             otp: String = "1234"
         ): String {
             return "ride_tracking_screen/$rideId/$riderId/$driverId/$role?pickupLat=$pickupLat&pickupLng=$pickupLng&dropLat=$dropLat&dropLng=$dropLng&otp=$otp"
+        }
+    }
+
+    // ✅ ADDED: Booking Detail Screen
+    object BookingDetailScreen : Screen("booking_detail_screen/{driverName}/{vehicleModel}/{otp}/{rideId}/{riderId}/{driverId}/{role}?pickupLat={pickupLat}&pickupLng={pickupLng}&dropLat={dropLat}&dropLng={dropLng}") {
+        fun createRoute(
+            driverName: String,
+            vehicleModel: String,
+            otp: String,
+            rideId: Int,
+            riderId: Int,
+            driverId: Int,
+            role: String,
+            pickupLat: Double,
+            pickupLng: Double,
+            dropLat: Double,
+            dropLng: Double
+        ): String {
+            val encodedName = URLEncoder.encode(driverName, StandardCharsets.UTF_8.toString())
+            val encodedModel = URLEncoder.encode(vehicleModel, StandardCharsets.UTF_8.toString())
+            val encodedOtp = URLEncoder.encode(otp, StandardCharsets.UTF_8.toString())
+
+            return "booking_detail_screen/$encodedName/$encodedModel/$encodedOtp/$rideId/$riderId/$driverId/$role?pickupLat=$pickupLat&pickupLng=$pickupLng&dropLat=$dropLat&dropLng=$dropLng"
         }
     }
 }

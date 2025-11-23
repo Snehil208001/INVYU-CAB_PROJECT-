@@ -179,6 +179,8 @@ fun DriverScreen(
         viewModel.eventFlow.collect { event ->
             when (event) {
                 is BaseViewModel.UiEvent.Navigate -> {
+                    // Log to verify navigation
+                    android.util.Log.d("DriverScreen", "Navigating to: ${event.route}")
                     navController.navigate(event.route) {
                         // Keep DriverScreen in back stack to allow return
                     }
@@ -317,7 +319,7 @@ fun DriverScreen(
                                     modifier = Modifier.fillMaxSize()
                                 ) {
                                     items(ongoingRides) { ride ->
-                                        // ✅ Updated Ongoing Ride Card
+                                        // Ongoing Ride Card
                                         OngoingRideCard(
                                             ride = ride,
                                             onAccept = { viewModel.onStartRideClicked(ride) },
@@ -423,8 +425,7 @@ fun DriverScreen(
         }
     }
 }
-
-// --- ✅ UPDATED: Ongoing Ride Card UI ---
+// ... (The rest of your existing UI cards: OngoingRideCard, RideRequestCard, etc. should remain as they were in the previous file) ...
 @Composable
 fun OngoingRideCard(
     ride: RideRequestItem,
@@ -576,7 +577,6 @@ fun OngoingRideCard(
     }
 }
 
-// --- ✅ UPDATED & RESTORED: Ride Request Card UI (Upcoming) ---
 @Composable
 fun RideRequestCard(
     ride: RideRequestItem,
@@ -712,7 +712,6 @@ fun RideRequestCard(
     }
 }
 
-// --- Ride History Card UI ---
 @Composable
 fun RideHistoryCard(ride: RideHistoryUiModel) {
     Card(

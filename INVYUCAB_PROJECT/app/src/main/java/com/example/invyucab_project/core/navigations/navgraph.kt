@@ -9,6 +9,7 @@ import androidx.navigation.navArgument
 import com.example.invyucab_project.mainui.adminscreen.ui.AdminScreen
 import com.example.invyucab_project.mainui.allservicesscreen.ui.AllServicesScreen
 import com.example.invyucab_project.mainui.authscreen.ui.AuthScreen
+import com.example.invyucab_project.mainui.bookingdetailscreen.ui.BookingDetailScreen
 import com.example.invyucab_project.mainui.driverdetailsscreen.ui.DriverDetailsScreen
 import com.example.invyucab_project.mainui.driverdocument.ui.DriverDocumentsScreen
 import com.example.invyucab_project.mainui.driverprofilescreen.ui.DriverProfileScreen
@@ -22,13 +23,12 @@ import com.example.invyucab_project.mainui.profilescreen.paymentmethodscreen.ui.
 import com.example.invyucab_project.mainui.profilescreen.ui.ProfileScreen
 import com.example.invyucab_project.mainui.ridebookingscreen.ui.RideBookingScreen
 import com.example.invyucab_project.mainui.rideselectionscreen.ui.RideSelectionScreen
+import com.example.invyucab_project.mainui.ridetrackingscreen.ui.RideTrackingScreen
 import com.example.invyucab_project.mainui.roleselectionscreen.ui.RoleSelectionScreen
 import com.example.invyucab_project.mainui.splashscreen_loggedin.ui.SplashScreenLoggedIn
 import com.example.invyucab_project.mainui.travelscreen.ui.TravelScreen
 import com.example.invyucab_project.mainui.userdetailsscreen.ui.UserDetailsScreen
 import com.example.invyucab_project.mainui.vehiclepreferences.ui.VehiclePreferencesScreen
-// ✅ Import the new screen
-import com.example.invyucab_project.mainui.ridetrackingscreen.ui.RideTrackingScreen
 
 @Composable
 fun NavGraph(
@@ -174,7 +174,7 @@ fun NavGraph(
             )
         }
 
-        // ✅ --- ADDED: RIDE TRACKING NAVIGATION ---
+        // ✅ --- RIDE TRACKING NAVIGATION ---
         composable(
             route = Screen.RideTrackingScreen.route,
             arguments = listOf(
@@ -210,6 +210,39 @@ fun NavGraph(
                 dropLat = dropLat,
                 dropLng = dropLng,
                 otp = otp
+            )
+        }
+
+        // ✅ --- BOOKING DETAIL SCREEN ---
+        composable(
+            route = Screen.BookingDetailScreen.route,
+            arguments = listOf(
+                navArgument("driverName") { type = NavType.StringType },
+                navArgument("vehicleModel") { type = NavType.StringType },
+                navArgument("otp") { type = NavType.StringType },
+                navArgument("rideId") { type = NavType.IntType },
+                navArgument("riderId") { type = NavType.IntType },
+                navArgument("driverId") { type = NavType.IntType },
+                navArgument("role") { type = NavType.StringType },
+                navArgument("pickupLat") { type = NavType.FloatType },
+                navArgument("pickupLng") { type = NavType.FloatType },
+                navArgument("dropLat") { type = NavType.FloatType },
+                navArgument("dropLng") { type = NavType.FloatType }
+            )
+        ) { backStackEntry ->
+            BookingDetailScreen(
+                navController = navController,
+                driverName = backStackEntry.arguments?.getString("driverName") ?: "",
+                vehicleModel = backStackEntry.arguments?.getString("vehicleModel") ?: "",
+                otp = backStackEntry.arguments?.getString("otp") ?: "",
+                rideId = backStackEntry.arguments?.getInt("rideId") ?: 0,
+                riderId = backStackEntry.arguments?.getInt("riderId") ?: 0,
+                driverId = backStackEntry.arguments?.getInt("driverId") ?: 0,
+                role = backStackEntry.arguments?.getString("role") ?: "driver",
+                pickupLat = backStackEntry.arguments?.getFloat("pickupLat")?.toDouble() ?: 0.0,
+                pickupLng = backStackEntry.arguments?.getFloat("pickupLng")?.toDouble() ?: 0.0,
+                dropLat = backStackEntry.arguments?.getFloat("dropLat")?.toDouble() ?: 0.0,
+                dropLng = backStackEntry.arguments?.getFloat("dropLng")?.toDouble() ?: 0.0
             )
         }
     }
