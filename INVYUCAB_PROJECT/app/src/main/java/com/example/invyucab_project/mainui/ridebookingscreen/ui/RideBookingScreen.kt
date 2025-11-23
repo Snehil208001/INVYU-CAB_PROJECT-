@@ -1,9 +1,5 @@
 package com.example.invyucab_project.mainui.ridebookingscreen.ui
 
-// import com.airbnb.lottie.compose.LottieAnimation // ✅ TEMPORARILY COMMENTED OUT
-// import com.airbnb.lottie.compose.LottieCompositionSpec // ✅ TEMPORARILY COMMENTED OUT
-// import com.airbnb.lottie.compose.LottieConstants // ✅ TEMPORARILY COMMENTED OUT
-// import com.airbnb.lottie.compose.rememberLottieComposition // ✅ TEMPORARILY COMMENTED OUT
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -223,9 +219,10 @@ fun RideBookingScreen(
                     drop = uiState.dropDescription
                 )
 
-                // 3. Driver/Searching Card
+                // 3. Driver/Searching Card (✅ Now passing PIN)
                 SearchingCard(
                     isSearching = uiState.isSearchingForDriver,
+                    userPin = uiState.userPin,
                     onCancel = { viewModel.onCancelRide() }
                 )
             }
@@ -294,7 +291,11 @@ fun RideDetailsCard(pickup: String, drop: String) {
 }
 
 @Composable
-fun SearchingCard(isSearching: Boolean, onCancel: () -> Unit) {
+fun SearchingCard(
+    isSearching: Boolean,
+    userPin: String?, // ✅ Accept userPin
+    onCancel: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -313,29 +314,46 @@ fun SearchingCard(isSearching: Boolean, onCancel: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 color = Color.Black
             )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ✅ Display the PIN if available
+            if (userPin != null) {
+                Card(
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = CabMintGreen.copy(alpha = 0.1f)),
+                    modifier = Modifier.padding(vertical = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Start PIN: $userPin",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = CabMintGreen,
+                            letterSpacing = 2.sp
+                        )
+                        Text(
+                            text = "Give this PIN to driver",
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ✅ --- START OF TEMPORARY FIX ---
-            // Lottie Animation
-            //val composition by rememberLottieComposition(
-            //    LottieCompositionSpec.RawRes(R.raw.searching_animation)
-            //)
-            //LottieAnimation(
-            //    composition = composition,
-            //    iterations = LottieConstants.IterateForever,
-            //    modifier = Modifier.size(150.dp)
-            //)
-
-            // Placeholder instead of the animation
+            // Placeholder Animation
             Box(
                 modifier = Modifier
-                    .size(150.dp)
+                    .size(100.dp)
                     .background(Color.Gray.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(color = CabMintGreen)
             }
-            // ✅ --- END OF TEMPORARY FIX ---
 
             Spacer(modifier = Modifier.height(16.dp))
 

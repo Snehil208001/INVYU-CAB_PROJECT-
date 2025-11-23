@@ -27,6 +27,10 @@ class RideBookingViewModel @Inject constructor(
 
     // Retrieve arguments passed from Navigation
     private val rideId: String? = savedStateHandle.get<Int>("rideId")?.toString()
+
+    // ✅ Retrieve userPin
+    private val userPin: String? = savedStateHandle.get<Int>("userPin")?.toString()
+
     private val pickupLat: Double? = savedStateHandle.get<String>("pickupLat")?.toDoubleOrNull()
     private val pickupLng: Double? = savedStateHandle.get<String>("pickupLng")?.toDoubleOrNull()
     private val dropLat: Double? = savedStateHandle.get<String>("dropLat")?.toDoubleOrNull()
@@ -46,13 +50,14 @@ class RideBookingViewModel @Inject constructor(
         val pickupLocation = if (pickupLat != null && pickupLng != null) LatLng(pickupLat, pickupLng) else null
         val dropLocation = if (dropLat != null && dropLng != null) LatLng(dropLat, dropLng) else null
 
-        // ✅ Decode the addresses to remove '+' and restore spaces
+        // ✅ Decode the addresses
         val pickupAddress = decodeString(rawPickupAddress)
         val dropAddress = decodeString(rawDropAddress)
 
         _uiState.update {
             it.copy(
                 rideId = rideId,
+                userPin = userPin, // ✅ Set PIN in state
                 pickupLocation = pickupLocation,
                 dropLocation = dropLocation,
                 pickupDescription = pickupAddress ?: "Pickup Location",
@@ -64,7 +69,6 @@ class RideBookingViewModel @Inject constructor(
         if (pickupLocation != null && dropPlaceId != null) {
             fetchRoute(pickupLocation, dropPlaceId)
         } else {
-            // Fallback if we don't have enough info to fetch route, just stop loading
             _uiState.update { it.copy(isLoading = false) }
         }
     }
@@ -103,13 +107,12 @@ class RideBookingViewModel @Inject constructor(
         _uiState.update { it.copy(isSearchingForDriver = false) }
     }
 
-    // ✅ Helper function to decode URL strings
     private fun decodeString(encoded: String?): String? {
         if (encoded == null) return null
         return try {
             URLDecoder.decode(encoded, StandardCharsets.UTF_8.toString())
         } catch (e: Exception) {
-            encoded // Return original if decoding fails
+            encoded
         }
     }
 }

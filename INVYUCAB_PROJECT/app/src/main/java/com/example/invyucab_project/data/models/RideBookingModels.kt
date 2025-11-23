@@ -21,10 +21,16 @@ data class CreateRideRequest(
 
 /**
  * Response body for the create ride API.
+ * ✅ UPDATED: Now contains RideData object with ride_id and user_pin
  */
 data class CreateRideResponse(
     @Json(name = "success") val success: Boolean,
-    @Json(name = "data") val rideId: Int
+    @Json(name = "data") val data: RideData? = null
+)
+
+data class RideData(
+    @Json(name = "ride_id") val rideId: Int,
+    @Json(name = "user_pin") val userPin: Int
 )
 
 // --- Total Rides Models ---
@@ -65,7 +71,7 @@ data class DriverOngoingRidesResponse(
 
 data class OngoingRideItem(
     @Json(name = "ride_id") val rideId: Int?,
-    @Json(name = "rider_id") val riderId: Int? = null, // ✅ Added rider_id
+    @Json(name = "rider_id") val riderId: Int? = null,
     @Json(name = "pickup_address") val pickupAddress: String? = null,
     @Json(name = "pickup_location") val pickupLocation: String? = null,
     @Json(name = "drop_address") val dropAddress: String? = null,
@@ -79,7 +85,7 @@ data class OngoingRideItem(
     @Json(name = "drop_longitude") val dropLongitude: String? = null
 )
 
-// --- ✅ ADDED: Start Ride Models ---
+// --- Start Ride Models ---
 
 data class StartRideRequest(
     @Json(name = "ride_id") val rideId: Int,

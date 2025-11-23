@@ -335,10 +335,11 @@ class RideSelectionViewModel @Inject constructor(
                 }
                 is Resource.Success -> {
                     _bookingState.update { it.copy(isLoading = false) }
-                    // ✅ FIXED: Pass all location details to the navigation event
-                    result.data?.let { response ->
+                    // ✅ FIXED: Pass all location details + PIN to the navigation event
+                    result.data?.data?.let { rideData ->
                         _navigationEvent.emit(RideNavigationEvent.NavigateToBooking(
-                            rideId = response.rideId,
+                            rideId = rideData.rideId,
+                            userPin = rideData.userPin, // ✅ Pass the PIN
                             pickup = pickup,
                             drop = drop,
                             pickupAddress = currentState.pickupDescription,
@@ -386,10 +387,11 @@ data class BookingState(
     val isLoading: Boolean = false
 )
 
-// ✅ FIXED: Updated Sealed Class to hold detailed data
+// ✅ FIXED: Updated Sealed Class to hold detailed data including userPin
 sealed class RideNavigationEvent {
     data class NavigateToBooking(
         val rideId: Int,
+        val userPin: Int, // ✅ Added
         val pickup: LatLng,
         val drop: LatLng,
         val pickupAddress: String,

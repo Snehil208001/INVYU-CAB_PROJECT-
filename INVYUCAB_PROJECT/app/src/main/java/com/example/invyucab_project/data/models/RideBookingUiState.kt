@@ -6,6 +6,7 @@ data class RideBookingUiState(
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
     val rideId: String? = null,
+    val userPin: String? = null, // ✅ ADDED: To store the PIN
 
     val pickupLocation: LatLng? = null,
     val dropLocation: LatLng? = null,
