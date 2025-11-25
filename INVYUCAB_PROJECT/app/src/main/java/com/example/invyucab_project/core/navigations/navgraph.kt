@@ -154,14 +154,15 @@ fun NavGraph(
             RideSelectionScreen(navController = navController)
         }
 
+        // ✅ FIXED: RideBookingScreen Navigation Types
         composable(
             route = Screen.RideBookingScreen.route,
             arguments = listOf(
                 navArgument("rideId") { type = NavType.IntType },
-                navArgument("pickupLat") { type = NavType.StringType },
-                navArgument("pickupLng") { type = NavType.StringType },
-                navArgument("dropLat") { type = NavType.StringType },
-                navArgument("dropLng") { type = NavType.StringType },
+                navArgument("pickupLat") { type = NavType.FloatType }, // Changed to FloatType
+                navArgument("pickupLng") { type = NavType.FloatType }, // Changed to FloatType
+                navArgument("dropLat") { type = NavType.FloatType },   // Changed to FloatType
+                navArgument("dropLng") { type = NavType.FloatType },   // Changed to FloatType
                 navArgument("pickupAddress") { type = NavType.StringType; nullable = true },
                 navArgument("dropAddress") { type = NavType.StringType; nullable = true },
                 navArgument("dropPlaceId") { type = NavType.StringType; nullable = true }
@@ -174,7 +175,6 @@ fun NavGraph(
             )
         }
 
-        // ✅ --- RIDE TRACKING NAVIGATION ---
         composable(
             route = Screen.RideTrackingScreen.route,
             arguments = listOf(
@@ -213,7 +213,6 @@ fun NavGraph(
             )
         }
 
-        // ✅ --- BOOKING DETAIL SCREEN ---
         composable(
             route = Screen.BookingDetailScreen.route,
             arguments = listOf(

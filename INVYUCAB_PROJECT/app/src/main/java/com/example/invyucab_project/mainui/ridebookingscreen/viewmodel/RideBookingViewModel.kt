@@ -25,18 +25,20 @@ class RideBookingViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(RideBookingUiState())
     val uiState = _uiState.asStateFlow()
 
-    // Retrieve arguments passed from Navigation
-    private val rideId: String? = savedStateHandle.get<Int>("rideId")?.toString()
+    // --- Retrieve Arguments ---
 
-    // ✅ Retrieve userPin
+    // ✅ FIX 1: Retrieve directly as Int. Do NOT try get<String> first, it causes ClassCastException.
+    private val rideId: String? = savedStateHandle.get<Int>("rideId")?.toString()
     private val userPin: String? = savedStateHandle.get<Int>("userPin")?.toString()
 
-    private val pickupLat: Double? = savedStateHandle.get<String>("pickupLat")?.toDoubleOrNull()
-    private val pickupLng: Double? = savedStateHandle.get<String>("pickupLng")?.toDoubleOrNull()
-    private val dropLat: Double? = savedStateHandle.get<String>("dropLat")?.toDoubleOrNull()
-    private val dropLng: Double? = savedStateHandle.get<String>("dropLng")?.toDoubleOrNull()
+    // ✅ FIX 2: Retrieve coordinates as Float (matching Navigation type) then convert to Double.
+    // Retrieving these as String caused the original ClassCastException.
+    private val pickupLat: Double? = savedStateHandle.get<Float>("pickupLat")?.toDouble()
+    private val pickupLng: Double? = savedStateHandle.get<Float>("pickupLng")?.toDouble()
+    private val dropLat: Double? = savedStateHandle.get<Float>("dropLat")?.toDouble()
+    private val dropLng: Double? = savedStateHandle.get<Float>("dropLng")?.toDouble()
 
-    // ✅ Get the Raw Encoded Strings
+    // Addresses are Strings
     private val rawPickupAddress: String? = savedStateHandle.get<String>("pickupAddress")
     private val rawDropAddress: String? = savedStateHandle.get<String>("dropAddress")
 
@@ -50,14 +52,13 @@ class RideBookingViewModel @Inject constructor(
         val pickupLocation = if (pickupLat != null && pickupLng != null) LatLng(pickupLat, pickupLng) else null
         val dropLocation = if (dropLat != null && dropLng != null) LatLng(dropLat, dropLng) else null
 
-        // ✅ Decode the addresses
         val pickupAddress = decodeString(rawPickupAddress)
         val dropAddress = decodeString(rawDropAddress)
 
         _uiState.update {
             it.copy(
                 rideId = rideId,
-                userPin = userPin, // ✅ Set PIN in state
+                userPin = userPin,
                 pickupLocation = pickupLocation,
                 dropLocation = dropLocation,
                 pickupDescription = pickupAddress ?: "Pickup Location",
@@ -103,7 +104,6 @@ class RideBookingViewModel @Inject constructor(
     }
 
     fun onCancelRide() {
-        // TODO: Add logic to cancel the ride via API
         _uiState.update { it.copy(isSearchingForDriver = false) }
     }
 

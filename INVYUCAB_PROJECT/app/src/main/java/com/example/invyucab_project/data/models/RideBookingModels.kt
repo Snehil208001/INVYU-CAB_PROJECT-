@@ -21,10 +21,11 @@ data class CreateRideRequest(
 
 /**
  * Response body for the create ride API.
+ * ✅ CHANGED: 'data' is now Any? to handle both Integer (broken backend) and Object (fixed backend)
  */
 data class CreateRideResponse(
     @Json(name = "success") val success: Boolean,
-    @Json(name = "data") val data: RideData? = null
+    @Json(name = "data") val data: Any? = null
 )
 
 data class RideData(

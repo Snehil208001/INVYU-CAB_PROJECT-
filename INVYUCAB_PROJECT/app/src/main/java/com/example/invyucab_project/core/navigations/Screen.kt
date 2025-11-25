@@ -114,9 +114,12 @@ sealed class Screen(val route: String) {
             dropAddress: String,
             dropPlaceId: String
         ): String {
+            // ✅ Fix: Encode all string parameters to handle spaces and special characters
             val encodedPickup = URLEncoder.encode(pickupAddress, StandardCharsets.UTF_8.toString())
             val encodedDrop = URLEncoder.encode(dropAddress, StandardCharsets.UTF_8.toString())
-            return "ride_booking_screen/$rideId/$pickupLat/$pickupLng/$dropLat/$dropLng?pickupAddress=$encodedPickup&dropAddress=$encodedDrop&dropPlaceId=$dropPlaceId"
+            val encodedDropPlaceId = URLEncoder.encode(dropPlaceId, StandardCharsets.UTF_8.toString())
+
+            return "ride_booking_screen/$rideId/$pickupLat/$pickupLng/$dropLat/$dropLng?pickupAddress=$encodedPickup&dropAddress=$encodedDrop&dropPlaceId=$encodedDropPlaceId"
         }
     }
 
@@ -136,7 +139,6 @@ sealed class Screen(val route: String) {
         }
     }
 
-    // ✅ ADDED: Booking Detail Screen
     object BookingDetailScreen : Screen("booking_detail_screen/{driverName}/{vehicleModel}/{otp}/{rideId}/{riderId}/{driverId}/{role}?pickupLat={pickupLat}&pickupLng={pickupLng}&dropLat={dropLat}&dropLng={dropLng}") {
         fun createRoute(
             driverName: String,

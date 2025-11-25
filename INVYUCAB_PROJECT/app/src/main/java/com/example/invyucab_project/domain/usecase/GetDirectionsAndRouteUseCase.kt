@@ -1,5 +1,6 @@
 package com.example.invyucab_project.domain.usecase
 
+import android.util.Log
 import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.data.models.DirectionsResponse
 import com.google.android.gms.maps.model.LatLng
@@ -25,7 +26,13 @@ class GetDirectionsAndRouteUseCase @Inject constructor(
             val originString = "${origin.latitude},${origin.longitude}"
             val destinationString = "place_id:$destinationPlaceId"
 
+            // 🔍 LOGGING RAW REQUEST
+            Log.d("RideSelectionDebug", "🌍 Sending Directions Req: Origin=$originString, Dest=$destinationString")
+
             val response = repository.getDirections(originString, destinationString)
+
+            // 🔍 LOGGING RAW RESPONSE
+            Log.d("RideSelectionDebug", "📩 Google Response: Status=${response.status}, RoutesFound=${response.routes.size}")
 
             if (response.status == "OK" && response.routes.isNotEmpty()) {
                 val route = response.routes[0]
@@ -38,11 +45,15 @@ class GetDirectionsAndRouteUseCase @Inject constructor(
                 )
                 emit(Resource.Success(routeInfo))
             } else {
+                // This logs specifically why it failed (e.g., ZERO_RESULTS, REQUEST_DENIED)
+                Log.e("RideSelectionDebug", "❌ API Failed with Status: ${response.status}")
                 emit(Resource.Error("Could not get directions: ${response.status}"))
             }
         } catch (e: HttpException) {
+            Log.e("RideSelectionDebug", "❌ HTTP Error: ${e.message()}")
             emit(Resource.Error("Server error: ${e.message()}"))
         } catch (e: IOException) {
+            Log.e("RideSelectionDebug", "❌ Network Error")
             emit(Resource.Error("Network error. Please check your connection."))
         }
     }

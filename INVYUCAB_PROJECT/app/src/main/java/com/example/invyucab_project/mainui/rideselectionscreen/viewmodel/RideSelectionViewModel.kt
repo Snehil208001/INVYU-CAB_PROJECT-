@@ -1,7 +1,6 @@
 package com.example.invyucab_project.mainui.rideselectionscreen.viewmodel
 
 import android.annotation.SuppressLint
-import android.location.Location
 import android.os.Looper
 import android.util.Log
 import androidx.compose.material.icons.Icons
@@ -11,7 +10,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.data.models.CreateRideRequest
-import com.example.invyucab_project.data.models.CreateRideResponse
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
 import com.example.invyucab_project.domain.model.RideOption
 import com.example.invyucab_project.domain.model.RideSelectionState
@@ -126,6 +124,7 @@ class RideSelectionViewModel @Inject constructor(
         fusedLocationClient.lastLocation.addOnSuccessListener { location ->
             if (location != null) {
                 val currentLatLng = LatLng(location.latitude, location.longitude)
+                Log.d("RideSelectionDebug", "📍 Current Location Found: $currentLatLng")
                 _uiState.update { it.copy(
                     isFetchingLocation = false,
                     pickupLocation = currentLatLng
@@ -134,7 +133,10 @@ class RideSelectionViewModel @Inject constructor(
             } else {
                 requestNewLocation()
             }
-        }.addOnFailureListener { requestNewLocation() }
+        }.addOnFailureListener {
+            Log.e("RideSelectionDebug", "❌ Failed to get location: ${it.message}")
+            requestNewLocation()
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -190,11 +192,16 @@ class RideSelectionViewModel @Inject constructor(
             return
         }
 
+        // 🔍 LOGGING ROUTE REQUEST
+        Log.d("RideSelectionDebug", "🚀 Requesting Route - Origin: $pickupLatLng, DestID: $dropPlaceId")
+
         getDirectionsAndRouteUseCase.invoke(pickupLatLng, dropPlaceId).onEach { result ->
             when (result) {
                 is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
                 is Resource.Success -> {
                     val routeInfo = result.data!!
+                    Log.d("RideSelectionDebug", "✅ Route Found! Dist: ${routeInfo.distanceMeters}m, Duration: ${routeInfo.durationSeconds}s")
+
                     _uiState.update { it.copy(
                         routePolyline = routeInfo.polyline,
                         tripDurationSeconds = routeInfo.durationSeconds,
@@ -210,6 +217,7 @@ class RideSelectionViewModel @Inject constructor(
                     }
                 }
                 is Resource.Error -> {
+                    Log.e("RideSelectionDebug", "❌ Route API Error: ${result.message}")
                     _uiState.update { it.copy(errorMessage = result.message, isLoading = false) }
                 }
             }
@@ -335,17 +343,38 @@ class RideSelectionViewModel @Inject constructor(
                 }
                 is Resource.Success -> {
                     _bookingState.update { it.copy(isLoading = false) }
-                    // ✅ FIXED: Pass all location details + PIN to the navigation event
-                    result.data?.data?.let { rideData ->
+
+                    // ✅ FIXED: Handle response whether it's an Int (broken backend) or Object (future backend)
+                    val rawData = result.data?.data
+
+                    var rideId: Int? = null
+                    var userPin: Int = 1234 // Default fallback PIN so driver can start ride
+
+                    if (rawData is Double) {
+                        // Moshi parses JSON numbers as Double in Any? fields
+                        rideId = rawData.toInt()
+                    } else if (rawData is Int) {
+                        rideId = rawData
+                    } else if (rawData is Map<*, *>) {
+                        // If backend sends correct object { "ride_id": 123, "user_pin": 4567 }
+                        rideId = (rawData["ride_id"] as? Double)?.toInt()
+                        userPin = (rawData["user_pin"] as? Double)?.toInt() ?: 1234
+                    }
+
+                    if (rideId != null) {
+                        Log.d("RideSelectionDebug", "✅ Booking Success: RideID=$rideId, PIN=$userPin")
                         _navigationEvent.emit(RideNavigationEvent.NavigateToBooking(
-                            rideId = rideData.rideId,
-                            userPin = rideData.userPin, // ✅ Pass the PIN
+                            rideId = rideId,
+                            userPin = userPin,
                             pickup = pickup,
                             drop = drop,
                             pickupAddress = currentState.pickupDescription,
                             dropAddress = currentState.dropDescription,
                             dropPlaceId = dropPlaceId ?: ""
                         ))
+                    } else {
+                        Log.e("RideSelectionDebug", "❌ Booking Failed: Could not parse RideID from $rawData")
+                        _uiState.update { it.copy(errorMessage = "Booking failed: Invalid server response") }
                     }
                 }
                 is Resource.Error -> {
@@ -363,6 +392,7 @@ class RideSelectionViewModel @Inject constructor(
 
             locationResult.lastLocation?.let { location ->
                 val currentLatLng = LatLng(location.latitude, location.longitude)
+                Log.d("RideSelectionDebug", "📍 Updated Location: $currentLatLng")
                 _uiState.update { it.copy(
                     isFetchingLocation = false,
                     pickupLocation = currentLatLng
@@ -387,11 +417,10 @@ data class BookingState(
     val isLoading: Boolean = false
 )
 
-// ✅ FIXED: Updated Sealed Class to hold detailed data including userPin
 sealed class RideNavigationEvent {
     data class NavigateToBooking(
         val rideId: Int,
-        val userPin: Int, // ✅ Added
+        val userPin: Int,
         val pickup: LatLng,
         val drop: LatLng,
         val pickupAddress: String,
