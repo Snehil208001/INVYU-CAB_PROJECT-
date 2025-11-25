@@ -218,7 +218,6 @@ class DriverViewModel @Inject constructor(
         }
     }
 
-    // ✅ FIXED: Using new model fields + Geocoding fallback
     fun fetchTotalRides() {
         viewModelScope.launch {
             try {
@@ -229,32 +228,23 @@ class DriverViewModel @Inject constructor(
                     if (response.isSuccessful && response.body()?.success == true) {
                         val rides = response.body()?.data ?: emptyList()
                         _totalRides.value = rides.map { item ->
-
-                            // Parse Lat/Longs (convert Any? to Double)
                             val pLat = item.pickupLatitude?.toString()?.toDoubleOrNull() ?: 0.0
                             val pLng = item.pickupLongitude?.toString()?.toDoubleOrNull() ?: 0.0
                             val dLat = item.dropLatitude?.toString()?.toDoubleOrNull() ?: 0.0
                             val dLng = item.dropLongitude?.toString()?.toDoubleOrNull() ?: 0.0
-
-                            // Address Fallback: If text blank, try Geocoding
                             val pickup = item.pickupAddress?.takeIf { it.isNotBlank() }
                                 ?: item.pickupLocation?.takeIf { it.isNotBlank() }
                                 ?: getAddressFromCoordinates(pLat, pLng)
-
                             val drop = item.dropAddress?.takeIf { it.isNotBlank() }
                                 ?: item.dropLocation?.takeIf { it.isNotBlank() }
                                 ?: getAddressFromCoordinates(dLat, dLng)
-
-                            // Price Fallback: Check all possible price keys
                             val priceVal = parsePrice(item.totalAmount).takeIf { it > 0 }
                                 ?: parsePrice(item.price).takeIf { it > 0 }
                                 ?: parsePrice(item.amount).takeIf { it > 0 }
                                 ?: parsePrice(item.estimatedPrice).takeIf { it > 0 }
                                 ?: parsePrice(item.fare).takeIf { it > 0 }
                                 ?: 0.0
-
                             val dateVal = item.date ?: item.createdAt ?: ""
-
                             RideHistoryUiModel(
                                 rideId = item.rideId ?: 0,
                                 pickup = pickup,
@@ -263,7 +253,7 @@ class DriverViewModel @Inject constructor(
                                 status = item.status ?: "completed",
                                 date = dateVal
                             )
-                        }
+                        }.reversed()
                     }
                 }
             } catch (e: Exception) {
@@ -318,7 +308,7 @@ class DriverViewModel @Inject constructor(
                                 )
                             }
                         }
-                        _ongoingRides.value = mappedRides
+                        _ongoingRides.value = mappedRides.reversed()
                     } else {
                         _ongoingRides.value = emptyList()
                     }
@@ -355,9 +345,29 @@ class DriverViewModel @Inject constructor(
         }
     }
 
+    // ✅ FIXED: Now calls API to update status, not just local remove
     fun onCancelOngoingRide(ride: RideRequestItem) {
-        _ongoingRides.value = _ongoingRides.value.filter { it.rideId != ride.rideId }
-        sendEvent(UiEvent.ShowSnackbar("Ride cancelled."))
+        viewModelScope.launch {
+            try {
+                // Call backend API to cancel
+                val response = appRepository.updateRideStatus(ride.rideId, "cancelled")
+
+                if (response.isSuccessful && response.body()?.success == true) {
+                    // Success: Remove from local list
+                    _ongoingRides.value = _ongoingRides.value.filter { it.rideId != ride.rideId }
+                    sendEvent(UiEvent.ShowSnackbar("Ride cancelled successfully."))
+
+                    // Refresh list from server to be sure
+                    fetchOngoingRides()
+                } else {
+                    val msg = response.body()?.message ?: response.message()
+                    sendEvent(UiEvent.ShowSnackbar("Failed to cancel: $msg"))
+                }
+            } catch (e: Exception) {
+                sendEvent(UiEvent.ShowSnackbar("Error: ${e.message}"))
+                e.printStackTrace()
+            }
+        }
     }
 
     private fun startLookingForRides() {
@@ -413,7 +423,7 @@ class DriverViewModel @Inject constructor(
                                         tripDistance = distTrip
                                     )
                                 } else null
-                            }
+                            }.reversed()
                             _rideRequests.value = mappedRides
                         }
                     }

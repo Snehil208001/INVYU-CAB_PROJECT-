@@ -122,7 +122,6 @@ fun RideSelectionScreen(
         viewModel.navigationEvent.collect { event ->
             when (event) {
                 is RideNavigationEvent.NavigateToBooking -> {
-                    // ✅ FIXED: Now passing userPin correctly
                     navController.navigate(Screen.RideBookingScreen.createRoute(
                         rideId = event.rideId,
                         pickupLat = event.pickup.latitude,
@@ -132,7 +131,7 @@ fun RideSelectionScreen(
                         pickupAddress = event.pickupAddress,
                         dropAddress = event.dropAddress,
                         dropPlaceId = event.dropPlaceId,
-                        userPin = event.userPin // ✅ Passing the PIN
+                        userPin = event.userPin
                     ))
                 }
             }
@@ -410,14 +409,20 @@ fun BoxScope.RideOptionsBottomSheet(
     BottomSheetScaffold(
         scaffoldState = rememberBottomSheetScaffoldState(),
         sheetContent = {
-            Column(modifier = Modifier.padding(bottom = 16.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .navigationBarsPadding()
+            ) {
                 if (rideOptions.isEmpty()) {
                     Text("Loading ride options...", modifier = Modifier.padding(16.dp).align(Alignment.CenterHorizontally))
                 } else {
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 300.dp)
+                            // ✅ FIXED: Reduced height so button fits in the peek area
+                            .heightIn(max = 220.dp)
                     ) {
                         items(rideOptions) { ride ->
                             RideOptionItem(
@@ -442,11 +447,14 @@ fun BoxScope.RideOptionsBottomSheet(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Button(
                     onClick = { onBookClick(selectedRideId) },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal=16.dp).height(50.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
                     enabled = areDetailsCalculated && !isBookingLoading
                 ) {
@@ -461,6 +469,11 @@ fun BoxScope.RideOptionsBottomSheet(
                         Text("Book $selectedRideName", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                 }
+
+                // ✅ FIXED: Hard padding + System Navigation Bar Spacer
+                // This forces the content up, ensuring the button isn't covered.
+                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
             }
         },
         sheetContainerColor = Color.White,

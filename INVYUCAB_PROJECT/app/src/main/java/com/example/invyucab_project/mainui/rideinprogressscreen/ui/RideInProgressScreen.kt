@@ -1,5 +1,7 @@
 package com.example.invyucab_project.mainui.rideinprogressscreen.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -26,10 +28,7 @@ import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.rideinprogressscreen.viewmodel.RideInProgressViewModel
 import com.example.invyucab_project.ui.theme.CabLightGreen
 import com.example.invyucab_project.ui.theme.CabPrimaryGreen
-import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.MapsInitializer
-import com.google.android.gms.maps.model.BitmapDescriptor
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
@@ -41,9 +40,32 @@ fun RideInProgressScreen(
     rideId: Int,
     dropLat: Double,
     dropLng: Double,
+    otp: String, // ✅ Added 'otp' parameter to fix the error
     viewModel: RideInProgressViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+
+    // --- Helper Function to Open Google Maps Navigation ---
+    fun openGoogleMaps() {
+        val gmmIntentUri = Uri.parse("google.navigation:q=$dropLat,$dropLng&mode=d")
+        val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+        mapIntent.setPackage("com.google.android.apps.maps")
+        try {
+            context.startActivity(mapIntent)
+        } catch (e: Exception) {
+            try {
+                val fallbackIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+                context.startActivity(fallbackIntent)
+            } catch (e2: Exception) {
+                e2.printStackTrace()
+            }
+        }
+    }
+
+    // Automatically Open Maps on Screen Entry
+    LaunchedEffect(Unit) {
+        openGoogleMaps()
+    }
 
     // Map State
     val dropLocation = LatLng(dropLat, dropLng)
@@ -75,12 +97,11 @@ fun RideInProgressScreen(
     LaunchedEffect(updateState) {
         updateState?.onSuccess {
             navController.navigate(Screen.DriverScreen.route) {
-                // Optional: Clear back stack if needed
                 popUpTo(Screen.HomeScreen.route) { inclusive = false }
             }
         }
         updateState?.onFailure {
-            // Handle error if needed (e.g., show Toast)
+            // Handle error if needed
         }
     }
 
@@ -96,7 +117,7 @@ fun RideInProgressScreen(
                 cameraPositionState = cameraPositionState,
                 properties = MapProperties(
                     mapStyleOptions = mapStyleOptions,
-                    isMyLocationEnabled = true // Show driver location
+                    isMyLocationEnabled = true
                 ),
                 uiSettings = MapUiSettings(zoomControlsEnabled = false, compassEnabled = true)
             ) {
@@ -107,8 +128,9 @@ fun RideInProgressScreen(
                 )
             }
 
-            // 2. Top Status Pill
+            // 2. Top Status Pill (Showing OTP and Clickable)
             Surface(
+                onClick = { openGoogleMaps() },
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(top = 50.dp)
@@ -128,7 +150,8 @@ fun RideInProgressScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "RIDE IN PROGRESS",
+                        // ✅ Displaying the OTP here
+                        text = "PIN: $otp • NAVIGATE",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,

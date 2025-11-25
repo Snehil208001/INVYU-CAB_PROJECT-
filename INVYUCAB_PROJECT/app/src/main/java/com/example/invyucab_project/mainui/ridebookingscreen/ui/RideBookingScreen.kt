@@ -78,6 +78,7 @@ import com.google.maps.android.compose.rememberCameraPositionState
 fun RideBookingScreen(
     navController: NavController,
     rideId: String?,
+    userPin: Int?, // ✅ Added userPin parameter
     viewModel: RideBookingViewModel = hiltViewModel()
 ) {
     val uiState: RideBookingUiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -222,7 +223,7 @@ fun RideBookingScreen(
                 // 3. Driver/Searching Card (✅ Now passing PIN)
                 SearchingCard(
                     isSearching = uiState.isSearchingForDriver,
-                    userPin = uiState.userPin,
+                    userPin = userPin, // ✅ Passed the pin here
                     onCancel = { viewModel.onCancelRide() }
                 )
             }
@@ -293,7 +294,7 @@ fun RideDetailsCard(pickup: String, drop: String) {
 @Composable
 fun SearchingCard(
     isSearching: Boolean,
-    userPin: String?, // ✅ Accept userPin
+    userPin: Int?, // ✅ Changed to accept Int?
     onCancel: () -> Unit
 ) {
     Card(
@@ -317,7 +318,7 @@ fun SearchingCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // ✅ Display the PIN if available
-            if (userPin != null) {
+            if (userPin != null && userPin != 0) { // Check for 0 if it's default
                 Card(
                     shape = RoundedCornerShape(8.dp),
                     colors = CardDefaults.cardColors(containerColor = CabMintGreen.copy(alpha = 0.1f)),

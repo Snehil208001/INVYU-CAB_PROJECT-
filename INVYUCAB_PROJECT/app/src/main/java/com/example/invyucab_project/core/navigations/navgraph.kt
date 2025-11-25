@@ -22,7 +22,7 @@ import com.example.invyucab_project.mainui.profilescreen.memberlevelscreen.ui.Me
 import com.example.invyucab_project.mainui.profilescreen.paymentmethodscreen.ui.PaymentMethodScreen
 import com.example.invyucab_project.mainui.profilescreen.ui.ProfileScreen
 import com.example.invyucab_project.mainui.ridebookingscreen.ui.RideBookingScreen
-import com.example.invyucab_project.mainui.rideinprogressscreen.ui.RideInProgressScreen // ✅ Import
+import com.example.invyucab_project.mainui.rideinprogressscreen.ui.RideInProgressScreen
 import com.example.invyucab_project.mainui.rideselectionscreen.ui.RideSelectionScreen
 import com.example.invyucab_project.mainui.ridetrackingscreen.ui.RideTrackingScreen
 import com.example.invyucab_project.mainui.roleselectionscreen.ui.RoleSelectionScreen
@@ -119,6 +119,7 @@ fun NavGraph(
             RideSelectionScreen(navController = navController)
         }
 
+        // ✅ FIXED: Added Extraction of 'userPin' and passed it to the screen
         composable(
             route = Screen.RideBookingScreen.route,
             arguments = listOf(
@@ -134,7 +135,13 @@ fun NavGraph(
             )
         ) { backStackEntry ->
             val rideId = backStackEntry.arguments?.getInt("rideId")
-            RideBookingScreen(navController = navController, rideId = rideId?.toString())
+            val userPin = backStackEntry.arguments?.getInt("userPin") // ✅ Extract PIN
+
+            RideBookingScreen(
+                navController = navController,
+                rideId = rideId?.toString(),
+                userPin = userPin // ✅ Pass PIN here
+            )
         }
 
         composable(
@@ -207,24 +214,26 @@ fun NavGraph(
             )
         }
 
-        // ✅ NEW: RideInProgressScreen Composable Registered
         composable(
             route = Screen.RideInProgressScreen.route,
             arguments = listOf(
                 navArgument("rideId") { type = NavType.IntType },
                 navArgument("dropLat") { type = NavType.FloatType },
-                navArgument("dropLng") { type = NavType.FloatType }
+                navArgument("dropLng") { type = NavType.FloatType },
+                navArgument("otp") { type = NavType.StringType; defaultValue = "" }
             )
         ) { backStackEntry ->
             val rideId = backStackEntry.arguments?.getInt("rideId") ?: 0
             val dropLat = backStackEntry.arguments?.getFloat("dropLat")?.toDouble() ?: 0.0
             val dropLng = backStackEntry.arguments?.getFloat("dropLng")?.toDouble() ?: 0.0
+            val otp = backStackEntry.arguments?.getString("otp") ?: ""
 
             RideInProgressScreen(
                 navController = navController,
                 rideId = rideId,
                 dropLat = dropLat,
-                dropLng = dropLng
+                dropLng = dropLng,
+                otp = otp
             )
         }
     }

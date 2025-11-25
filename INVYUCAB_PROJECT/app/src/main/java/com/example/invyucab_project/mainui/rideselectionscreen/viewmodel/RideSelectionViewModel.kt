@@ -315,7 +315,9 @@ class RideSelectionViewModel @Inject constructor(
         val userId = userIdString?.toIntOrNull()
 
         if (userId == null) {
-            _uiState.update { it.copy(errorMessage = "User not identified. Please log in again.") }
+            // ✅ FIX: Force clear session to prevent "Zombie" loop
+            userPreferencesRepository.clearUserStatus()
+            _uiState.update { it.copy(errorMessage = "User not identified. Session expired. Please restart app.") }
             return
         }
 
