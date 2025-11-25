@@ -47,4 +47,8 @@ interface CustomApiService {
     // --- ✅ ADDED: Start Ride Endpoint ---
     @POST("riding_app/v1/start_ride_from_driver_side")
     suspend fun startRideFromDriverSide(@Body request: StartRideRequest): Response<StartRideResponse>
+
+    // --- ✅ FIXED: Changed POST to PUT ---
+    @PUT("riding_app/v1/update_riding_status")
+    suspend fun updateRideStatus(@Body request: UpdateRideStatusRequest): Response<UpdateRideStatusResponse>
 }

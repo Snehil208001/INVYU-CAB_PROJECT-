@@ -107,3 +107,16 @@ data class BookingDetailsData(
     @Json(name = "vehicle_model") val vehicleModel: String? = null,
     @Json(name = "vehicle_number") val vehicleNumber: String? = null
 )
+
+// --- ✅ ADDED: Update Ride Status Models ---
+
+data class UpdateRideStatusRequest(
+    @Json(name = "ride_id") val rideId: Int,
+    @Json(name = "status") val status: String
+)
+
+data class UpdateRideStatusResponse(
+    @Json(name = "success") val success: Boolean,
+    @Json(name = "message") val message: String? = null,
+    @Json(name = "data") val data: Any? = null
+)

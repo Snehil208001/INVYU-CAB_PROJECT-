@@ -102,4 +102,10 @@ class AppRepository @Inject constructor(
     suspend fun startRideFromDriverSide(request: StartRideRequest): Response<StartRideResponse> {
         return customApiService.startRideFromDriverSide(request)
     }
+
+    // --- ✅ ADDED: Update Ride Status Function ---
+    suspend fun updateRideStatus(rideId: Int, status: String): Response<UpdateRideStatusResponse> {
+        val request = UpdateRideStatusRequest(rideId, status)
+        return customApiService.updateRideStatus(request)
+    }
 }

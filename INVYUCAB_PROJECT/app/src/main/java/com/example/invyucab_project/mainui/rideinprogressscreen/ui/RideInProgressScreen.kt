@@ -1,5 +1,6 @@
 package com.example.invyucab_project.mainui.rideinprogressscreen.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -18,8 +19,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.R
+import com.example.invyucab_project.core.navigations.Screen
+import com.example.invyucab_project.mainui.rideinprogressscreen.viewmodel.RideInProgressViewModel
 import com.example.invyucab_project.ui.theme.CabLightGreen
 import com.example.invyucab_project.ui.theme.CabPrimaryGreen
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -36,7 +40,8 @@ fun RideInProgressScreen(
     navController: NavController,
     rideId: Int,
     dropLat: Double,
-    dropLng: Double
+    dropLng: Double,
+    viewModel: RideInProgressViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
 
@@ -62,6 +67,20 @@ fun RideInProgressScreen(
             MapsInitializer.initialize(context)
         } catch(e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    // Handle API Success
+    val updateState by viewModel.updateStatus.collectAsState()
+    LaunchedEffect(updateState) {
+        updateState?.onSuccess {
+            navController.navigate(Screen.DriverScreen.route) {
+                // Optional: Clear back stack if needed
+                popUpTo(Screen.HomeScreen.route) { inclusive = false }
+            }
+        }
+        updateState?.onFailure {
+            // Handle error if needed (e.g., show Toast)
         }
     }
 
@@ -176,8 +195,27 @@ fun RideInProgressScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
+                    // Cancel Button
+                    OutlinedButton(
+                        onClick = { viewModel.updateRideStatus(rideId, "cancelled") },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                        border = BorderStroke(1.dp, Color.Red),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp)
+                    ) {
+                        Text(
+                            text = "CANCEL RIDE",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     Button(
-                        onClick = { /* Handle Complete Ride Logic */ },
+                        onClick = { viewModel.updateRideStatus(rideId, "completed") },
                         colors = ButtonDefaults.buttonColors(containerColor = CabPrimaryGreen),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
