@@ -103,7 +103,6 @@ sealed class Screen(val route: String) {
         }
     }
 
-    // ✅ FIXED: Added userPin to route and function
     data object RideBookingScreen : Screen("ride_booking_screen/{rideId}/{pickupLat}/{pickupLng}/{dropLat}/{dropLng}?pickupAddress={pickupAddress}&dropAddress={dropAddress}&dropPlaceId={dropPlaceId}&userPin={userPin}") {
         fun createRoute(
             rideId: Int,
@@ -159,6 +158,18 @@ sealed class Screen(val route: String) {
             val encodedOtp = URLEncoder.encode(otp, StandardCharsets.UTF_8.toString())
 
             return "booking_detail_screen/$encodedName/$encodedModel/$encodedOtp/$rideId/$riderId/$driverId/$role?pickupLat=$pickupLat&pickupLng=$pickupLng&dropLat=$dropLat&dropLng=$dropLng"
+        }
+    }
+
+    // ✅ NEW SCREEN ADDED
+    object RideInProgressScreen : Screen("ride_in_progress_screen/{rideId}/{dropLat}/{dropLng}") {
+        fun createRoute(
+            rideId: Int,
+            dropLat: Double,
+            dropLng: Double
+        ): String {
+            // We pass as float to match NavArgument types typically used in this project
+            return "ride_in_progress_screen/$rideId/${dropLat.toFloat()}/${dropLng.toFloat()}"
         }
     }
 }

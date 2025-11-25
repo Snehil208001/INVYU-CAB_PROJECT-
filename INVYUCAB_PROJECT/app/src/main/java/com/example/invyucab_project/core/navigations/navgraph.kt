@@ -22,6 +22,7 @@ import com.example.invyucab_project.mainui.profilescreen.memberlevelscreen.ui.Me
 import com.example.invyucab_project.mainui.profilescreen.paymentmethodscreen.ui.PaymentMethodScreen
 import com.example.invyucab_project.mainui.profilescreen.ui.ProfileScreen
 import com.example.invyucab_project.mainui.ridebookingscreen.ui.RideBookingScreen
+import com.example.invyucab_project.mainui.rideinprogressscreen.ui.RideInProgressScreen // ✅ Import
 import com.example.invyucab_project.mainui.rideselectionscreen.ui.RideSelectionScreen
 import com.example.invyucab_project.mainui.ridetrackingscreen.ui.RideTrackingScreen
 import com.example.invyucab_project.mainui.roleselectionscreen.ui.RoleSelectionScreen
@@ -42,14 +43,12 @@ fun NavGraph(
         composable(Screen.SplashScreenLoggedIn.route) {
             SplashScreenLoggedIn(navController = navController)
         }
-
         composable(Screen.OnboardingScreen.route) {
             OnboardingScreen(navController = navController)
         }
         composable(Screen.AuthScreen.route) {
             AuthScreen(navController = navController)
         }
-
         composable(
             route = Screen.OtpScreen.route,
             arguments = listOf(
@@ -70,7 +69,6 @@ fun NavGraph(
         ) {
             OtpScreen(navController = navController)
         }
-
         composable(
             route = Screen.UserDetailsScreen.route,
             arguments = listOf(
@@ -81,16 +79,12 @@ fun NavGraph(
         ) {
             UserDetailsScreen(navController = navController)
         }
-
         composable(
             route = Screen.RoleSelectionScreen.route,
-            arguments = listOf(
-                navArgument("phone") { type = NavType.StringType }
-            )
+            arguments = listOf(navArgument("phone") { type = NavType.StringType })
         ) {
             RoleSelectionScreen(navController = navController)
         }
-
         composable(
             route = Screen.DriverDetailsScreen.route,
             arguments = listOf(
@@ -100,47 +94,18 @@ fun NavGraph(
         ) {
             DriverDetailsScreen(navController = navController)
         }
-
-        composable(Screen.AdminScreen.route) {
-            AdminScreen(navController = navController)
-        }
-
-        composable(Screen.DriverScreen.route) {
-            DriverScreen(navController = navController)
-        }
-
-        composable(Screen.HomeScreen.route) {
-            HomeScreen(navController = navController)
-        }
-        composable(Screen.AllServicesScreen.route) {
-            AllServicesScreen(navController = navController)
-        }
-        composable(Screen.TravelScreen.route) {
-            TravelScreen(navController = navController)
-        }
-        composable(Screen.ProfileScreen.route) {
-            ProfileScreen(navController = navController)
-        }
-        composable(Screen.DriverDocumentsScreen.route) {
-            DriverDocumentsScreen(navController = navController)
-        }
-        composable(Screen.VehiclePreferencesScreen.route) {
-            VehiclePreferencesScreen(navController = navController)
-        }
-
-        composable(Screen.DriverProfileScreen.route) {
-            DriverProfileScreen(navController = navController)
-        }
-
-        composable(Screen.EditProfileScreen.route) {
-            EditProfileScreen(navController = navController)
-        }
-        composable(Screen.MemberLevelScreen.route) {
-            MemberLevelScreen(navController = navController)
-        }
-        composable(Screen.PaymentMethodScreen.route) {
-            PaymentMethodScreen(navController = navController)
-        }
+        composable(Screen.AdminScreen.route) { AdminScreen(navController = navController) }
+        composable(Screen.DriverScreen.route) { DriverScreen(navController = navController) }
+        composable(Screen.HomeScreen.route) { HomeScreen(navController = navController) }
+        composable(Screen.AllServicesScreen.route) { AllServicesScreen(navController = navController) }
+        composable(Screen.TravelScreen.route) { TravelScreen(navController = navController) }
+        composable(Screen.ProfileScreen.route) { ProfileScreen(navController = navController) }
+        composable(Screen.DriverDocumentsScreen.route) { DriverDocumentsScreen(navController = navController) }
+        composable(Screen.VehiclePreferencesScreen.route) { VehiclePreferencesScreen(navController = navController) }
+        composable(Screen.DriverProfileScreen.route) { DriverProfileScreen(navController = navController) }
+        composable(Screen.EditProfileScreen.route) { EditProfileScreen(navController = navController) }
+        composable(Screen.MemberLevelScreen.route) { MemberLevelScreen(navController = navController) }
+        composable(Screen.PaymentMethodScreen.route) { PaymentMethodScreen(navController = navController) }
 
         composable(
             route = Screen.RideSelectionScreen.route,
@@ -154,7 +119,6 @@ fun NavGraph(
             RideSelectionScreen(navController = navController)
         }
 
-        // ✅ FIXED: Added userPin argument
         composable(
             route = Screen.RideBookingScreen.route,
             arguments = listOf(
@@ -166,14 +130,11 @@ fun NavGraph(
                 navArgument("pickupAddress") { type = NavType.StringType; nullable = true },
                 navArgument("dropAddress") { type = NavType.StringType; nullable = true },
                 navArgument("dropPlaceId") { type = NavType.StringType; nullable = true },
-                navArgument("userPin") { type = NavType.IntType; defaultValue = 1234 } // ✅ Added
+                navArgument("userPin") { type = NavType.IntType; defaultValue = 1234 }
             )
         ) { backStackEntry ->
             val rideId = backStackEntry.arguments?.getInt("rideId")
-            RideBookingScreen(
-                navController = navController,
-                rideId = rideId?.toString()
-            )
+            RideBookingScreen(navController = navController, rideId = rideId?.toString())
         }
 
         composable(
@@ -243,6 +204,27 @@ fun NavGraph(
                 pickupLng = backStackEntry.arguments?.getFloat("pickupLng")?.toDouble() ?: 0.0,
                 dropLat = backStackEntry.arguments?.getFloat("dropLat")?.toDouble() ?: 0.0,
                 dropLng = backStackEntry.arguments?.getFloat("dropLng")?.toDouble() ?: 0.0
+            )
+        }
+
+        // ✅ NEW: RideInProgressScreen Composable Registered
+        composable(
+            route = Screen.RideInProgressScreen.route,
+            arguments = listOf(
+                navArgument("rideId") { type = NavType.IntType },
+                navArgument("dropLat") { type = NavType.FloatType },
+                navArgument("dropLng") { type = NavType.FloatType }
+            )
+        ) { backStackEntry ->
+            val rideId = backStackEntry.arguments?.getInt("rideId") ?: 0
+            val dropLat = backStackEntry.arguments?.getFloat("dropLat")?.toDouble() ?: 0.0
+            val dropLng = backStackEntry.arguments?.getFloat("dropLng")?.toDouble() ?: 0.0
+
+            RideInProgressScreen(
+                navController = navController,
+                rideId = rideId,
+                dropLat = dropLat,
+                dropLng = dropLng
             )
         }
     }
