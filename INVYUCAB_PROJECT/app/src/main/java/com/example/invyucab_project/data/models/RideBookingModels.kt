@@ -21,7 +21,6 @@ data class CreateRideRequest(
 
 /**
  * Response body for the create ride API.
- * ✅ CHANGED: 'data' is now Any? to handle both Integer (broken backend) and Object (fixed backend)
  */
 data class CreateRideResponse(
     @Json(name = "success") val success: Boolean,
@@ -45,6 +44,7 @@ data class DriverTotalRidesResponse(
     @Json(name = "data") val data: List<RideHistoryItem>? = null
 )
 
+// ✅ UPDATED: Added Lat/Long and extra price fields to catch missing data
 data class RideHistoryItem(
     @Json(name = "ride_id") val rideId: Int?,
     @Json(name = "pickup_address") val pickupAddress: String? = null,
@@ -53,9 +53,16 @@ data class RideHistoryItem(
     @Json(name = "drop_location") val dropLocation: String? = null,
     @Json(name = "total_amount") val totalAmount: Any? = null,
     @Json(name = "price") val price: Any? = null,
+    @Json(name = "amount") val amount: Any? = null,
+    @Json(name = "estimated_price") val estimatedPrice: Any? = null,
+    @Json(name = "fare") val fare: Any? = null,
     @Json(name = "status") val status: String? = null,
     @Json(name = "date") val date: String? = null,
-    @Json(name = "created_at") val createdAt: String? = null
+    @Json(name = "created_at") val createdAt: String? = null,
+    @Json(name = "pickup_latitude") val pickupLatitude: Any? = null,
+    @Json(name = "pickup_longitude") val pickupLongitude: Any? = null,
+    @Json(name = "drop_latitude") val dropLatitude: Any? = null,
+    @Json(name = "drop_longitude") val dropLongitude: Any? = null
 )
 
 // --- Ongoing Rides Models ---
@@ -108,7 +115,7 @@ data class BookingDetailsData(
     @Json(name = "vehicle_number") val vehicleNumber: String? = null
 )
 
-// --- ✅ ADDED: Update Ride Status Models ---
+// --- Update Ride Status Models ---
 
 data class UpdateRideStatusRequest(
     @Json(name = "ride_id") val rideId: Int,

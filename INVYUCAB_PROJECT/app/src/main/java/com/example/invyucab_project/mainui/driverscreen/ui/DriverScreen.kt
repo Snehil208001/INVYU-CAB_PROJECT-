@@ -179,8 +179,6 @@ fun DriverScreen(
         viewModel.eventFlow.collect { event ->
             when (event) {
                 is BaseViewModel.UiEvent.Navigate -> {
-                    // Log to verify navigation
-                    android.util.Log.d("DriverScreen", "Navigating to: ${event.route}")
                     navController.navigate(event.route) {
                         // Keep DriverScreen in back stack to allow return
                     }
@@ -425,7 +423,7 @@ fun DriverScreen(
         }
     }
 }
-// ... (The rest of your existing UI cards: OngoingRideCard, RideRequestCard, etc. should remain as they were in the previous file) ...
+
 @Composable
 fun OngoingRideCard(
     ride: RideRequestItem,
@@ -712,6 +710,7 @@ fun RideRequestCard(
     }
 }
 
+// ✅ REDESIGNED RideHistoryCard (Matches other cards now)
 @Composable
 fun RideHistoryCard(ride: RideHistoryUiModel) {
     Card(
@@ -723,14 +722,17 @@ fun RideHistoryCard(ride: RideHistoryUiModel) {
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // Header: ID and Date
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Ride #${ride.rideId}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Color.Gray
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
                 )
                 Text(
                     text = ride.date,
@@ -738,15 +740,58 @@ fun RideHistoryCard(ride: RideHistoryUiModel) {
                     color = Color.Gray
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
 
-            Text("Pickup: ${ride.pickup}", style = MaterialTheme.typography.bodyMedium, color = Color.Black)
-            Text("Drop: ${ride.drop}", style = MaterialTheme.typography.bodyMedium, color = Color.Black)
+            Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = Color.LightGray)
 
-            Spacer(modifier = Modifier.height(8.dp))
-            Divider(color = Color.LightGray, thickness = 0.5.dp)
-            Spacer(modifier = Modifier.height(8.dp))
+            // Pickup Row
+            Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "Pickup",
+                    tint = Color(0xFF4CAF50),
+                    modifier = Modifier.size(20.dp).padding(top = 2.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(text = "Pickup Location", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    Text(
+                        text = ride.pickup,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Black,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Drop Row
+            Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "Drop",
+                    tint = Color(0xFFE53935),
+                    modifier = Modifier.size(20.dp).padding(top = 2.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(text = "Drop Location", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    Text(
+                        text = ride.drop,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Black,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = Color.LightGray)
+
+            // Footer: Price and Status
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -754,7 +799,7 @@ fun RideHistoryCard(ride: RideHistoryUiModel) {
             ) {
                 Text(
                     text = "₹${ride.price}",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
@@ -765,7 +810,7 @@ fun RideHistoryCard(ride: RideHistoryUiModel) {
                 ) {
                     Text(
                         text = ride.status.uppercase(),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
