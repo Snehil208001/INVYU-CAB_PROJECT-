@@ -154,18 +154,19 @@ fun NavGraph(
             RideSelectionScreen(navController = navController)
         }
 
-        // ✅ FIXED: RideBookingScreen Navigation Types
+        // ✅ FIXED: Added userPin argument
         composable(
             route = Screen.RideBookingScreen.route,
             arguments = listOf(
                 navArgument("rideId") { type = NavType.IntType },
-                navArgument("pickupLat") { type = NavType.FloatType }, // Changed to FloatType
-                navArgument("pickupLng") { type = NavType.FloatType }, // Changed to FloatType
-                navArgument("dropLat") { type = NavType.FloatType },   // Changed to FloatType
-                navArgument("dropLng") { type = NavType.FloatType },   // Changed to FloatType
+                navArgument("pickupLat") { type = NavType.FloatType },
+                navArgument("pickupLng") { type = NavType.FloatType },
+                navArgument("dropLat") { type = NavType.FloatType },
+                navArgument("dropLng") { type = NavType.FloatType },
                 navArgument("pickupAddress") { type = NavType.StringType; nullable = true },
                 navArgument("dropAddress") { type = NavType.StringType; nullable = true },
-                navArgument("dropPlaceId") { type = NavType.StringType; nullable = true }
+                navArgument("dropPlaceId") { type = NavType.StringType; nullable = true },
+                navArgument("userPin") { type = NavType.IntType; defaultValue = 1234 } // ✅ Added
             )
         ) { backStackEntry ->
             val rideId = backStackEntry.arguments?.getInt("rideId")

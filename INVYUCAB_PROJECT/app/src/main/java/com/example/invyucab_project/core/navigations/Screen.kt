@@ -103,7 +103,8 @@ sealed class Screen(val route: String) {
         }
     }
 
-    data object RideBookingScreen : Screen("ride_booking_screen/{rideId}/{pickupLat}/{pickupLng}/{dropLat}/{dropLng}?pickupAddress={pickupAddress}&dropAddress={dropAddress}&dropPlaceId={dropPlaceId}") {
+    // ✅ FIXED: Added userPin to route and function
+    data object RideBookingScreen : Screen("ride_booking_screen/{rideId}/{pickupLat}/{pickupLng}/{dropLat}/{dropLng}?pickupAddress={pickupAddress}&dropAddress={dropAddress}&dropPlaceId={dropPlaceId}&userPin={userPin}") {
         fun createRoute(
             rideId: Int,
             pickupLat: Double,
@@ -112,14 +113,14 @@ sealed class Screen(val route: String) {
             dropLng: Double,
             pickupAddress: String,
             dropAddress: String,
-            dropPlaceId: String
+            dropPlaceId: String,
+            userPin: Int
         ): String {
-            // ✅ Fix: Encode all string parameters to handle spaces and special characters
             val encodedPickup = URLEncoder.encode(pickupAddress, StandardCharsets.UTF_8.toString())
             val encodedDrop = URLEncoder.encode(dropAddress, StandardCharsets.UTF_8.toString())
             val encodedDropPlaceId = URLEncoder.encode(dropPlaceId, StandardCharsets.UTF_8.toString())
 
-            return "ride_booking_screen/$rideId/$pickupLat/$pickupLng/$dropLat/$dropLng?pickupAddress=$encodedPickup&dropAddress=$encodedDrop&dropPlaceId=$encodedDropPlaceId"
+            return "ride_booking_screen/$rideId/$pickupLat/$pickupLng/$dropLat/$dropLng?pickupAddress=$encodedPickup&dropAddress=$encodedDrop&dropPlaceId=$encodedDropPlaceId&userPin=$userPin"
         }
     }
 

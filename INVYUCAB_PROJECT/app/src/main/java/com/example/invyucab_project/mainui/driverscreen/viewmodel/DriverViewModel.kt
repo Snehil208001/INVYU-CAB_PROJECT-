@@ -332,8 +332,12 @@ class DriverViewModel @Inject constructor(
         }
     }
 
+    // ✅ UPDATED: Now removes the card from the list
     fun onCancelOngoingRide(ride: RideRequestItem) {
-        sendEvent(UiEvent.ShowSnackbar("Cancel feature for ongoing rides pending."))
+        // Ideally, call an API here to update status on server.
+        // For now, just remove from local list to clear the card.
+        _ongoingRides.value = _ongoingRides.value.filter { it.rideId != ride.rideId }
+        sendEvent(UiEvent.ShowSnackbar("Ride cancelled."))
     }
 
     private fun startLookingForRides() {
@@ -424,10 +428,9 @@ class DriverViewModel @Inject constructor(
         }
     }
 
-    // --- ✅ FIXED: Handle Empty Strings in Navigation ---
     fun onAcceptRide(ride: RideRequestItem) {
         viewModelScope.launch {
-            _apiError.value = "Accepting & Starting ride..."
+            _apiError.value = "Accepting ride..."
             try {
                 val driverIdStr = userPreferencesRepository.getUserId()
                 val driverId = driverIdStr?.toIntOrNull()
@@ -436,50 +439,14 @@ class DriverViewModel @Inject constructor(
                     val acceptResponse = appRepository.acceptRide(ride.rideId, driverId)
                     if (acceptResponse.isSuccessful && acceptResponse.body()?.success == true) {
 
-                        // Start Ride from Driver Side
-                        val startRequest = StartRideRequest(
-                            rideId = ride.rideId,
-                            riderId = ride.riderId,
-                            driverId = driverId,
-                            userPin = 1234, // Mock PIN
-                            startedAt = Date().toString()
-                        )
-                        val startResponse = appRepository.startRideFromDriverSide(startRequest)
+                        // Stop polling for new rides as we've accepted one
+                        stopLookingForRides()
+                        _rideRequests.value = emptyList()
 
-                        if (startResponse.isSuccessful && startResponse.body()?.success == true) {
-                            stopLookingForRides()
-                            _rideRequests.value = emptyList()
+                        // Navigate to Ongoing Tab and Refresh
+                        _navigateToTab.emit("Ongoing")
+                        fetchOngoingRides()
 
-                            val data = startResponse.body()?.data
-
-                            // ✅ CRITICAL: Prevent navigation failure by handling empty/null strings
-                            val driverName = data?.driverName?.ifBlank { "Unknown_Driver" } ?: "Unknown_Driver"
-                            val vehicleModel = data?.vehicleModel?.ifBlank { "Unknown_Vehicle" } ?: "Unknown_Vehicle"
-                            val otp = data?.otp?.ifBlank { "1234" } ?: "1234"
-
-                            Log.d("DriverViewModel", "Navigating to BookingDetail: $driverName, $vehicleModel, $otp")
-
-                            sendEvent(
-                                UiEvent.Navigate(
-                                    Screen.BookingDetailScreen.createRoute(
-                                        driverName = driverName,
-                                        vehicleModel = vehicleModel,
-                                        otp = otp,
-                                        rideId = ride.rideId,
-                                        riderId = ride.riderId,
-                                        driverId = driverId,
-                                        role = "driver",
-                                        pickupLat = ride.pickupLat,
-                                        pickupLng = ride.pickupLng,
-                                        dropLat = ride.dropLat,
-                                        dropLng = ride.dropLng
-                                    )
-                                )
-                            )
-                        } else {
-                            val errorMsg = startResponse.body()?.message ?: "Failed to start ride."
-                            sendEvent(UiEvent.ShowSnackbar(errorMsg))
-                        }
                     } else {
                         val errorMsg = acceptResponse.body()?.message ?: "Failed to accept ride."
                         sendEvent(UiEvent.ShowSnackbar(errorMsg))

@@ -1,18 +1,16 @@
 package com.example.invyucab_project.mainui.rideselectionscreen.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.rememberMultiplePermissionsState
-import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -29,13 +27,7 @@ import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,11 +45,12 @@ import androidx.navigation.NavController
 import com.example.invyucab_project.R
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.domain.model.RideOption
-import com.example.invyucab_project.domain.model.RideSelectionState
 import com.example.invyucab_project.mainui.rideselectionscreen.viewmodel.RideNavigationEvent
 import com.example.invyucab_project.mainui.rideselectionscreen.viewmodel.RideSelectionViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
@@ -129,7 +122,7 @@ fun RideSelectionScreen(
         viewModel.navigationEvent.collect { event ->
             when (event) {
                 is RideNavigationEvent.NavigateToBooking -> {
-                    // ✅ FIXED: Navigate with all parameters
+                    // ✅ FIXED: Now passing userPin correctly
                     navController.navigate(Screen.RideBookingScreen.createRoute(
                         rideId = event.rideId,
                         pickupLat = event.pickup.latitude,
@@ -138,7 +131,8 @@ fun RideSelectionScreen(
                         dropLng = event.drop.longitude,
                         pickupAddress = event.pickupAddress,
                         dropAddress = event.dropAddress,
-                        dropPlaceId = event.dropPlaceId
+                        dropPlaceId = event.dropPlaceId,
+                        userPin = event.userPin // ✅ Passing the PIN
                     ))
                 }
             }
