@@ -1,20 +1,54 @@
 package com.example.invyucab_project.mainui.ridetrackingscreen.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.widget.Toast
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -27,20 +61,24 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.R
 import com.example.invyucab_project.core.base.BaseViewModel
-import com.example.invyucab_project.core.navigations.Screen // ✅ Important Import
+import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.ridetrackingscreen.viewmodel.RideTrackingViewModel
 import com.example.invyucab_project.ui.theme.CabLightGreen
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabPrimaryGreen
-import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.MapsInitializer
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
-import com.google.maps.android.compose.*
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.Polyline
+import com.google.maps.android.compose.rememberCameraPositionState
 
 @Composable
 fun RideTrackingScreen(
@@ -57,8 +95,11 @@ fun RideTrackingScreen(
     viewModel: RideTrackingViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    // Observe Success State
     val startRideSuccess by viewModel.startRideSuccess
+
+    // ✅ 1. Observe the Route Polyline State from ViewModel
+    val routePoints by viewModel.routePolyline
+
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Map Locations
@@ -66,7 +107,7 @@ fun RideTrackingScreen(
     val dropLocation = LatLng(dropLat, dropLng)
 
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(pickupLocation, 15f)
+        position = CameraPosition.fromLatLngZoom(pickupLocation, 15.5f)
     }
 
     // --- Assets State ---
@@ -77,22 +118,22 @@ fun RideTrackingScreen(
     // --- Initialization ---
     LaunchedEffect(Unit) {
         try {
-            // Fix Crash
             MapsInitializer.initialize(context)
             pickupIcon = bitmapDescriptorFromDrawable(context, R.drawable.ic_pickup_marker)
             dropIcon = bitmapDescriptorFromDrawable(context, R.drawable.ic_dropoff_marker)
-
             val json = context.resources.openRawResource(R.raw.map_style_retro).bufferedReader().use { it.readText() }
             mapStyleOptions = MapStyleOptions(json)
+
+            // ✅ 2. Trigger the API call to get the route
+            viewModel.fetchRoute(pickupLat, pickupLng, dropLat, dropLng)
+
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    // --- ✅ NAVIGATION LOGIC ---
     LaunchedEffect(startRideSuccess) {
         if (startRideSuccess) {
-            // Navigate to RideInProgressScreen using the helper method in Screen.kt
             navController.navigate(
                 Screen.RideInProgressScreen.createRoute(
                     rideId = rideId,
@@ -100,7 +141,6 @@ fun RideTrackingScreen(
                     dropLng = dropLng
                 )
             ) {
-                // Clear back stack so user can't go back to tracking screen
                 popUpTo(Screen.RideTrackingScreen.route) { inclusive = true }
             }
         }
@@ -122,81 +162,234 @@ fun RideTrackingScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            // 1. Google Map
-            GoogleMap(
-                modifier = Modifier.fillMaxSize(),
-                cameraPositionState = cameraPositionState,
-                properties = MapProperties(
-                    mapStyleOptions = mapStyleOptions,
-                    isMyLocationEnabled = false
-                ),
-                uiSettings = MapUiSettings(zoomControlsEnabled = false, compassEnabled = true)
-            ) {
-                // Draw Polyline if you have route points (not implemented in base VM uploaded)
-                // ...
-
-                pickupIcon?.let { icon ->
-                    Marker(
-                        state = MarkerState(position = pickupLocation),
-                        title = "Pickup",
-                        icon = icon
-                    )
-                }
-                dropIcon?.let { icon ->
-                    Marker(
-                        state = MarkerState(position = dropLocation),
-                        title = "Drop Location",
-                        icon = icon
-                    )
-                }
-            }
-
-            // 2. Bottom Sheet / Card
-            Card(
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(Color.White)
+        ) {
+            // 1. Google Map (Top 50%)
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(24.dp),
-                elevation = CardDefaults.cardElevation(10.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                    .weight(1f)
             ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                GoogleMap(
+                    modifier = Modifier.fillMaxSize(),
+                    cameraPositionState = cameraPositionState,
+                    properties = MapProperties(
+                        mapStyleOptions = mapStyleOptions,
+                        isMyLocationEnabled = false
+                    ),
+                    uiSettings = MapUiSettings(zoomControlsEnabled = false, compassEnabled = true)
                 ) {
-                    Text(
-                        text = if (role == "driver") "Enter Rider OTP" else "Your Ride PIN",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.Black
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    if (role == "driver") {
-                        OtpInputField(otpText = otpInput, onOtpModified = { value, _ -> if (value.length <= 4) otpInput = value })
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Button(
-                            onClick = { if (otpInput.length == 4) viewModel.startRide(rideId, riderId, driverId, otpInput) },
-                            enabled = otpInput.length == 4,
-                            colors = ButtonDefaults.buttonColors(containerColor = CabPrimaryGreen),
-                            modifier = Modifier.fillMaxWidth().height(50.dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("START RIDE", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                    } else {
-                        Text(
-                            text = otp,
-                            style = MaterialTheme.typography.displaySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = CabPrimaryGreen,
-                            letterSpacing = 8.sp
+                    // ✅ 3. Draw the Polyline
+                    if (routePoints.isNotEmpty()) {
+                        Polyline(
+                            points = routePoints,
+                            color = CabPrimaryGreen, // Or Color.Blue / Color.Black
+                            width = 12f // Make it thick enough to see
                         )
+                    }
+
+                    pickupIcon?.let { icon ->
+                        Marker(state = MarkerState(position = pickupLocation), title = "Pickup", icon = icon)
+                    }
+                    dropIcon?.let { icon ->
+                        Marker(state = MarkerState(position = dropLocation), title = "Drop", icon = icon)
                     }
                 }
             }
+
+            // 2. Bottom Sheet (Bottom 50%)
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .shadow(24.dp, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)),
+                color = Color.White,
+                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Drag Handle
+                    Box(
+                        modifier = Modifier
+                            .width(48.dp)
+                            .height(5.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color.LightGray.copy(alpha = 0.5f))
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    if (role == "driver") {
+                        DriverView(
+                            otpInput = otpInput,
+                            onOtpChange = { otpInput = it },
+                            onStartRide = { viewModel.startRide(rideId, riderId, driverId, otpInput) }
+                        )
+                    } else {
+                        RiderView(otp = otp, context = context)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ... (Rest of the helper functions: RiderView, DriverView, OtpInputField, bitmapDescriptorFromDrawable remain the same)
+@Composable
+fun RiderView(otp: String, context: Context) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // Status Badge
+        Surface(
+            color = CabMintGreen.copy(alpha = 0.2f),
+            shape = RoundedCornerShape(50),
+            modifier = Modifier.padding(bottom = 16.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(CabPrimaryGreen, CircleShape)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Driver is arriving soon",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = CabPrimaryGreen,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Text(
+            text = "Your Ride PIN",
+            style = MaterialTheme.typography.titleMedium,
+            color = Color.Gray,
+            letterSpacing = 1.sp
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Large PIN Display
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = otp,
+                style = MaterialTheme.typography.displayLarge.copy(
+                    fontSize = 60.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 6.sp
+                ),
+                color = Color.Black
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            IconButton(
+                onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clip = ClipData.newPlainText("Ride PIN", otp)
+                    clipboard.setPrimaryClip(clip)
+                    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier
+                    .background(Color.LightGray.copy(alpha = 0.2f), CircleShape)
+                    .size(44.dp)
+            ) {
+                Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color.Gray)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = "Share this code with the driver to start the ride.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 32.dp)
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        // Action Buttons
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            OutlinedButton(
+                onClick = { /* Call Driver Logic */ },
+                modifier = Modifier.weight(1f).height(50.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color.LightGray)
+            ) {
+                Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Call Driver", color = Color.Black)
+            }
+
+            Button(
+                onClick = { /* Support Logic */ },
+                modifier = Modifier.weight(1f).height(50.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Black) // Dark theme for secondary
+            ) {
+                Text("Safety", color = Color.White)
+            }
+        }
+    }
+}
+
+@Composable
+fun DriverView(otpInput: String, onOtpChange: (String) -> Unit, onStartRide: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = "Enter Rider's PIN",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Ask the rider for the 4-digit start code",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        OtpInputField(otpText = otpInput, onOtpModified = { value, _ -> if (value.length <= 4) onOtpChange(value) })
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Button(
+            onClick = onStartRide,
+            enabled = otpInput.length == 4,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = CabPrimaryGreen,
+                disabledContainerColor = Color.LightGray
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp),
+            shape = RoundedCornerShape(12.dp),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
+        ) {
+            Text(
+                "START RIDE",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (otpInput.length == 4) Color.White else Color.DarkGray
+            )
         }
     }
 }
@@ -208,19 +401,29 @@ fun OtpInputField(otpText: String, onOtpModified: (String, Boolean) -> Unit) {
         onValueChange = { if (it.length <= 4 && it.all { char -> char.isDigit() }) onOtpModified(it, it.length == 4) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
         decorationBox = {
-            Row(horizontalArrangement = Arrangement.Center) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 repeat(4) { index ->
                     val char = if (index < otpText.length) otpText[index].toString() else ""
                     val isFocused = otpText.length == index
+
+                    val borderColor = if (isFocused) CabPrimaryGreen else Color.LightGray
+                    val backgroundColor = if (isFocused) CabLightGreen.copy(alpha = 0.1f) else Color.Transparent
+
                     Box(
-                        modifier = Modifier.width(50.dp).height(56.dp)
-                            .border(if (isFocused) 2.dp else 1.dp, if (isFocused) CabMintGreen else Color.Gray, RoundedCornerShape(12.dp))
-                            .background(if (isFocused) CabLightGreen.copy(alpha = 0.3f) else Color.Transparent, RoundedCornerShape(12.dp)),
+                        modifier = Modifier
+                            .width(60.dp)
+                            .height(64.dp)
+                            .border(if (isFocused) 2.dp else 1.dp, borderColor, RoundedCornerShape(12.dp))
+                            .background(backgroundColor, RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = char, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = char,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
                 }
             }
         }

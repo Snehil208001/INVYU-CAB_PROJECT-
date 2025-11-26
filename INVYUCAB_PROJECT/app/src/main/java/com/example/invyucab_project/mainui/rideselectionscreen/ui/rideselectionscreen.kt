@@ -409,71 +409,102 @@ fun BoxScope.RideOptionsBottomSheet(
     BottomSheetScaffold(
         scaffoldState = rememberBottomSheetScaffoldState(),
         sheetContent = {
-            Column(
+            // ✅ FIXED: Use Box to align content (list) and footer (button) independently
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    // Ensure the sheet has at least the peek height so content doesn't collapse
+                    .heightIn(min = 350.dp)
                     .background(Color.White)
-                    .navigationBarsPadding()
             ) {
-                if (rideOptions.isEmpty()) {
-                    Text("Loading ride options...", modifier = Modifier.padding(16.dp).align(Alignment.CenterHorizontally))
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            // ✅ FIXED: Reduced height so button fits in the peek area
-                            .heightIn(max = 220.dp)
-                    ) {
-                        items(rideOptions) { ride ->
-                            RideOptionItem(
-                                ride = ride,
-                                isSelected = ride.id == selectedRideId,
-                                onClick = { selectedRideId = ride.id }
-                            )
+                // 1. Scrollable Ride List
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (rideOptions.isEmpty()) {
+                        Text(
+                            "Loading ride options...",
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .align(Alignment.CenterHorizontally)
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth(),
+                            // ✅ Add padding to the bottom so the last item isn't hidden behind the fixed button
+                            contentPadding = PaddingValues(bottom = 150.dp)
+                        ) {
+                            items(rideOptions) { ride ->
+                                RideOptionItem(
+                                    ride = ride,
+                                    isSelected = ride.id == selectedRideId,
+                                    onClick = { selectedRideId = ride.id }
+                                )
+                            }
                         }
                     }
                 }
 
-                Row(
+                // 2. Fixed Bottom Area (Payment + Button)
+                Column(
                     modifier = Modifier
+                        .align(Alignment.BottomCenter) // ✅ Pins this to the bottom of the sheet
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .background(Color.White) // Important: Background prevents seeing list behind it
+                        .navigationBarsPadding() // Handle safe area
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { /* TODO */ }) {
-                        Icon(Icons.Default.CreditCard, contentDescription = "Payment", tint = Color.Gray)
-                        Text("Cash", fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 8.dp))
-                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = Color.Gray)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { /* TODO */ }
+                        ) {
+                            Icon(Icons.Default.CreditCard, contentDescription = "Payment", tint = Color.Gray)
+                            Text(
+                                "Cash",
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = Color.Gray)
+                        }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                Button(
-                    onClick = { onBookClick(selectedRideId) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
-                    enabled = areDetailsCalculated && !isBookingLoading
-                ) {
-                    if (isBookingLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        val selectedRideName = rideOptions.find { it.id == selectedRideId }?.name ?: "Ride"
-                        Text("Book $selectedRideName", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Button(
+                        onClick = { onBookClick(selectedRideId) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .height(50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
+                        enabled = areDetailsCalculated && !isBookingLoading
+                    ) {
+                        if (isBookingLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            val selectedRideName =
+                                rideOptions.find { it.id == selectedRideId }?.name ?: "Ride"
+                            Text(
+                                "Book $selectedRideName",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                        }
                     }
-                }
 
-                // ✅ FIXED: Hard padding + System Navigation Bar Spacer
-                // This forces the content up, ensuring the button isn't covered.
-                Spacer(modifier = Modifier.height(24.dp))
-                Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+                    // Spacer for some bottom breathing room inside the fixed area
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
             }
         },
         sheetContainerColor = Color.White,

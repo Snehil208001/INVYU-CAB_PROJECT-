@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -321,7 +322,18 @@ fun DriverScreen(
                                         OngoingRideCard(
                                             ride = ride,
                                             onAccept = { viewModel.onStartRideClicked(ride) },
-                                            onCancel = { viewModel.onCancelOngoingRide(ride) }
+                                            onCancel = { viewModel.onCancelOngoingRide(ride) },
+                                            onClick = {
+                                                // Open Google Maps Navigation
+                                                try {
+                                                    val gmmIntentUri = Uri.parse("google.navigation:q=${ride.pickupLat},${ride.pickupLng}&mode=d")
+                                                    val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+                                                    mapIntent.setPackage("com.google.android.apps.maps")
+                                                    context.startActivity(mapIntent)
+                                                } catch (e: Exception) {
+                                                    Toast.makeText(context, "Google Maps not installed", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
                                         )
                                     }
                                 }
@@ -428,12 +440,14 @@ fun DriverScreen(
 fun OngoingRideCard(
     ride: RideRequestItem,
     onAccept: () -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    onClick: () -> Unit // ✅ New callback for handling card click
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(16.dp)
+            .clickable { onClick() }, // ✅ Trigger navigation on click
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(16.dp)
