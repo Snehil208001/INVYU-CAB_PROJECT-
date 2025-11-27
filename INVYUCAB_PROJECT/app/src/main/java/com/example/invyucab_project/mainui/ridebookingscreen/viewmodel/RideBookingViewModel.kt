@@ -38,7 +38,8 @@ class RideBookingViewModel @Inject constructor(
     private val _navigationEvent = MutableSharedFlow<RiderOngoingRideItem>()
     val navigationEvent = _navigationEvent.asSharedFlow()
 
-    private val rideId: String? = savedStateHandle.get<Int>("rideId")?.toString()
+    // 🔴 Hardcoded rideId to "1" as per your request
+    private val rideId: String? = "1"
     private val userPin: String? = savedStateHandle.get<Int>("userPin")?.toString()
 
     private val pickupLat: Double? = savedStateHandle.get<Float>("pickupLat")?.toDouble()
@@ -106,8 +107,9 @@ class RideBookingViewModel @Inject constructor(
                         if (ongoingRide != null) {
                             Log.d("RideBookingVM", "Ride Status: ${ongoingRide.status}")
 
-                            // Check Status - If accepted, stop polling and navigate
-                            if (ongoingRide.status == "accepted") {
+                            // ✅ CHANGED: Allow navigation if status is 'accepted' OR 'cancelled'
+                            // This ensures you see the UI update even for the cancelled ride #1
+                            if (ongoingRide.status == "accepted" || ongoingRide.status == "cancelled") {
                                 isPolling = false
                                 _navigationEvent.emit(ongoingRide)
                             }
