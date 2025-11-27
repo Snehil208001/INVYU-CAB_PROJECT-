@@ -85,6 +85,9 @@ sealed class Screen(val route: String) {
     object MemberLevelScreen : Screen("member_level_screen")
     object PaymentMethodScreen : Screen("payment_method_screen")
 
+    // ✅ NEW: Added RideHistoryScreen
+    object RideHistoryScreen : Screen("ride_history_screen")
+
     object RideSelectionScreen :
         Screen("ride_selection_screen/{dropPlaceId}/{dropDescription}?pickupPlaceId={pickupPlaceId}&pickupDescription={pickupDescription}") {
         fun createRoute(
@@ -161,7 +164,6 @@ sealed class Screen(val route: String) {
         }
     }
 
-    // ✅ NEW SCREEN ADDED
     object RideInProgressScreen : Screen("ride_in_progress_screen/{rideId}/{dropLat}/{dropLng}") {
         fun createRoute(
             rideId: Int,

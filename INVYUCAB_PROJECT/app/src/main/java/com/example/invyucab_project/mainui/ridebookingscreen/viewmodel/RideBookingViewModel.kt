@@ -1,14 +1,21 @@
 package com.example.invyucab_project.mainui.ridebookingscreen.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.data.models.RideBookingUiState
+import com.example.invyucab_project.data.models.RiderOngoingRideItem
+import com.example.invyucab_project.data.preferences.UserPreferencesRepository
 import com.example.invyucab_project.domain.usecase.GetDirectionsAndRouteUseCase
+import com.example.invyucab_project.domain.usecase.GetOngoingRideUseCase
 import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -19,33 +26,35 @@ import javax.inject.Inject
 @HiltViewModel
 class RideBookingViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val getDirectionsAndRouteUseCase: GetDirectionsAndRouteUseCase
+    private val getDirectionsAndRouteUseCase: GetDirectionsAndRouteUseCase,
+    private val getOngoingRideUseCase: GetOngoingRideUseCase,
+    private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RideBookingUiState())
     val uiState = _uiState.asStateFlow()
 
-    // --- Retrieve Arguments ---
+    // ✅ Navigation Event Flow
+    private val _navigationEvent = MutableSharedFlow<RiderOngoingRideItem>()
+    val navigationEvent = _navigationEvent.asSharedFlow()
 
-    // ✅ FIX 1: Retrieve directly as Int. Do NOT try get<String> first, it causes ClassCastException.
     private val rideId: String? = savedStateHandle.get<Int>("rideId")?.toString()
     private val userPin: String? = savedStateHandle.get<Int>("userPin")?.toString()
 
-    // ✅ FIX 2: Retrieve coordinates as Float (matching Navigation type) then convert to Double.
-    // Retrieving these as String caused the original ClassCastException.
     private val pickupLat: Double? = savedStateHandle.get<Float>("pickupLat")?.toDouble()
     private val pickupLng: Double? = savedStateHandle.get<Float>("pickupLng")?.toDouble()
     private val dropLat: Double? = savedStateHandle.get<Float>("dropLat")?.toDouble()
     private val dropLng: Double? = savedStateHandle.get<Float>("dropLng")?.toDouble()
 
-    // Addresses are Strings
     private val rawPickupAddress: String? = savedStateHandle.get<String>("pickupAddress")
     private val rawDropAddress: String? = savedStateHandle.get<String>("dropAddress")
-
     private val dropPlaceId: String? = savedStateHandle.get<String>("dropPlaceId")
+
+    private var isPolling = true
 
     init {
         initializeRideDetails()
+        startPollingForDriver() // ✅ Start Polling
     }
 
     private fun initializeRideDetails() {
@@ -71,6 +80,43 @@ class RideBookingViewModel @Inject constructor(
             fetchRoute(pickupLocation, dropPlaceId)
         } else {
             _uiState.update { it.copy(isLoading = false) }
+        }
+    }
+
+    // ✅ Polling Logic
+    private fun startPollingForDriver() {
+        val userIdStr = userPreferencesRepository.getUserId()
+        if (userIdStr.isNullOrBlank()) {
+            Log.e("RideBookingVM", "User ID not found, cannot poll.")
+            return
+        }
+        val userId = userIdStr.toIntOrNull() ?: return
+
+        viewModelScope.launch {
+            while (isPolling) {
+                try {
+                    val response = getOngoingRideUseCase(userId)
+                    if (response.isSuccessful && response.body()?.success == true) {
+                        val rides = response.body()?.data
+                        // Find the ride that matches our rideId (if we have one) OR just the active one
+                        // Assuming response returns specific active rides.
+                        val ongoingRide = rides?.find { it.rideId.toString() == rideId }
+                            ?: rides?.firstOrNull() // Fallback to first if rideId doesn't match or isn't passed
+
+                        if (ongoingRide != null) {
+                            // Check Status
+                            if (ongoingRide.status != "requested" && ongoingRide.status != "cancelled" && ongoingRide.driverId != null) {
+                                // Driver Found! Stop polling and navigate
+                                isPolling = false
+                                _navigationEvent.emit(ongoingRide)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("RideBookingVM", "Polling Error: ${e.message}")
+                }
+                delay(5000) // Wait 5 seconds
+            }
         }
     }
 
@@ -104,7 +150,9 @@ class RideBookingViewModel @Inject constructor(
     }
 
     fun onCancelRide() {
+        isPolling = false
         _uiState.update { it.copy(isSearchingForDriver = false) }
+        // TODO: Call cancel ride API here
     }
 
     private fun decodeString(encoded: String?): String? {
@@ -114,5 +162,10 @@ class RideBookingViewModel @Inject constructor(
         } catch (e: Exception) {
             encoded
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        isPolling = false // Ensure polling stops
     }
 }

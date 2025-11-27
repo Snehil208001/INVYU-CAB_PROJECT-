@@ -30,6 +30,7 @@ import com.example.invyucab_project.mainui.splashscreen_loggedin.ui.SplashScreen
 import com.example.invyucab_project.mainui.travelscreen.ui.TravelScreen
 import com.example.invyucab_project.mainui.userdetailsscreen.ui.UserDetailsScreen
 import com.example.invyucab_project.mainui.vehiclepreferences.ui.VehiclePreferencesScreen
+import com.example.invyucab_project.mainui.ridehistoryscreen.ui.RideHistoryScreen // ✅ IMPORT ADDED
 
 @Composable
 fun NavGraph(
@@ -107,6 +108,11 @@ fun NavGraph(
         composable(Screen.MemberLevelScreen.route) { MemberLevelScreen(navController = navController) }
         composable(Screen.PaymentMethodScreen.route) { PaymentMethodScreen(navController = navController) }
 
+        // ✅ NEW: Added RideHistoryScreen Composable
+        composable(Screen.RideHistoryScreen.route) {
+            RideHistoryScreen(navController = navController)
+        }
+
         composable(
             route = Screen.RideSelectionScreen.route,
             arguments = listOf(
@@ -119,7 +125,6 @@ fun NavGraph(
             RideSelectionScreen(navController = navController)
         }
 
-        // ✅ FIXED: Added Extraction of 'userPin' and passed it to the screen
         composable(
             route = Screen.RideBookingScreen.route,
             arguments = listOf(
@@ -135,12 +140,12 @@ fun NavGraph(
             )
         ) { backStackEntry ->
             val rideId = backStackEntry.arguments?.getInt("rideId")
-            val userPin = backStackEntry.arguments?.getInt("userPin") // ✅ Extract PIN
+            val userPin = backStackEntry.arguments?.getInt("userPin")
 
             RideBookingScreen(
                 navController = navController,
                 rideId = rideId?.toString(),
-                userPin = userPin // ✅ Pass PIN here
+                userPin = userPin
             )
         }
 

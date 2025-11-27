@@ -98,14 +98,28 @@ class AppRepository @Inject constructor(
         return customApiService.getDriverOngoingRides(request)
     }
 
-    // --- ✅ ADDED: Start Ride Function ---
     suspend fun startRideFromDriverSide(request: StartRideRequest): Response<StartRideResponse> {
         return customApiService.startRideFromDriverSide(request)
     }
 
-    // --- ✅ ADDED: Update Ride Status Function ---
     suspend fun updateRideStatus(rideId: Int, status: String): Response<UpdateRideStatusResponse> {
         val request = UpdateRideStatusRequest(rideId, status)
         return customApiService.updateRideStatus(request)
+    }
+
+    suspend fun getRideHistory(userId: Int): Response<RiderRideHistoryResponse> {
+        val request = RideHistoryRequest(userId = userId)
+        return customApiService.getRideHistory(request)
+    }
+
+    // --- ✅ ADDED: Get Ongoing Ride Function (Rider Side) ---
+    suspend fun getOngoingRideRiderSide(userId: Int): Response<RiderOngoingRideResponse> {
+        val request = RiderOngoingRideRequest(userId = userId)
+        return customApiService.getOngoingRideRiderSide(request)
+    }
+
+    // Helper to get User ID specifically
+    fun getCurrentUserId(): String? {
+        return userPreferencesRepository.getUserId()
     }
 }

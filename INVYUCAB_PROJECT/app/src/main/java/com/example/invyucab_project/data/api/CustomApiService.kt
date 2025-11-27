@@ -44,11 +44,16 @@ interface CustomApiService {
     @POST("riding_app/v1/get_driver_ongoing_rides")
     suspend fun getDriverOngoingRides(@Body request: DriverOngoingRidesRequest): Response<DriverOngoingRidesResponse>
 
-    // --- ✅ ADDED: Start Ride Endpoint ---
     @POST("riding_app/v1/start_ride_from_driver_side")
     suspend fun startRideFromDriverSide(@Body request: StartRideRequest): Response<StartRideResponse>
 
-    // --- ✅ FIXED: Changed POST to PUT ---
     @PUT("riding_app/v1/update_riding_status")
     suspend fun updateRideStatus(@Body request: UpdateRideStatusRequest): Response<UpdateRideStatusResponse>
+
+    @POST("riding_app/v1/ride_history_from_riderside")
+    suspend fun getRideHistory(@Body request: RideHistoryRequest): Response<RiderRideHistoryResponse>
+
+    // ✅ ADDED: Ongoing Ride Endpoint (Polling)
+    @POST("riding_app/v1/ongoing_ride_from_riderside")
+    suspend fun getOngoingRideRiderSide(@Body request: RiderOngoingRideRequest): Response<RiderOngoingRideResponse>
 }

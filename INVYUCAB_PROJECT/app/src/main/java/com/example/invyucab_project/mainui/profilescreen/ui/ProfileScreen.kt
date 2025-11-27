@@ -12,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -20,7 +19,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,7 +30,6 @@ import com.example.invyucab_project.domain.model.ProfileOption
 import com.example.invyucab_project.core.utils.navigationsbar.AppBottomNavigation
 import com.example.invyucab_project.mainui.profilescreen.viewmodel.ProfileViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
-import com.example.invyucab_project.ui.theme.LightSlateGray
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -192,6 +189,8 @@ fun ProfileOptionCard(
                 when (option.title) {
                     "Edit Profile" -> navController.navigate(Screen.EditProfileScreen.route)
                     "Payment Methods" -> navController.navigate(Screen.PaymentMethodScreen.route)
+                    // ✅ UPDATED: Navigation for Ride History
+                    "Ride History" -> navController.navigate(Screen.RideHistoryScreen.route)
                     "Logout" -> { /* Handled by bottom button */ }
                     else -> option.onClick()
                 }

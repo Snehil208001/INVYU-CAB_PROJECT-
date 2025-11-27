@@ -3,8 +3,6 @@ package com.example.invyucab_project.data.models
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
-// --- EXISTING MODELS (Keep these as they are) ---
-
 @JsonClass(generateAdapter = true)
 data class CheckUserRequest(
     @Json(name = "phone_number") val phoneNumber: String
@@ -174,7 +172,6 @@ data class DriverUpcomingRidesResponse(
     @Json(name = "message") val message: String?
 )
 
-// ✅✅✅ NEW: Accept Ride Models ✅✅✅
 @JsonClass(generateAdapter = true)
 data class AcceptRideRequest(
     @Json(name = "ride_id") val rideId: Int,
@@ -185,4 +182,73 @@ data class AcceptRideRequest(
 data class AcceptRideResponse(
     @Json(name = "success") val success: Boolean?,
     @Json(name = "message") val message: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class RideHistoryRequest(
+    @Json(name = "user_id") val userId: Int
+)
+
+@JsonClass(generateAdapter = true)
+data class RiderRideHistoryItem(
+    @Json(name = "ride_id") val rideId: Int,
+    @Json(name = "rider_id") val riderId: Int?,
+    @Json(name = "driver_id") val driverId: Int?,
+    @Json(name = "pickup_latitude") val pickupLatitude: String?,
+    @Json(name = "pickup_longitude") val pickupLongitude: String?,
+    @Json(name = "drop_latitude") val dropLatitude: String?,
+    @Json(name = "drop_longitude") val dropLongitude: String?,
+    @Json(name = "estimated_price") val estimatedPrice: String?,
+    @Json(name = "actual_price") val actualPrice: String?,
+    @Json(name = "status") val status: String?,
+    @Json(name = "requested_at") val requestedAt: String?,
+    @Json(name = "started_at") val startedAt: String?,
+    @Json(name = "completed_at") val completedAt: String?,
+    @Json(name = "driver_name") val driverName: String?,
+    @Json(name = "driver_photo") val driverPhoto: String?,
+    @Json(name = "driver_rating") val driverRating: String?,
+    @Json(name = "vehicle_number") val vehicleNumber: String?,
+    @Json(name = "model") val model: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class RiderRideHistoryResponse(
+    @Json(name = "success") val success: Boolean,
+    @Json(name = "data") val data: List<RiderRideHistoryItem>?
+)
+
+// ✅✅✅ NEW: Ongoing Ride Models (Rider Side) ✅✅✅
+
+@JsonClass(generateAdapter = true)
+data class RiderOngoingRideRequest(
+    @Json(name = "user_id") val userId: Int
+)
+
+@JsonClass(generateAdapter = true)
+data class RiderOngoingRideItem(
+    @Json(name = "ride_id") val rideId: Int,
+    @Json(name = "rider_id") val riderId: Int?,
+    @Json(name = "driver_id") val driverId: Int?,
+    @Json(name = "pickup_latitude") val pickupLatitude: String?,
+    @Json(name = "pickup_longitude") val pickupLongitude: String?,
+    @Json(name = "drop_latitude") val dropLatitude: String?,
+    @Json(name = "drop_longitude") val dropLongitude: String?,
+    @Json(name = "estimated_price") val estimatedPrice: String?,
+    @Json(name = "actual_price") val actualPrice: String?,
+    @Json(name = "status") val status: String?,
+    @Json(name = "requested_at") val requestedAt: String?,
+    @Json(name = "started_at") val startedAt: String?,
+    @Json(name = "completed_at") val completedAt: String?,
+    @Json(name = "user_pin") val userPin: Int?, // IMPORTANT: OTP for rider
+    @Json(name = "driver_name") val driverName: String?,
+    @Json(name = "driver_photo") val driverPhoto: String?,
+    @Json(name = "driver_rating") val driverRating: String?,
+    @Json(name = "vehicle_number") val vehicleNumber: String?,
+    @Json(name = "model") val model: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class RiderOngoingRideResponse(
+    @Json(name = "success") val success: Boolean,
+    @Json(name = "data") val data: List<RiderOngoingRideItem>?
 )

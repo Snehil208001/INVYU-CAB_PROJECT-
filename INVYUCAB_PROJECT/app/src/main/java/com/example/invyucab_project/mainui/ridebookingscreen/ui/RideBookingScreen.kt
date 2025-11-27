@@ -54,6 +54,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.invyucab_project.R
+import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.data.models.RideBookingUiState
 import com.example.invyucab_project.mainui.ridebookingscreen.viewmodel.RideBookingViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
@@ -78,10 +79,34 @@ import com.google.maps.android.compose.rememberCameraPositionState
 fun RideBookingScreen(
     navController: NavController,
     rideId: String?,
-    userPin: Int?, // ✅ Added userPin parameter
+    userPin: Int?,
     viewModel: RideBookingViewModel = hiltViewModel()
 ) {
     val uiState: RideBookingUiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // ✅ Observe Navigation Events from Polling
+    LaunchedEffect(key1 = true) {
+        viewModel.navigationEvent.collect { ride ->
+            // Navigate to Booking Detail Screen when driver accepts
+            val route = Screen.BookingDetailScreen.createRoute(
+                driverName = ride.driverName ?: "Driver",
+                vehicleModel = ride.model ?: "Vehicle",
+                otp = ride.userPin?.toString() ?: "0000",
+                rideId = ride.rideId,
+                riderId = ride.riderId ?: 0,
+                driverId = ride.driverId ?: 0,
+                role = "rider",
+                pickupLat = ride.pickupLatitude?.toDoubleOrNull() ?: 0.0,
+                pickupLng = ride.pickupLongitude?.toDoubleOrNull() ?: 0.0,
+                dropLat = ride.dropLatitude?.toDoubleOrNull() ?: 0.0,
+                dropLng = ride.dropLongitude?.toDoubleOrNull() ?: 0.0
+            )
+            navController.navigate(route) {
+                // Pop the searching screen so user can't go back to "Searching"
+                popUpTo(Screen.RideBookingScreen.route) { inclusive = true }
+            }
+        }
+    }
 
     val context = LocalContext.current
     val mapStyleOptions = remember {
