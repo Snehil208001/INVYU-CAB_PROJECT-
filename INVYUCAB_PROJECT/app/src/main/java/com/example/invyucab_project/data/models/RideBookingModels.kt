@@ -44,7 +44,6 @@ data class DriverTotalRidesResponse(
     @Json(name = "data") val data: List<RideHistoryItem>? = null
 )
 
-// ✅ UPDATED: Added Lat/Long and extra price fields to catch missing data
 data class RideHistoryItem(
     @Json(name = "ride_id") val rideId: Int?,
     @Json(name = "pickup_address") val pickupAddress: String? = null,
@@ -129,7 +128,6 @@ data class UpdateRideStatusResponse(
 )
 
 // --- ✅ NEW: Rider Ongoing Ride Models (Scenario A) ---
-// This assumes polling requires ride_id to check a specific ride's status
 
 data class RiderOngoingRideRequest(
     @Json(name = "ride_id") val rideId: Int
@@ -147,10 +145,15 @@ data class RiderOngoingRideItem(
     @Json(name = "rider_id") val riderId: Int? = null,
     @Json(name = "driver_name") val driverName: String? = null,
     @Json(name = "vehicle_number") val vehicleNumber: String? = null,
-    @Json(name = "vehicle_model") val model: String? = null,
+    @Json(name = "model") val model: String? = null,
     @Json(name = "user_pin") val userPin: Int? = null,
     @Json(name = "pickup_latitude") val pickupLatitude: String? = null,
     @Json(name = "pickup_longitude") val pickupLongitude: String? = null,
     @Json(name = "drop_latitude") val dropLatitude: String? = null,
-    @Json(name = "drop_longitude") val dropLongitude: String? = null
+    @Json(name = "drop_longitude") val dropLongitude: String? = null,
+    @Json(name = "driver_photo") val driverPhoto: String? = null,
+    @Json(name = "driver_rating") val driverRating: String? = null,
+
+    // ✅ ADDED: Pickup Address to be fetched from API
+    @Json(name = "pickup_address") val pickupAddress: String? = null
 )

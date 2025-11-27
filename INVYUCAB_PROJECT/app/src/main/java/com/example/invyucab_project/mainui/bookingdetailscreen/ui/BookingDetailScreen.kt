@@ -1,8 +1,11 @@
 package com.example.invyucab_project.mainui.bookingdetailscreen.ui
 
-import androidx.compose.foundation.Image
+import android.annotation.SuppressLint
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,378 +14,521 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.invyucab_project.R
+import com.example.invyucab_project.core.common.Resource
+import com.example.invyucab_project.mainui.bookingdetailscreen.viewmodel.BookingDetailViewModel
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MapStyleOptions
+import com.google.maps.android.compose.CameraPositionState
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.Polyline
+import com.google.maps.android.compose.rememberCameraPositionState
 
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun BookingDetailScreen(
     navController: NavController,
-    // Defaults updated to match your JSON data
-    driverName: String = "Soumadeep Barik",
-    vehicleModel: String = "Swift",
-    otp: String = "1234",
-    rideId: Int = 1,
-    riderId: Int = 1,
-    driverId: Int = 1,
-    role: String = "rider",
-    pickupLat: Double = 22.572600,
-    pickupLng: Double = 88.363900,
-    dropLat: Double = 22.604500,
-    dropLng: Double = 88.409000,
-    // Additional parameters with defaults for UI
-    vehicleNumber: String = "D62626AS",
-    rating: String = "4.80",
-    price: String = "55.50",
-    driverPhotoUrl: String? = "https://example.com/profile.jpg",
-    // Previous addresses from HomeScreen/Logs
-    pickupLocation: String = "A41, Block D, Paryavaran Complex, Sainik Farm, New Delhi, Delhi 110030, India",
-    dropLocation: String = "Dwarka Mor, Vipin Garden, Nawada, Delhi, 110059, India"
+    rideId: Int = 1, // Pass the actual rideId from navigation arguments here
+    viewModel: BookingDetailViewModel = hiltViewModel()
 ) {
-    // Ensure we use valid data if empty strings are passed by navigation
-    val finalDriverName = if (driverName.isNotBlank() && driverName != "Driver") driverName else "Soumadeep Barik"
-    val finalVehicleModel = if (vehicleModel.isNotBlank() && vehicleModel != "Vehicle") vehicleModel else "Swift"
-    val finalOtp = if (otp.isNotBlank() && otp != "0000") otp else "1234"
+    val rideState by viewModel.rideState.collectAsState()
+    val routePolyline by viewModel.routePolyline.collectAsState()
+    val context = LocalContext.current
 
-    val scrollState = rememberScrollState()
+    // Fetch data when screen loads
+    LaunchedEffect(key1 = rideId) {
+        viewModel.fetchOngoingRide(rideId)
+    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .padding(16.dp)
-            .verticalScroll(scrollState)
-    ) {
-        // --- Header ---
-        Text(
-            text = "Your Ride",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black,
-            modifier = Modifier.padding(bottom = 16.dp)
+    // Default Camera Position
+    val defaultLocation = LatLng(28.7041, 77.1025)
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(defaultLocation, 14f)
+    }
+
+    // Retro Map Style
+    val mapProperties = remember {
+        MapProperties(
+            mapStyleOptions = MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style_retro)
         )
+    }
 
-        // --- Driver & Vehicle Card ---
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            shape = RoundedCornerShape(12.dp)
+    // Convert Vector XML to BitmapDescriptor to prevent crash
+    val pickupIcon = remember(context) {
+        bitmapDescriptorFromVector(context, R.drawable.ic_pickup_marker)
+    }
+    val dropoffIcon = remember(context) {
+        bitmapDescriptorFromVector(context, R.drawable.ic_dropoff_marker)
+    }
+
+    Scaffold(
+        content = {
+            Box(modifier = Modifier.fillMaxSize()) {
+
+                // --- 1. Map Section ---
+                GoogleMap(
+                    modifier = Modifier.fillMaxSize(),
+                    cameraPositionState = cameraPositionState,
+                    properties = mapProperties,
+                    uiSettings = MapUiSettings(zoomControlsEnabled = false, compassEnabled = false)
+                ) {
+                    // Draw Polyline
+                    if (routePolyline.isNotEmpty()) {
+                        Polyline(
+                            points = routePolyline,
+                            color = Color.Black,
+                            width = 12f
+                        )
+                    }
+
+                    if (rideState is Resource.Success) {
+                        val response = (rideState as Resource.Success).data
+                        val rideItem = response?.data?.firstOrNull()
+
+                        if (rideItem != null) {
+                            val pickupLat = rideItem.pickupLatitude?.toDoubleOrNull() ?: 28.7041
+                            val pickupLng = rideItem.pickupLongitude?.toDoubleOrNull() ?: 77.1025
+                            val dropLat = rideItem.dropLatitude?.toDoubleOrNull() ?: 28.7141
+                            val dropLng = rideItem.dropLongitude?.toDoubleOrNull() ?: 77.1125
+
+                            val pickupPos = LatLng(pickupLat, pickupLng)
+                            val dropPos = LatLng(dropLat, dropLng)
+
+                            // Pickup Marker
+                            Marker(
+                                state = MarkerState(position = pickupPos),
+                                title = "Pickup",
+                                icon = pickupIcon
+                            )
+
+                            // Dropoff Marker
+                            Marker(
+                                state = MarkerState(position = dropPos),
+                                title = "Dropoff",
+                                icon = dropoffIcon
+                            )
+
+                            // Center camera on pickup on first load
+                            LaunchedEffect(pickupPos) {
+                                cameraPositionState.position = CameraPosition.fromLatLngZoom(pickupPos, 15f)
+                            }
+                        }
+                    }
+                }
+
+                // --- 2. Loading Indicator ---
+                if (rideState is Resource.Loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                // --- 3. Booking Details Bottom Sheet ---
+                if (rideState is Resource.Success) {
+                    val response = (rideState as Resource.Success).data
+                    val rideItem = response?.data?.firstOrNull()
+
+                    if (rideItem != null) {
+                        RideDetailsBottomCard(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .navigationBarsPadding()
+                                .padding(bottom = 16.dp)
+                                .zIndex(1f),
+                            driverName = rideItem.driverName ?: "Unknown Driver",
+                            driverPhoto = rideItem.driverPhoto ?: "",
+                            driverRating = rideItem.driverRating ?: "4.5",
+                            vehicleNumber = rideItem.vehicleNumber ?: "N/A",
+                            vehicleModel = rideItem.model ?: "Cab",
+                            userPin = rideItem.userPin?.toString() ?: "----",
+                            // ✅ Fetch pickup address from API (with fallback)
+                            pickupAddress = rideItem.pickupAddress ?: "Address not available"
+                        )
+                    }
+                } else if (rideState is Resource.Error) {
+                    // Error Message
+                    Card(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(16.dp)
+                            .fillMaxWidth()
+                            .navigationBarsPadding(),
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                    ) {
+                        Text(
+                            text = (rideState as Resource.Error).message
+                                ?: "Error loading ride details",
+                            color = Color.Red,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+    )
+}
+
+@Composable
+fun RideDetailsBottomCard(
+    modifier: Modifier = Modifier,
+    driverName: String,
+    driverPhoto: String,
+    driverRating: String,
+    vehicleNumber: String,
+    vehicleModel: String,
+    userPin: String,
+    pickupAddress: String
+) {
+    val scrollState = rememberScrollState()
+    var replyText by remember { mutableStateOf("") }
+
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(24.dp)
         ) {
-            Column(
+
+            // Dummy Text for Pickup Time & Captain Distance
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Pickup in 2 mins",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+                Text(
+                    text = "Captain 428 m away",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Driver Profile Row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Top Row: Car Image & ETA
-                Row(
+                // Driver Image
+                AsyncImage(
+                    model = driverPhoto,
+                    contentDescription = "Driver Photo",
+                    placeholder = painterResource(id = R.drawable.ic_launcher_foreground),
+                    error = painterResource(id = R.drawable.ic_launcher_foreground),
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Placeholder for Car Image
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                        contentDescription = "Car",
-                        modifier = Modifier
-                            .size(60.dp)
-                            .background(Color(0xFFE3F2FD), RoundedCornerShape(8.dp))
-                            .padding(8.dp)
+                        .size(60.dp)
+                        .clip(CircleShape)
+                        .background(Color.LightGray)
+                )
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Name & Rating
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = driverName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
                     )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column {
-                        Text(
-                            text = "3 mins", // Estimated time
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = Color.Black
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Rating",
+                            tint = Color(0xFFFFD700), // Gold
+                            modifier = Modifier.size(16.dp)
                         )
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = finalVehicleModel,
-                            fontSize = 14.sp,
+                            text = driverRating,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = Color.Gray
                         )
                     }
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp, color = Color.LightGray)
-
-                // Middle: Vehicle Number
-                Text(
-                    text = vehicleNumber,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-                    textAlign = TextAlign.Center,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    color = Color.Black
-                )
-
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp, color = Color.LightGray)
-
-                // Bottom Row: Driver Info
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Driver Image
-                    if (driverPhotoUrl != null && driverPhotoUrl.startsWith("http")) {
-                        AsyncImage(
-                            model = driverPhotoUrl,
-                            contentDescription = "Driver",
-                            modifier = Modifier
-                                .size(50.dp)
-                                .clip(CircleShape)
-                                .border(1.dp, Color.Gray, CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                            contentDescription = "Driver Placeholder",
-                            modifier = Modifier
-                                .size(50.dp)
-                                .clip(CircleShape)
-                                .background(Color.LightGray)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = finalDriverName,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 16.sp,
-                            color = Color.Black
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = "Rating",
-                                tint = Color(0xFFFFC107), // Gold color
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = rating,
-                                fontSize = 14.sp,
-                                color = Color.Gray
-                            )
-                        }
-                    }
-
-                    // Call Button
-                    IconButton(
-                        onClick = { /* TODO: Call Driver Action */ },
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(Color(0xFF4CAF50), CircleShape) // Green background
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Call,
-                            contentDescription = "Call Driver",
-                            tint = Color.White
-                        )
-                    }
-                }
-
-                // OTP Footer
+                // Vehicle Number Badge
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFFEEEEEE)) // Light Gray
-                        .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center
+                        .background(Color(0xFFF0F0F0), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = "OTP $finalOtp",
+                        text = vehicleNumber,
+                        style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        letterSpacing = 1.sp,
                         color = Color.Black
                     )
                 }
-            }
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-        // --- Safety Section ---
-        Text(
-            text = "Ride safe with Invyu",
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp,
-            color = Color.Black
-        )
-        TextButton(onClick = { /* TODO: Share ride details */ }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
-            Text(
-                text = "Share ride details",
-                color = Color(0xFF1976D2), // Blue
-                fontSize = 14.sp
-            )
-        }
-
-        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Color.LightGray)
-
-        // --- Ride Details (Timeline) ---
-        Text(
-            text = "Ride details",
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
-            color = Color.Black,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        Row(modifier = Modifier.fillMaxWidth()) {
-            // Timeline graphics (Dots and Line)
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(end = 12.dp, top = 4.dp)
-            ) {
-                // Pickup Dot (Green)
-                Box(
+                // Call Button
+                IconButton(
+                    onClick = { /* TODO: Handle Call */ },
                     modifier = Modifier
-                        .size(12.dp)
-                        .background(Color(0xFF4CAF50), CircleShape)
-                )
-                // Connecting Line
-                Box(
-                    modifier = Modifier
-                        .width(2.dp)
-                        .height(60.dp) // Adjust height based on content
-                        .background(Color.LightGray)
-                )
-                // Drop Dot (Red)
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .background(Color(0xFFF44336), CircleShape)
-                )
+                        .size(40.dp)
+                        .background(Color(0xFF4CAF50), CircleShape) // Green
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Call,
+                        contentDescription = "Call Driver",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
-            // Timeline Text
-            Column {
-                // Pickup
-                Text(
-                    text = "10:00 AM", // Placeholder time
-                    fontSize = 12.sp,
-                    color = Color.Gray,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = pickupLocation,
-                    fontSize = 14.sp,
-                    color = Color.Black,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+            Spacer(modifier = Modifier.height(20.dp))
 
-                // Drop
-                Text(
-                    text = "10:30 AM", // Placeholder time
-                    fontSize = 12.sp,
-                    color = Color.Gray,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = dropLocation,
-                    fontSize = 14.sp,
-                    color = Color.Black
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // --- Payment Section ---
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Payment",
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                color = Color.Black
-            )
-            TextButton(onClick = { /* TODO: Change Payment */ }) {
-                Text(text = "Change", color = Color(0xFF1976D2))
-            }
-        }
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // Cash Icon placeholder
+            // Divider
             Box(
                 modifier = Modifier
-                    .size(24.dp)
-                    .background(Color.LightGray, RoundedCornerShape(4.dp)),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Color.LightGray.copy(alpha = 0.5f))
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Model & OTP Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("₹", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                Column {
+                    Text(
+                        text = "Vehicle Model",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = vehicleModel,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.Black
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "OTP (Start Ride)",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = userPin,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Cash ₹$price",
-                fontSize = 16.sp,
-                color = Color.Black
-            )
-        }
 
-        Spacer(modifier = Modifier.weight(1f))
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-        // --- Cancel Button ---
-        Button(
-            onClick = {
-                // TODO: Handle Cancel Ride
-                navController.popBackStack()
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)), // Red color
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Text(
-                text = "Cancel Ride",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
+            // Divider
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Color.LightGray.copy(alpha = 0.5f))
             )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Reply Input Field
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BasicTextField(
+                    value = replyText,
+                    onValueChange = { replyText = it },
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(Color(0xFFF0F0F0), RoundedCornerShape(24.dp))
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    textStyle = LocalTextStyle.current.copy(color = Color.Black, fontSize = 14.sp),
+                    decorationBox = { innerTextField ->
+                        if (replyText.isEmpty()) {
+                            Text(
+                                text = "Message driver...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.Gray
+                            )
+                        }
+                        innerTextField()
+                    },
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                IconButton(
+                    onClick = { /* TODO: Handle send message */ },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Send Message",
+                        tint = Color.White
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Divider
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Color.LightGray.copy(alpha = 0.5f))
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // --- Pickup from and Trip details ---
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Pickup from",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.Gray
+                )
+                Text(
+                    text = pickupAddress,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.Black,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Divider
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Color.LightGray.copy(alpha = 0.5f))
+            )
+
+            // Trip details row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { /* TODO: Navigate to Trip Details */ }
+                    .padding(vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Receipt,
+                    contentDescription = "Trip Details",
+                    tint = Color.Gray,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = "Trip details",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.Black
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "View Details",
+                    tint = Color.Gray
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
+    }
+}
+
+// Helper Function for Vector Icons
+fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescriptor? {
+    return try {
+        val vectorDrawable = ContextCompat.getDrawable(context, vectorResId)
+        vectorDrawable?.run {
+            setBounds(0, 0, intrinsicWidth, intrinsicHeight)
+            val bitmap = Bitmap.createBitmap(intrinsicWidth, intrinsicHeight, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            draw(canvas)
+            BitmapDescriptorFactory.fromBitmap(bitmap)
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
     }
 }

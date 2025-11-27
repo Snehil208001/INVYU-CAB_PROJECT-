@@ -22,6 +22,7 @@ import com.example.invyucab_project.mainui.profilescreen.memberlevelscreen.ui.Me
 import com.example.invyucab_project.mainui.profilescreen.paymentmethodscreen.ui.PaymentMethodScreen
 import com.example.invyucab_project.mainui.profilescreen.ui.ProfileScreen
 import com.example.invyucab_project.mainui.ridebookingscreen.ui.RideBookingScreen
+import com.example.invyucab_project.mainui.ridehistoryscreen.ui.RideHistoryScreen
 import com.example.invyucab_project.mainui.rideinprogressscreen.ui.RideInProgressScreen
 import com.example.invyucab_project.mainui.rideselectionscreen.ui.RideSelectionScreen
 import com.example.invyucab_project.mainui.ridetrackingscreen.ui.RideTrackingScreen
@@ -30,7 +31,6 @@ import com.example.invyucab_project.mainui.splashscreen_loggedin.ui.SplashScreen
 import com.example.invyucab_project.mainui.travelscreen.ui.TravelScreen
 import com.example.invyucab_project.mainui.userdetailsscreen.ui.UserDetailsScreen
 import com.example.invyucab_project.mainui.vehiclepreferences.ui.VehiclePreferencesScreen
-import com.example.invyucab_project.mainui.ridehistoryscreen.ui.RideHistoryScreen // ✅ IMPORT ADDED
 
 @Composable
 fun NavGraph(
@@ -108,7 +108,6 @@ fun NavGraph(
         composable(Screen.MemberLevelScreen.route) { MemberLevelScreen(navController = navController) }
         composable(Screen.PaymentMethodScreen.route) { PaymentMethodScreen(navController = navController) }
 
-        // ✅ NEW: Added RideHistoryScreen Composable
         composable(Screen.RideHistoryScreen.route) {
             RideHistoryScreen(navController = navController)
         }
@@ -187,6 +186,8 @@ fun NavGraph(
             )
         }
 
+        // ✅ UPDATED: Removed parameters 'driverName', 'vehicleModel', etc.
+        // The BookingDetailScreen now fetches these details internally using 'rideId'.
         composable(
             route = Screen.BookingDetailScreen.route,
             arguments = listOf(
@@ -203,19 +204,13 @@ fun NavGraph(
                 navArgument("dropLng") { type = NavType.FloatType }
             )
         ) { backStackEntry ->
+            // Extract rideId from arguments
+            val rideId = backStackEntry.arguments?.getInt("rideId") ?: 0
+
+            // Pass only rideId and navController
             BookingDetailScreen(
                 navController = navController,
-                driverName = backStackEntry.arguments?.getString("driverName") ?: "",
-                vehicleModel = backStackEntry.arguments?.getString("vehicleModel") ?: "",
-                otp = backStackEntry.arguments?.getString("otp") ?: "",
-                rideId = backStackEntry.arguments?.getInt("rideId") ?: 0,
-                riderId = backStackEntry.arguments?.getInt("riderId") ?: 0,
-                driverId = backStackEntry.arguments?.getInt("driverId") ?: 0,
-                role = backStackEntry.arguments?.getString("role") ?: "driver",
-                pickupLat = backStackEntry.arguments?.getFloat("pickupLat")?.toDouble() ?: 0.0,
-                pickupLng = backStackEntry.arguments?.getFloat("pickupLng")?.toDouble() ?: 0.0,
-                dropLat = backStackEntry.arguments?.getFloat("dropLat")?.toDouble() ?: 0.0,
-                dropLng = backStackEntry.arguments?.getFloat("dropLng")?.toDouble() ?: 0.0
+                rideId = rideId
             )
         }
 
