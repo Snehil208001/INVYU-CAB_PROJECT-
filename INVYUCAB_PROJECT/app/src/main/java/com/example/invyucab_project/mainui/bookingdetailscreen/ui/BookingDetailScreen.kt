@@ -26,18 +26,30 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -78,36 +90,36 @@ import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 
+@OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun BookingDetailScreen(
     navController: NavController,
-    rideId: Int = 1, // Pass the actual rideId from navigation arguments here
+    rideId: Int = 1,
     viewModel: BookingDetailViewModel = hiltViewModel()
 ) {
     val rideState by viewModel.rideState.collectAsState()
     val routePolyline by viewModel.routePolyline.collectAsState()
     val context = LocalContext.current
 
-    // Fetch data when screen loads
+    var showTripDetailsSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+
     LaunchedEffect(key1 = rideId) {
         viewModel.fetchOngoingRide(rideId)
     }
 
-    // Default Camera Position
     val defaultLocation = LatLng(28.7041, 77.1025)
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(defaultLocation, 14f)
     }
 
-    // Retro Map Style
     val mapProperties = remember {
         MapProperties(
             mapStyleOptions = MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style_retro)
         )
     }
 
-    // Convert Vector XML to BitmapDescriptor to prevent crash
     val pickupIcon = remember(context) {
         bitmapDescriptorFromVector(context, R.drawable.ic_pickup_marker)
     }
@@ -126,7 +138,6 @@ fun BookingDetailScreen(
                     properties = mapProperties,
                     uiSettings = MapUiSettings(zoomControlsEnabled = false, compassEnabled = false)
                 ) {
-                    // Draw Polyline
                     if (routePolyline.isNotEmpty()) {
                         Polyline(
                             points = routePolyline,
@@ -148,21 +159,18 @@ fun BookingDetailScreen(
                             val pickupPos = LatLng(pickupLat, pickupLng)
                             val dropPos = LatLng(dropLat, dropLng)
 
-                            // Pickup Marker
                             Marker(
                                 state = MarkerState(position = pickupPos),
                                 title = "Pickup",
                                 icon = pickupIcon
                             )
 
-                            // Dropoff Marker
                             Marker(
                                 state = MarkerState(position = dropPos),
                                 title = "Dropoff",
                                 icon = dropoffIcon
                             )
 
-                            // Center camera on pickup on first load
                             LaunchedEffect(pickupPos) {
                                 cameraPositionState.position = CameraPosition.fromLatLngZoom(pickupPos, 15f)
                             }
@@ -178,7 +186,7 @@ fun BookingDetailScreen(
                     )
                 }
 
-                // --- 3. Booking Details Bottom Sheet ---
+                // --- 3. Booking Details Bottom Sheet (Main Card) ---
                 if (rideState is Resource.Success) {
                     val response = (rideState as Resource.Success).data
                     val rideItem = response?.data?.firstOrNull()
@@ -197,12 +205,29 @@ fun BookingDetailScreen(
                             vehicleNumber = rideItem.vehicleNumber ?: "N/A",
                             vehicleModel = rideItem.model ?: "Cab",
                             userPin = rideItem.userPin?.toString() ?: "----",
-                            // ✅ Fetch pickup address from API (with fallback)
-                            pickupAddress = rideItem.pickupAddress ?: "Address not available"
+                            pickupAddress = rideItem.pickupAddress ?: "Address not available",
+                            onTripDetailsClick = { showTripDetailsSheet = true }
                         )
+
+                        // --- 4. Trip Details Bottom Sheet Overlay ---
+                        if (showTripDetailsSheet) {
+                            ModalBottomSheet(
+                                onDismissRequest = { showTripDetailsSheet = false },
+                                sheetState = sheetState,
+                                containerColor = Color.White
+                            ) {
+                                TripDetailsSheet(
+                                    pickupAddress = rideItem.pickupAddress ?: "Unknown Pickup",
+                                    dropAddress = rideItem.dropAddress ?: "Unknown Drop",
+                                    fare = rideItem.estimatedPrice ?: "0.00",
+                                    onCancelClick = {
+                                        showTripDetailsSheet = false
+                                    }
+                                )
+                            }
+                        }
                     }
                 } else if (rideState is Resource.Error) {
-                    // Error Message
                     Card(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -224,6 +249,179 @@ fun BookingDetailScreen(
     )
 }
 
+// ✅ Trip Details Sheet Composable with Both Icons (Like & Edit)
+@Composable
+fun TripDetailsSheet(
+    pickupAddress: String,
+    dropAddress: String,
+    fare: String,
+    onCancelClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 24.dp, end = 24.dp, bottom = 40.dp)
+    ) {
+        Text(
+            text = "Trip Details",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        HorizontalDivider(thickness = 1.dp, color = Color.LightGray.copy(alpha = 0.5f))
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Pickup Row
+        Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+            Icon(
+                imageVector = Icons.Default.MyLocation,
+                contentDescription = "Pickup",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp).padding(top = 2.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Pickup",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.Gray
+                )
+                Text(
+                    text = pickupAddress,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            // ✅ Added Both Icons: Heart & Edit
+            Row {
+                IconButton(onClick = { /* TODO */ }) {
+                    Icon(
+                        imageVector = Icons.Default.FavoriteBorder,
+                        contentDescription = "Favorite",
+                        tint = Color.Gray
+                    )
+                }
+                IconButton(onClick = { /* TODO */ }) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit",
+                        tint = Color.Gray
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Dropoff Row
+        Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+            Icon(
+                imageVector = Icons.Default.LocationOn,
+                contentDescription = "Dropoff",
+                tint = Color.Red,
+                modifier = Modifier.size(24.dp).padding(top = 2.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Drop off",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.Gray
+                )
+                Text(
+                    text = dropAddress,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            // ✅ Added Both Icons: Heart & Edit
+            Row {
+                IconButton(onClick = { /* TODO */ }) {
+                    Icon(
+                        imageVector = Icons.Default.FavoriteBorder,
+                        contentDescription = "Favorite",
+                        tint = Color.Gray
+                    )
+                }
+                IconButton(onClick = { /* TODO */ }) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit",
+                        tint = Color.Gray
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider(thickness = 1.dp, color = Color.LightGray.copy(alpha = 0.5f))
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Total Fare
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Total Fare",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "₹$fare",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Payment Method
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = "Paying via Cash",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "Change",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.clickable { /* TODO: Change Payment */ }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Cancel Ride Button
+        Button(
+            onClick = onCancelClick,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEBEE), contentColor = Color.Red),
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Cancel,
+                contentDescription = "Cancel",
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = "Cancel Ride", fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+
 @Composable
 fun RideDetailsBottomCard(
     modifier: Modifier = Modifier,
@@ -233,7 +431,8 @@ fun RideDetailsBottomCard(
     vehicleNumber: String,
     vehicleModel: String,
     userPin: String,
-    pickupAddress: String
+    pickupAddress: String,
+    onTripDetailsClick: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     var replyText by remember { mutableStateOf("") }
@@ -251,7 +450,7 @@ fun RideDetailsBottomCard(
                 .padding(24.dp)
         ) {
 
-            // Dummy Text for Pickup Time & Captain Distance
+            // Pickup Time & Distance
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Pickup in 2 mins",
@@ -273,7 +472,6 @@ fun RideDetailsBottomCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Driver Image
                 AsyncImage(
                     model = driverPhoto,
                     contentDescription = "Driver Photo",
@@ -288,7 +486,6 @@ fun RideDetailsBottomCard(
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                // Name & Rating
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = driverName,
@@ -300,7 +497,7 @@ fun RideDetailsBottomCard(
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = "Rating",
-                            tint = Color(0xFFFFD700), // Gold
+                            tint = Color(0xFFFFD700),
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -312,7 +509,6 @@ fun RideDetailsBottomCard(
                     }
                 }
 
-                // Vehicle Number Badge
                 Box(
                     modifier = Modifier
                         .background(Color(0xFFF0F0F0), RoundedCornerShape(8.dp))
@@ -328,12 +524,11 @@ fun RideDetailsBottomCard(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // Call Button
                 IconButton(
-                    onClick = { /* TODO: Handle Call */ },
+                    onClick = { /* TODO */ },
                     modifier = Modifier
                         .size(40.dp)
-                        .background(Color(0xFF4CAF50), CircleShape) // Green
+                        .background(Color(0xFF4CAF50), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Call,
@@ -346,7 +541,6 @@ fun RideDetailsBottomCard(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Divider
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -356,7 +550,6 @@ fun RideDetailsBottomCard(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Model & OTP Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -393,7 +586,6 @@ fun RideDetailsBottomCard(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Divider
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -403,7 +595,6 @@ fun RideDetailsBottomCard(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Reply Input Field
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -432,7 +623,7 @@ fun RideDetailsBottomCard(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 IconButton(
-                    onClick = { /* TODO: Handle send message */ },
+                    onClick = { /* TODO */ },
                     modifier = Modifier
                         .size(48.dp)
                         .background(MaterialTheme.colorScheme.primary, CircleShape)
@@ -447,7 +638,6 @@ fun RideDetailsBottomCard(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Divider
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -457,7 +647,6 @@ fun RideDetailsBottomCard(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // --- Pickup from and Trip details ---
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Pickup from",
@@ -475,7 +664,6 @@ fun RideDetailsBottomCard(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Divider
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -483,11 +671,10 @@ fun RideDetailsBottomCard(
                     .background(Color.LightGray.copy(alpha = 0.5f))
             )
 
-            // Trip details row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { /* TODO: Navigate to Trip Details */ }
+                    .clickable { onTripDetailsClick() }
                     .padding(vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -516,7 +703,6 @@ fun RideDetailsBottomCard(
     }
 }
 
-// Helper Function for Vector Icons
 fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescriptor? {
     return try {
         val vectorDrawable = ContextCompat.getDrawable(context, vectorResId)

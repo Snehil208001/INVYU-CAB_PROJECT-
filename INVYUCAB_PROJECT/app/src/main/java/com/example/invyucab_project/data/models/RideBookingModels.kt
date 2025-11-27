@@ -127,7 +127,7 @@ data class UpdateRideStatusResponse(
     @Json(name = "data") val data: Any? = null
 )
 
-// --- ✅ NEW: Rider Ongoing Ride Models (Scenario A) ---
+// --- Rider Ongoing Ride Models ---
 
 data class RiderOngoingRideRequest(
     @Json(name = "ride_id") val rideId: Int
@@ -153,7 +153,8 @@ data class RiderOngoingRideItem(
     @Json(name = "drop_longitude") val dropLongitude: String? = null,
     @Json(name = "driver_photo") val driverPhoto: String? = null,
     @Json(name = "driver_rating") val driverRating: String? = null,
-
-    // ✅ ADDED: Pickup Address to be fetched from API
-    @Json(name = "pickup_address") val pickupAddress: String? = null
+    @Json(name = "pickup_address") val pickupAddress: String? = null,
+    @Json(name = "drop_address") val dropAddress: String? = null,
+    // ✅ ADDED: Estimated Price to show in Trip Details
+    @Json(name = "estimated_price") val estimatedPrice: String? = null
 )
