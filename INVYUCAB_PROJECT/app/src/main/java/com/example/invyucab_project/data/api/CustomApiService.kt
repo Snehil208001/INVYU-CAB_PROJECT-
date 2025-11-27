@@ -53,7 +53,7 @@ interface CustomApiService {
     @POST("riding_app/v1/ride_history_from_riderside")
     suspend fun getRideHistory(@Body request: RideHistoryRequest): Response<RiderRideHistoryResponse>
 
-    // ✅ ADDED: Ongoing Ride Endpoint (Polling)
+    // ✅ ADDED: Ongoing Ride Endpoint (Polling with ride_id)
     @POST("riding_app/v1/ongoing_ride_from_riderside")
     suspend fun getOngoingRideRiderSide(@Body request: RiderOngoingRideRequest): Response<RiderOngoingRideResponse>
 }

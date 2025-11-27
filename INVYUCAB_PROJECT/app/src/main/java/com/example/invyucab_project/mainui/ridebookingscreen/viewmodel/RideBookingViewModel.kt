@@ -85,28 +85,29 @@ class RideBookingViewModel @Inject constructor(
 
     // ✅ Polling Logic
     private fun startPollingForDriver() {
-        val userIdStr = userPreferencesRepository.getUserId()
-        if (userIdStr.isNullOrBlank()) {
-            Log.e("RideBookingVM", "User ID not found, cannot poll.")
+        // We need a valid rideId to poll
+        if (rideId.isNullOrBlank()) {
+            Log.e("RideBookingVM", "Ride ID not found, cannot poll.")
             return
         }
-        val userId = userIdStr.toIntOrNull() ?: return
+        val rideIdInt = rideId.toIntOrNull() ?: return
 
         viewModelScope.launch {
             while (isPolling) {
                 try {
-                    val response = getOngoingRideUseCase(userId)
+                    // Poll with rideId instead of userId
+                    val response = getOngoingRideUseCase(rideIdInt)
+
                     if (response.isSuccessful && response.body()?.success == true) {
                         val rides = response.body()?.data
-                        // Find the ride that matches our rideId (if we have one) OR just the active one
-                        // Assuming response returns specific active rides.
-                        val ongoingRide = rides?.find { it.rideId.toString() == rideId }
-                            ?: rides?.firstOrNull() // Fallback to first if rideId doesn't match or isn't passed
+                        // Get the ride info from the list
+                        val ongoingRide = rides?.find { it.rideId == rideIdInt } ?: rides?.firstOrNull()
 
                         if (ongoingRide != null) {
-                            // Check Status
-                            if (ongoingRide.status != "requested" && ongoingRide.status != "cancelled" && ongoingRide.driverId != null) {
-                                // Driver Found! Stop polling and navigate
+                            Log.d("RideBookingVM", "Ride Status: ${ongoingRide.status}")
+
+                            // Check Status - If accepted, stop polling and navigate
+                            if (ongoingRide.status == "accepted") {
                                 isPolling = false
                                 _navigationEvent.emit(ongoingRide)
                             }
@@ -115,7 +116,7 @@ class RideBookingViewModel @Inject constructor(
                 } catch (e: Exception) {
                     Log.e("RideBookingVM", "Polling Error: ${e.message}")
                 }
-                delay(5000) // Wait 5 seconds
+                delay(5000) // Wait 5 seconds before next poll
             }
         }
     }

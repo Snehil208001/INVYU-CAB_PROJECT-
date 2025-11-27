@@ -113,8 +113,9 @@ class AppRepository @Inject constructor(
     }
 
     // --- ✅ ADDED: Get Ongoing Ride Function (Rider Side) ---
-    suspend fun getOngoingRideRiderSide(userId: Int): Response<RiderOngoingRideResponse> {
-        val request = RiderOngoingRideRequest(userId = userId)
+    // Changed parameter to rideId
+    suspend fun getOngoingRideRiderSide(rideId: Int): Response<RiderOngoingRideResponse> {
+        val request = RiderOngoingRideRequest(rideId = rideId)
         return customApiService.getOngoingRideRiderSide(request)
     }
 

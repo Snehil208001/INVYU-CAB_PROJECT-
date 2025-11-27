@@ -65,7 +65,7 @@ data class RideHistoryItem(
     @Json(name = "drop_longitude") val dropLongitude: Any? = null
 )
 
-// --- Ongoing Rides Models ---
+// --- Ongoing Rides Models (Driver Side) ---
 
 data class DriverOngoingRidesRequest(
     @Json(name = "driver_id") val driverId: Int
@@ -126,4 +126,31 @@ data class UpdateRideStatusResponse(
     @Json(name = "success") val success: Boolean,
     @Json(name = "message") val message: String? = null,
     @Json(name = "data") val data: Any? = null
+)
+
+// --- ✅ NEW: Rider Ongoing Ride Models (Scenario A) ---
+// This assumes polling requires ride_id to check a specific ride's status
+
+data class RiderOngoingRideRequest(
+    @Json(name = "ride_id") val rideId: Int
+)
+
+data class RiderOngoingRideResponse(
+    @Json(name = "success") val success: Boolean,
+    @Json(name = "data") val data: List<RiderOngoingRideItem>? = null
+)
+
+data class RiderOngoingRideItem(
+    @Json(name = "ride_id") val rideId: Int,
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "driver_id") val driverId: Int? = null,
+    @Json(name = "rider_id") val riderId: Int? = null,
+    @Json(name = "driver_name") val driverName: String? = null,
+    @Json(name = "vehicle_number") val vehicleNumber: String? = null,
+    @Json(name = "vehicle_model") val model: String? = null,
+    @Json(name = "user_pin") val userPin: Int? = null,
+    @Json(name = "pickup_latitude") val pickupLatitude: String? = null,
+    @Json(name = "pickup_longitude") val pickupLongitude: String? = null,
+    @Json(name = "drop_latitude") val dropLatitude: String? = null,
+    @Json(name = "drop_longitude") val dropLongitude: String? = null
 )

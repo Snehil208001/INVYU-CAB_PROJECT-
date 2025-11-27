@@ -8,7 +8,8 @@ import javax.inject.Inject
 class GetOngoingRideUseCase @Inject constructor(
     private val appRepository: AppRepository
 ) {
-    suspend operator fun invoke(userId: Int): Response<RiderOngoingRideResponse> {
-        return appRepository.getOngoingRideRiderSide(userId)
+    // ✅ CHANGED: Accepts rideId instead of userId
+    suspend operator fun invoke(rideId: Int): Response<RiderOngoingRideResponse> {
+        return appRepository.getOngoingRideRiderSide(rideId)
     }
 }
