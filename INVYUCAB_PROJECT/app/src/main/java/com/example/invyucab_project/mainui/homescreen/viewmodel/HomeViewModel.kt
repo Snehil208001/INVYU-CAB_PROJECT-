@@ -34,9 +34,9 @@ class HomeViewModel @Inject constructor(
     private val fusedLocationClient: FusedLocationProviderClient,
     private val getAutocompletePredictionsUseCase: GetAutocompletePredictionsUseCase,
     private val locationManager: LocationManager,
-    private val getRideHistoryUseCase: GetRideHistoryUseCase, // ✅ Injected
-    private val userPreferencesRepository: UserPreferencesRepository, // ✅ Injected
-    private val application: Application // ✅ Injected for Geocoder
+    private val getRideHistoryUseCase: GetRideHistoryUseCase,
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val application: Application
 ) : BaseViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -46,7 +46,7 @@ class HomeViewModel @Inject constructor(
 
     init {
         getCurrentLocation()
-        fetchRecentRides() // ✅ Fetch on init
+        fetchRecentRides()
     }
 
     private fun isLocationEnabled(): Boolean {
@@ -112,7 +112,6 @@ class HomeViewModel @Inject constructor(
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
     }
 
-    // ✅ ADDED: Fetch Recent Rides Logic
     fun fetchRecentRides() {
         val userIdStr = userPreferencesRepository.getUserId()
         val userId = userIdStr?.toIntOrNull() ?: return
@@ -123,16 +122,23 @@ class HomeViewModel @Inject constructor(
                 if (response.isSuccessful && response.body()?.success == true) {
                     val rides = response.body()?.data ?: emptyList()
 
-                    // ✅ FIX: Use reversed() to get NEWEST rides first
                     val recentItems = rides.reversed().take(3).map { item ->
-                        // Resolve addresses using Geocoder since API only gives Lat/Lng
-                        val pickup = getAddressFromLatLng(item.pickupLatitude, item.pickupLongitude)
-                        val drop = getAddressFromLatLng(item.dropLatitude, item.dropLongitude)
+                        val pickupLat = item.pickupLatitude?.toDoubleOrNull() ?: 0.0
+                        val pickupLng = item.pickupLongitude?.toDoubleOrNull() ?: 0.0
+                        val dropLat = item.dropLatitude?.toDoubleOrNull() ?: 0.0
+                        val dropLng = item.dropLongitude?.toDoubleOrNull() ?: 0.0
+
+                        val pickup = getAddressFromLatLng(pickupLat, pickupLng)
+                        val drop = getAddressFromLatLng(dropLat, dropLng)
 
                         RecentRide(
                             rideId = item.rideId,
                             pickupAddress = pickup,
-                            dropAddress = drop
+                            dropAddress = drop,
+                            pickupLat = pickupLat,
+                            pickupLng = pickupLng,
+                            dropLat = dropLat,
+                            dropLng = dropLng
                         )
                     }
 
@@ -144,11 +150,8 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    // ✅ Helper to convert Lat/Lng string to Address
-    private suspend fun getAddressFromLatLng(latStr: String?, lngStr: String?): String {
-        val lat = latStr?.toDoubleOrNull()
-        val lng = lngStr?.toDoubleOrNull()
-        if (lat == null || lng == null) return "Location N/A"
+    private suspend fun getAddressFromLatLng(lat: Double, lng: Double): String {
+        if (lat == 0.0 || lng == 0.0) return "Location N/A"
         return withContext(Dispatchers.IO) {
             try {
                 val geocoder = Geocoder(application, Locale.getDefault())
@@ -159,7 +162,27 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    // --- Search Logic ---
+    // ✅ ADDED: Handle click on recent ride
+    fun onRecentRideClicked(ride: RecentRide) {
+        viewModelScope.launch {
+            sendEvent(
+                UiEvent.Navigate(
+                    Screen.RideSelectionScreen.createRoute(
+                        dropPlaceId = "recent_ride", // Dummy ID
+                        dropDescription = ride.dropAddress,
+                        pickupPlaceId = "recent_ride", // Dummy ID
+                        pickupDescription = ride.pickupAddress,
+                        pickupLat = ride.pickupLat,
+                        pickupLng = ride.pickupLng,
+                        dropLat = ride.dropLat,
+                        dropLng = ride.dropLng
+                    )
+                )
+            )
+        }
+    }
+
+    // --- Search Logic (Unchanged) ---
 
     fun onPickupQueryChange(query: String) {
         _uiState.update { it.copy(pickupQuery = query, activeField = SearchField.PICKUP) }
@@ -207,7 +230,6 @@ class HomeViewModel @Inject constructor(
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             delay(300L)
-
             val location = _uiState.value.currentLocation
             val locationString = location?.let { "${it.latitude},${it.longitude}" } ?: ""
 

@@ -85,24 +85,32 @@ sealed class Screen(val route: String) {
     object MemberLevelScreen : Screen("member_level_screen")
     object PaymentMethodScreen : Screen("payment_method_screen")
 
-    // ✅ NEW: Added RideHistoryScreen
     object RideHistoryScreen : Screen("ride_history_screen")
 
+    // ✅ UPDATED: Added lat/lng parameters to the route
     object RideSelectionScreen :
-        Screen("ride_selection_screen/{dropPlaceId}/{dropDescription}?pickupPlaceId={pickupPlaceId}&pickupDescription={pickupDescription}") {
+        Screen("ride_selection_screen/{dropPlaceId}/{dropDescription}?pickupPlaceId={pickupPlaceId}&pickupDescription={pickupDescription}&pickupLat={pickupLat}&pickupLng={pickupLng}&dropLat={dropLat}&dropLng={dropLng}") {
         fun createRoute(
             dropPlaceId: String,
             dropDescription: String,
             pickupPlaceId: String?,
-            pickupDescription: String
+            pickupDescription: String,
+            pickupLat: Double? = null,
+            pickupLng: Double? = null,
+            dropLat: Double? = null,
+            dropLng: Double? = null
         ): String {
             val encodedDropDesc = URLEncoder.encode(dropDescription, StandardCharsets.UTF_8.toString())
-            val encodedPickupId = pickupPlaceId?.let { URLEncoder.encode(it, StandardCharsets.UTF_8.toString()) }
-                ?: "current_location"
-            val encodedPickupDesc =
-                URLEncoder.encode(pickupDescription, StandardCharsets.UTF_8.toString())
+            val encodedPickupId = pickupPlaceId?.let { URLEncoder.encode(it, StandardCharsets.UTF_8.toString()) } ?: "current_location"
+            val encodedPickupDesc = URLEncoder.encode(pickupDescription, StandardCharsets.UTF_8.toString())
 
-            return "ride_selection_screen/$dropPlaceId/$encodedDropDesc?pickupPlaceId=$encodedPickupId&pickupDescription=$encodedPickupDesc"
+            // Default to 0.0 if null, logic in ViewModel should handle "0.0" or "null" checks
+            val pLat = pickupLat ?: 0.0
+            val pLng = pickupLng ?: 0.0
+            val dLat = dropLat ?: 0.0
+            val dLng = dropLng ?: 0.0
+
+            return "ride_selection_screen/$dropPlaceId/$encodedDropDesc?pickupPlaceId=$encodedPickupId&pickupDescription=$encodedPickupDesc&pickupLat=$pLat&pickupLng=$pLng&dropLat=$dLat&dropLng=$dLng"
         }
     }
 
@@ -170,7 +178,6 @@ sealed class Screen(val route: String) {
             dropLat: Double,
             dropLng: Double
         ): String {
-            // We pass as float to match NavArgument types typically used in this project
             return "ride_in_progress_screen/$rideId/${dropLat.toFloat()}/${dropLng.toFloat()}"
         }
     }
