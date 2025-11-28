@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,7 +27,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Edit
@@ -100,6 +100,7 @@ fun BookingDetailScreen(
 ) {
     val rideState by viewModel.rideState.collectAsState()
     val routePolyline by viewModel.routePolyline.collectAsState()
+    val cancelState by viewModel.cancelRideState.collectAsState()
     val context = LocalContext.current
 
     var showTripDetailsSheet by remember { mutableStateOf(false) }
@@ -107,6 +108,19 @@ fun BookingDetailScreen(
 
     LaunchedEffect(key1 = rideId) {
         viewModel.fetchOngoingRide(rideId)
+    }
+
+    // ✅ Listen for Cancellation Success and Navigate
+    LaunchedEffect(cancelState) {
+        if (cancelState is Resource.Success) {
+            Toast.makeText(context, "Ride Cancelled Successfully", Toast.LENGTH_SHORT).show()
+            // Navigate to Home Screen and remove backstack
+            navController.navigate("home_screen") {
+                popUpTo("home_screen") { inclusive = true }
+            }
+        } else if (cancelState is Resource.Error) {
+            Toast.makeText(context, (cancelState as Resource.Error).message ?: "Cancellation Failed", Toast.LENGTH_LONG).show()
+        }
     }
 
     val defaultLocation = LatLng(28.7041, 77.1025)
@@ -179,7 +193,7 @@ fun BookingDetailScreen(
                 }
 
                 // --- 2. Loading Indicator ---
-                if (rideState is Resource.Loading) {
+                if (rideState is Resource.Loading || cancelState is Resource.Loading) {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
                         color = MaterialTheme.colorScheme.primary
@@ -221,7 +235,7 @@ fun BookingDetailScreen(
                                     dropAddress = rideItem.dropAddress ?: "Unknown Drop",
                                     fare = rideItem.estimatedPrice ?: "0.00",
                                     onCancelClick = {
-                                        showTripDetailsSheet = false
+                                        viewModel.cancelRide(rideId)
                                     }
                                 )
                             }
@@ -249,7 +263,6 @@ fun BookingDetailScreen(
     )
 }
 
-// ✅ Trip Details Sheet Composable with Both Icons (Like & Edit)
 @Composable
 fun TripDetailsSheet(
     pickupAddress: String,
@@ -293,7 +306,6 @@ fun TripDetailsSheet(
                     fontWeight = FontWeight.SemiBold
                 )
             }
-            // ✅ Added Both Icons: Heart & Edit
             Row {
                 IconButton(onClick = { /* TODO */ }) {
                     Icon(
@@ -335,7 +347,6 @@ fun TripDetailsSheet(
                     fontWeight = FontWeight.SemiBold
                 )
             }
-            // ✅ Added Both Icons: Heart & Edit
             Row {
                 IconButton(onClick = { /* TODO */ }) {
                     Icon(
