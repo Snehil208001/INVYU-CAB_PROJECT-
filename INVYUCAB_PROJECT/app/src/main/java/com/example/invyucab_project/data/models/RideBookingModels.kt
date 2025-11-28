@@ -122,7 +122,9 @@ data class UpdateRideStatusRequest(
 )
 
 data class UpdateRideStatusResponse(
-    @Json(name = "success") val success: Boolean,
+    // FIX: Match the server's typo "succcess"
+    @Json(name = "succcess") val success: Boolean,
+
     @Json(name = "message") val message: String? = null,
     @Json(name = "data") val data: Any? = null
 )
