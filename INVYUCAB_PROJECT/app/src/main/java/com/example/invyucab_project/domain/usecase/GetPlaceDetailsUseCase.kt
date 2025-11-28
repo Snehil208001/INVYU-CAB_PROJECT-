@@ -16,6 +16,12 @@ class GetPlaceDetailsUseCase @Inject constructor(
     private val repository: AppRepository
 ) {
     operator fun invoke(placeId: String): Flow<Resource<LatLng>> = flow {
+        // ✅ Added check: block dummy IDs and EMPTY strings to prevent API errors
+        if (placeId.isBlank() || placeId == "recent_ride" || placeId == "current_location") {
+            emit(Resource.Error("Skipping API call for dummy/empty ID: $placeId"))
+            return@flow
+        }
+
         try {
             emit(Resource.Loading())
             val response = repository.getPlaceDetails(placeId)

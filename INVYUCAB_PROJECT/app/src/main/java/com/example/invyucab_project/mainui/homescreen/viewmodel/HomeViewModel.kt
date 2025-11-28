@@ -168,9 +168,9 @@ class HomeViewModel @Inject constructor(
             sendEvent(
                 UiEvent.Navigate(
                     Screen.RideSelectionScreen.createRoute(
-                        dropPlaceId = "recent_ride", // Dummy ID
+                        dropPlaceId = "", // ✅ Fixed: Empty string prevents API call for "recent_ride"
                         dropDescription = ride.dropAddress,
-                        pickupPlaceId = "recent_ride", // Dummy ID
+                        pickupPlaceId = "", // ✅ Fixed: Empty string prevents API call for "recent_ride"
                         pickupDescription = ride.pickupAddress,
                         pickupLat = ride.pickupLat,
                         pickupLng = ride.pickupLng,

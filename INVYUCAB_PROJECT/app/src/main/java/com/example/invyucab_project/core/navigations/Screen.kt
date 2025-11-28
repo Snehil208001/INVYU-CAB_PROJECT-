@@ -87,9 +87,9 @@ sealed class Screen(val route: String) {
 
     object RideHistoryScreen : Screen("ride_history_screen")
 
-    // ✅ UPDATED: Added lat/lng parameters to the route
+    // ✅ FIXED: Changed to Query Parameters (?) to support empty strings
     object RideSelectionScreen :
-        Screen("ride_selection_screen/{dropPlaceId}/{dropDescription}?pickupPlaceId={pickupPlaceId}&pickupDescription={pickupDescription}&pickupLat={pickupLat}&pickupLng={pickupLng}&dropLat={dropLat}&dropLng={dropLng}") {
+        Screen("ride_selection_screen?dropPlaceId={dropPlaceId}&dropDescription={dropDescription}&pickupPlaceId={pickupPlaceId}&pickupDescription={pickupDescription}&pickupLat={pickupLat}&pickupLng={pickupLng}&dropLat={dropLat}&dropLng={dropLng}") {
         fun createRoute(
             dropPlaceId: String,
             dropDescription: String,
@@ -100,17 +100,18 @@ sealed class Screen(val route: String) {
             dropLat: Double? = null,
             dropLng: Double? = null
         ): String {
+            val encodedDropId = URLEncoder.encode(dropPlaceId, StandardCharsets.UTF_8.toString())
             val encodedDropDesc = URLEncoder.encode(dropDescription, StandardCharsets.UTF_8.toString())
-            val encodedPickupId = pickupPlaceId?.let { URLEncoder.encode(it, StandardCharsets.UTF_8.toString()) } ?: "current_location"
+            // Use empty string if null, instead of "current_location" if that was causing issues, or keep logic
+            val encodedPickupId = pickupPlaceId?.let { URLEncoder.encode(it, StandardCharsets.UTF_8.toString()) } ?: ""
             val encodedPickupDesc = URLEncoder.encode(pickupDescription, StandardCharsets.UTF_8.toString())
 
-            // Default to 0.0 if null, logic in ViewModel should handle "0.0" or "null" checks
             val pLat = pickupLat ?: 0.0
             val pLng = pickupLng ?: 0.0
             val dLat = dropLat ?: 0.0
             val dLng = dropLng ?: 0.0
 
-            return "ride_selection_screen/$dropPlaceId/$encodedDropDesc?pickupPlaceId=$encodedPickupId&pickupDescription=$encodedPickupDesc&pickupLat=$pLat&pickupLng=$pLng&dropLat=$dLat&dropLng=$dLng"
+            return "ride_selection_screen?dropPlaceId=$encodedDropId&dropDescription=$encodedDropDesc&pickupPlaceId=$encodedPickupId&pickupDescription=$encodedPickupDesc&pickupLat=$pLat&pickupLng=$pLng&dropLat=$dLat&dropLng=$dLng"
         }
     }
 
