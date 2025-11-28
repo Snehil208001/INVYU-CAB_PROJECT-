@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.data.models.RiderRideHistoryItem
+import com.example.invyucab_project.data.preferences.UserPreferencesRepository
 import com.example.invyucab_project.domain.usecase.GetRideHistoryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,10 +14,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RideHistoryViewModel @Inject constructor(
-    private val getRideHistoryUseCase: GetRideHistoryUseCase
+    private val getRideHistoryUseCase: GetRideHistoryUseCase,
+    private val userPreferencesRepository: UserPreferencesRepository // ✅ Inject Preferences
 ) : ViewModel() {
 
-    // ✅ UPDATED: Uses RiderRideHistoryItem
     private val _rideHistory = MutableStateFlow<List<RiderRideHistoryItem>>(emptyList())
     val rideHistory: StateFlow<List<RiderRideHistoryItem>> = _rideHistory
 
@@ -31,13 +32,26 @@ class RideHistoryViewModel @Inject constructor(
     }
 
     fun fetchRideHistory() {
+        // ✅ Get the actual logged-in User ID
+        val userIdStr = userPreferencesRepository.getUserId()
+        val userId = userIdStr?.toIntOrNull()
+
+        if (userId == null) {
+            _error.value = "User not logged in"
+            return
+        }
+
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                val response = getRideHistoryUseCase.invoke(userId = 1)
+                // ✅ Pass the dynamic userId
+                val response = getRideHistoryUseCase.invoke(userId = userId)
+
                 if (response.isSuccessful && response.body()?.success == true) {
-                    _rideHistory.value = response.body()?.data ?: emptyList()
+                    val history = response.body()?.data ?: emptyList()
+                    // ✅ Reverse the list to show Newest rides first
+                    _rideHistory.value = history.reversed()
                 } else {
                     _error.value = "Failed to load ride history"
                 }

@@ -1,30 +1,24 @@
 package com.example.invyucab_project.mainui.homescreen.ui
 
-// --- START OF ADDED IMPORTS ---
-import android.app.Activity // ✅ --- ADDED IMPORT ---
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
-import androidx.activity.compose.BackHandler // ✅ --- ADDED IMPORT ---
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
-// --- END OF ADDED IMPORTS ---
-
-// --- START OF ✅ ADDED IMPORTS ---
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.compose.material3.SnackbarDuration // ✅ ADDED
-import androidx.compose.material3.SnackbarResult // ✅ ADDED
-// --- END OF ✅ ADDED IMPORTS ---
-
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
 import android.Manifest
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -46,6 +40,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material3.*
@@ -79,6 +74,7 @@ import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.utils.navigationsbar.AppBottomNavigation
 import com.example.invyucab_project.domain.model.AutocompletePrediction
 import com.example.invyucab_project.domain.model.HomeUiState
+import com.example.invyucab_project.domain.model.RecentRide
 import com.example.invyucab_project.domain.model.SearchField
 import com.example.invyucab_project.mainui.homescreen.viewmodel.HomeViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
@@ -95,61 +91,42 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // --- START OF ✅ ADDED CODE FOR SYSTEM BACK BUTTON ---
     val activity = (LocalContext.current as? Activity)
     BackHandler {
         activity?.finish()
     }
-    // --- END OF ✅ ADDED CODE FOR SYSTEM BACK BUTTON ---
 
-    // --- START OF ✅ MODIFIED CODE ---
-    val apiError by viewModel.apiError // ✅ MODIFIED: Read the State directly
-    val snackbarHostState = remember { SnackbarHostState() } // State for snackbar
-    // --- END OF ✅ MODIFIED CODE ---
+    val apiError by viewModel.apiError
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    // --- START OF ✅ ADDED LIFECYCLE OBSERVER ---
+    // ✅ ADDED: Fetch recent rides on Resume to ensure updates
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            // This event fires every time the screen becomes active
             if (event == Lifecycle.Event.ON_RESUME) {
-                // Re-run the location check
                 viewModel.getCurrentLocation()
+                viewModel.fetchRecentRides()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-
-        // This cleans up the observer when the composable is destroyed
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-    // --- END OF ✅ ADDED LIFECYCLE OBSERVER ---
-
-    // --- START OF PERMISSION LOGIC ---
 
     val context = LocalContext.current
 
-    // Launcher for App PERMISSIONS
     val permissionSettingsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
-        // This block executes when returning from settings.
-        // ✅ We can also trigger a re-check here
         viewModel.getCurrentLocation()
     }
 
-    // --- START OF ✅ ADDED CODE ---
-    // Launcher for Location SERVICES (GPS Toggle)
     val locationServiceLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
-        // User has returned from the location settings screen.
-        // Re-check if they turned it on.
         viewModel.getCurrentLocation()
     }
-    // --- END OF ✅ ADDED CODE ---
-
 
     val locationPermissionsState = rememberMultiplePermissionsState(
         permissions = listOf(
@@ -169,24 +146,16 @@ fun HomeScreen(
 
     LaunchedEffect(key1 = locationPermissionsState.allPermissionsGranted) {
         if (locationPermissionsState.allPermissionsGranted) {
-            // ✅ Permission was just granted, fetch location
             viewModel.getCurrentLocation()
-            // viewModel.onLocationPermissionGranted()
         }
     }
 
     val showPermissionBanner = !locationPermissionsState.allPermissionsGranted && permissionRequestLaunched
 
-    // ✅ THIS IS THE KEY LOGIC
     val onAllowClick: () -> Unit = {
         if (locationPermissionsState.shouldShowRationale) {
-            // Case 1: User denied once. Show request dialog again.
-            // THIS IS THE "ALLOW -> APP PERMISSION" flow you want.
             locationPermissionsState.launchMultiplePermissionRequest()
         } else {
-            // Case 2: User permanently denied ("Don't ask again").
-            // It is IMPOSSIBLE to show the dialog. We must send to settings.
-            // THIS IS THE "ALLOW -> APP INFO" flow.
             val intent = Intent(
                 Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.fromParts("package", context.packageName, null)
@@ -194,43 +163,27 @@ fun HomeScreen(
             permissionSettingsLauncher.launch(intent)
         }
     }
-    // --- END OF PERMISSION LOGIC ---
 
-
-    // --- START OF ✅ MODIFIED CODE ---
-    // This LaunchedEffect will react when apiError changes
     LaunchedEffect(apiError) {
         apiError?.let { message ->
-
-            // Check if this is the specific GPS error
             if (message.contains("location services (GPS)")) {
-                // Show snackbar with "Turn On" action
                 val result = snackbarHostState.showSnackbar(
                     message = message,
                     actionLabel = "Turn On",
-                    duration = SnackbarDuration.Long // Keep it on screen longer
+                    duration = SnackbarDuration.Long
                 )
 
                 if (result == SnackbarResult.ActionPerformed) {
-                    // User clicked "Turn On"
                     val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
                     locationServiceLauncher.launch(intent)
                 }
-
             } else {
-                // Show a normal snackbar for all other errors
                 snackbarHostState.showSnackbar(message)
             }
-
-            // Clear the error in the ViewModel so it doesn't show again
-            // until the next time we check (on resume)
-            viewModel.clearApiError() // This function is from BaseViewModel
+            viewModel.clearApiError()
         }
     }
-    // --- END OF ✅ MODIFIED CODE ---
 
-
-    // Collect navigation events
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collect { event ->
             when (event) {
@@ -240,10 +193,7 @@ fun HomeScreen(
                 is BaseViewModel.UiEvent.ShowSnackbar -> {
                     snackbarHostState.showSnackbar(event.message)
                 }
-                // ✅ --- THIS IS THE FIX ---
-                // Add an else branch to make the 'when' exhaustive
                 else -> {}
-                // ✅ --- END OF FIX ---
             }
         }
     }
@@ -253,7 +203,7 @@ fun HomeScreen(
 
     Scaffold(
         containerColor = Color.White,
-        snackbarHost = { SnackbarHost(snackbarHostState) }, // <-- ✅ ADDED
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Book a Ride", fontWeight = FontWeight.Bold) },
@@ -357,20 +307,19 @@ fun HomeScreen(
                         )
                     }
                 } else {
-                    item {
-                        SearchButton(
-                            text = "Set on map",
-                            icon = Icons.Default.GpsFixed,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                    item {
-                        AddressRow(
-                            icon = Icons.Default.Star,
-                            title = "Saved Places",
-                            subtitle = "Manage your saved locations",
-                            onClick = { /* TODO: Handle saved places */ }
-                        )
+                    // ✅ MODIFIED: Replaced Saved Places with Recent Rides
+                    if (uiState.recentRides.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "Recent Rides",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 8.dp, top = 4.dp)
+                            )
+                        }
+                        items(uiState.recentRides) { ride ->
+                            RecentRideItem(ride = ride)
+                        }
                     }
                 }
             }
@@ -378,7 +327,80 @@ fun HomeScreen(
     }
 }
 
-// --- Other Composables (Unchanged) ---
+// --- NEW COMPOSABLE for Recent Rides ---
+@Composable
+fun RecentRideItem(ride: RecentRide) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icon
+            Icon(
+                imageVector = Icons.Default.History,
+                contentDescription = "History",
+                tint = CabMintGreen,
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(CabVeryLightMint, CircleShape)
+                    .padding(8.dp)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                // Pickup
+                Row(verticalAlignment = Alignment.Top) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 6.dp)
+                            .size(6.dp)
+                            .background(CabMintGreen, CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = ride.pickupAddress,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Dropoff
+                Row(verticalAlignment = Alignment.Top) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 6.dp)
+                            .size(6.dp)
+                            .background(Color.Red, CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = ride.dropAddress,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
+}
+
+// --- Existing Composables ---
 
 @Composable
 fun LocationPermissionBanner(
@@ -500,7 +522,7 @@ fun SearchInputSection(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CabVeryLightMint) // Match the Scaffold's top area
+            .background(CabVeryLightMint)
             .padding(horizontal = 16.dp, vertical = 16.dp)
     ) {
         LocationConnectorGraphic()
@@ -600,23 +622,6 @@ fun LocationConnectorGraphic() {
 }
 
 @Composable
-fun SearchButton(text: String, icon: ImageVector, modifier: Modifier = Modifier) {
-    OutlinedButton(
-        onClick = { /* TODO */ },
-        modifier = modifier.height(40.dp),
-        shape = RoundedCornerShape(50.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = Color.Black
-        ),
-        border = BorderStroke(1.dp, LightSlateGray)
-    ) {
-        Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(20.dp))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
 private fun PredictionItem(
     prediction: AutocompletePrediction,
     onClick: () -> Unit
@@ -653,46 +658,6 @@ private fun PredictionItem(
                 color = Color.Gray,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
-private fun AddressRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = title,
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(LightSlateGray)
-                .padding(8.dp),
-            tint = Color.Gray
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp
-            )
-            Text(
-                text = subtitle,
-                fontSize = 14.sp,
-                color = Color.Gray
             )
         }
     }

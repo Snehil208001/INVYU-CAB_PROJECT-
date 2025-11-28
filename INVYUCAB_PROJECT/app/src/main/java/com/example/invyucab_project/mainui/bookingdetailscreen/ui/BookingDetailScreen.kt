@@ -106,6 +106,7 @@ fun BookingDetailScreen(
     var showTripDetailsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
+    // Retrieve fresh data on screen launch
     LaunchedEffect(key1 = rideId) {
         viewModel.fetchOngoingRide(rideId)
     }

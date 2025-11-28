@@ -16,52 +16,57 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.R
 import com.example.invyucab_project.core.navigations.Screen
+import com.example.invyucab_project.mainui.splashscreen_loggedin.viewmodel.SplashDestination
 import com.example.invyucab_project.mainui.splashscreen_loggedin.viewmodel.SplashScreenViewModel
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
-import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreenLoggedIn(
     navController: NavController,
-    viewModel: SplashScreenViewModel = hiltViewModel() // ✅ Inject ViewModel
+    viewModel: SplashScreenViewModel = hiltViewModel()
 ) {
-    // This effect runs once when the composable enters the screen
+    // Trigger the check logic on startup
     LaunchedEffect(Unit) {
-        // Wait for 1.5 seconds
-        delay(1500L)
+        viewModel.checkStartDestination()
 
-        // ✅✅✅ START OF MODIFICATION ✅✅✅
-        // Check if the user is logged in
-        val isUserLoggedIn = viewModel.isUserLoggedIn()
-        val userRole = viewModel.getUserRole() // Get the user's role (e.g., "driver")
+        viewModel.navigationEvent.collect { destination ->
+            val route = when (destination) {
+                is SplashDestination.Onboarding -> Screen.OnboardingScreen.route
+                is SplashDestination.Auth -> Screen.AuthScreen.route
+                is SplashDestination.Home -> Screen.HomeScreen.route
+                is SplashDestination.Driver -> Screen.DriverScreen.route
+                is SplashDestination.Admin -> Screen.AdminScreen.route
 
-        // Determine the next destination
-        val nextDestination = if (isUserLoggedIn) {
-            // User is logged in, navigate based on role
-            // FIX: Check the lowercase version of the role for consistency
-            when (userRole?.lowercase()) {
-                "driver" -> Screen.DriverScreen.route
-                "admin" -> Screen.AdminScreen.route
-                "user" -> Screen.HomeScreen.route
-                else -> Screen.HomeScreen.route // Default to HomeScreen for "user" or if role is null
+                // ✅ Handle Active Ride Navigation
+                is SplashDestination.BookingDetail -> {
+                    val ride = destination.ride
+                    Screen.BookingDetailScreen.createRoute(
+                        driverName = ride.driverName ?: "Driver",
+                        vehicleModel = ride.model ?: "Vehicle",
+                        otp = ride.userPin?.toString() ?: "0000",
+                        rideId = ride.rideId ?: 0,
+                        riderId = ride.riderId ?: 0,
+                        driverId = ride.driverId ?: 0,
+                        role = "rider",
+                        pickupLat = ride.pickupLatitude?.toDoubleOrNull() ?: 0.0,
+                        pickupLng = ride.pickupLongitude?.toDoubleOrNull() ?: 0.0,
+                        dropLat = ride.dropLatitude?.toDoubleOrNull() ?: 0.0,
+                        dropLng = ride.dropLongitude?.toDoubleOrNull() ?: 0.0
+                    )
+                }
             }
-        } else {
-            // User is NOT logged in
-            Screen.OnboardingScreen.route
-        }
 
-        // Navigate to the correct destination
-        navController.navigate(nextDestination) {
-            // Clear this splash screen from the back stack
-            popUpTo(Screen.SplashScreenLoggedIn.route) {
-                inclusive = true
+            // Navigate and remove Splash from backstack
+            navController.navigate(route) {
+                popUpTo(Screen.SplashScreenLoggedIn.route) {
+                    inclusive = true
+                }
             }
         }
-        // ✅✅✅ END OF MODIFICATION ✅✅✅
     }
 
     Scaffold(
-        containerColor = CabVeryLightMint // Use the light app background
+        containerColor = CabVeryLightMint
     ) { padding ->
         Box(
             modifier = Modifier
@@ -69,7 +74,6 @@ fun SplashScreenLoggedIn(
                 .padding(padding),
             contentAlignment = Alignment.Center
         ) {
-            // Display the logo
             Image(
                 painter = painterResource(id = R.drawable.invyucablogo),
                 contentDescription = "App Logo",
