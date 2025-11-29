@@ -81,7 +81,6 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -93,6 +92,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.example.invyucab_project.core.base.BaseViewModel
+import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.core.utils.navigationsbar.AppBottomNavigation
 import com.example.invyucab_project.domain.model.AutocompletePrediction
 import com.example.invyucab_project.domain.model.RecentRide
@@ -120,7 +120,6 @@ fun HomeScreen(
     val apiError by viewModel.apiError
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // ✅ Fetch recent rides on Resume to ensure updates
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -328,7 +327,6 @@ fun HomeScreen(
                         )
                     }
                 } else {
-                    // ✅ Recent Rides Section (Replaces "Set on map" / "Saved Places")
                     if (uiState.recentRides.isNotEmpty()) {
                         item {
                             Text(
@@ -341,7 +339,20 @@ fun HomeScreen(
                         items(uiState.recentRides) { ride ->
                             RecentRideItem(
                                 ride = ride,
-                                onClick = { viewModel.onRecentRideClicked(ride) }
+                                onClick = {
+                                    // ✅ FIXED: Use createRoute helper to handle encoding and params safely.
+                                    val route = Screen.RideSelectionScreen.createRoute(
+                                        dropPlaceId = "", // Pass empty for Recent Rides (no PlaceID)
+                                        dropDescription = ride.dropAddress,
+                                        pickupPlaceId = "",
+                                        pickupDescription = ride.pickupAddress,
+                                        pickupLat = ride.pickupLat,
+                                        pickupLng = ride.pickupLng,
+                                        dropLat = ride.dropLat,
+                                        dropLng = ride.dropLng
+                                    )
+                                    navController.navigate(route)
+                                }
                             )
                         }
                     }
@@ -351,14 +362,13 @@ fun HomeScreen(
     }
 }
 
-// ✅ NEW COMPOSABLE for Recent Rides
 @Composable
 fun RecentRideItem(ride: RecentRide, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clickable(onClick = onClick), // ✅ Clickable for navigation
+            .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -424,8 +434,6 @@ fun RecentRideItem(ride: RecentRide, onClick: () -> Unit) {
         }
     }
 }
-
-// --- Existing Composables ---
 
 @Composable
 fun LocationPermissionBanner(

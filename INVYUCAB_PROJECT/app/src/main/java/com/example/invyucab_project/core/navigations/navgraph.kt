@@ -6,7 +6,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-// ... (Keep existing imports)
 import com.example.invyucab_project.mainui.adminscreen.ui.AdminScreen
 import com.example.invyucab_project.mainui.allservicesscreen.ui.AllServicesScreen
 import com.example.invyucab_project.mainui.authscreen.ui.AuthScreen
@@ -42,7 +41,6 @@ fun NavGraph(
         navController = navController,
         startDestination = startDestination
     ) {
-        // ... (Keep all previous composables)
         composable(Screen.SplashScreenLoggedIn.route) { SplashScreenLoggedIn(navController = navController) }
         composable(Screen.OnboardingScreen.route) { OnboardingScreen(navController = navController) }
         composable(Screen.AuthScreen.route) { AuthScreen(navController = navController) }
@@ -97,7 +95,8 @@ fun NavGraph(
         composable(Screen.PaymentMethodScreen.route) { PaymentMethodScreen(navController = navController) }
         composable(Screen.RideHistoryScreen.route) { RideHistoryScreen(navController = navController) }
 
-        // ✅ UPDATED: RideSelectionScreen with new arguments
+        // ✅ FIXED: Removed duplicate query parameters.
+        // Screen.RideSelectionScreen.route ALREADY contains "?dropPlaceId={dropPlaceId}..."
         composable(
             route = Screen.RideSelectionScreen.route,
             arguments = listOf(
@@ -111,8 +110,6 @@ fun NavGraph(
                 navArgument("dropLng") { type = NavType.FloatType; defaultValue = 0f }
             )
         ) {
-            // Note: You might need to update RideSelectionScreen to accept these new arguments if it doesn't already.
-            // For now, we rely on the ViewModel there (if updated) or just passing the basics.
             RideSelectionScreen(navController = navController)
         }
 
