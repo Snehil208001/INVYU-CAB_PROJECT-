@@ -38,8 +38,9 @@ class RideBookingViewModel @Inject constructor(
     private val _navigationEvent = MutableSharedFlow<RiderOngoingRideItem>()
     val navigationEvent = _navigationEvent.asSharedFlow()
 
-    // 🔴 Hardcoded rideId to "1" as per your request
-    private val rideId: String? = "1"
+    // ✅ FIXED: Safely retrieve rideId as Any to handle both Int and String types
+    private val rideId: String? = savedStateHandle.get<Any>("rideId")?.toString()
+
     private val userPin: String? = savedStateHandle.get<Int>("userPin")?.toString()
 
     private val pickupLat: Double? = savedStateHandle.get<Float>("pickupLat")?.toDouble()

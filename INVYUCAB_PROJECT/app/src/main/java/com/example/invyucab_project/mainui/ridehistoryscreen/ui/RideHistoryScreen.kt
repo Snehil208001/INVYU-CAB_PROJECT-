@@ -1,6 +1,5 @@
 package com.example.invyucab_project.mainui.ridehistoryscreen.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,16 +15,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.data.models.RiderRideHistoryItem
 import com.example.invyucab_project.mainui.ridehistoryscreen.viewmodel.RideHistoryViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
@@ -39,6 +38,16 @@ fun RideHistoryScreen(
     val rideHistory by viewModel.rideHistory.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+
+    // ✅ SORTING:
+    // Top (0): Requested, Accepted, In Progress
+    // Bottom (1): Completed, Cancelled
+    val sortedHistory = remember(rideHistory) {
+        rideHistory.sortedBy { ride ->
+            val status = ride.status?.lowercase() ?: ""
+            if (status == "completed" || status == "cancelled") 1 else 0
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -55,7 +64,7 @@ fun RideHistoryScreen(
                 )
             )
         },
-        containerColor = Color(0xFFF9F9F9) // Light gray background for contrast
+        containerColor = Color(0xFFF9F9F9)
     ) { padding ->
         Box(
             modifier = Modifier
@@ -88,7 +97,7 @@ fun RideHistoryScreen(
                         }
                     }
                 }
-                rideHistory.isEmpty() -> {
+                sortedHistory.isEmpty() -> {
                     Text(
                         text = "You haven't taken any rides yet.",
                         color = Color.Gray,
@@ -100,8 +109,37 @@ fun RideHistoryScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(rideHistory) { ride ->
-                            RideHistoryItemCard(ride)
+                        items(sortedHistory) { ride ->
+                            RideHistoryItemCard(
+                                ride = ride,
+                                onClick = {
+                                    val status = ride.status?.lowercase() ?: ""
+
+                                    // ✅ NAVIGATION FIX: Only for "accepted" or "in_progress"
+                                    if (status == "accepted" || status == "in_progress") {
+
+                                        // Safe Arguments to prevent crashes
+                                        val safeDriverName = if (!ride.driverName.isNullOrBlank()) ride.driverName else "Unknown Driver"
+                                        val safeModel = if (!ride.model.isNullOrBlank()) ride.model else "Unknown Vehicle"
+                                        val safeOtp = "Unavailable"
+
+                                        val route = Screen.BookingDetailScreen.createRoute(
+                                            driverName = safeDriverName,
+                                            vehicleModel = safeModel,
+                                            otp = safeOtp,
+                                            rideId = ride.rideId,
+                                            riderId = ride.riderId ?: 0,
+                                            driverId = ride.driverId ?: 0,
+                                            role = "rider",
+                                            pickupLat = ride.pickupLatitude?.toDoubleOrNull() ?: 0.0,
+                                            pickupLng = ride.pickupLongitude?.toDoubleOrNull() ?: 0.0,
+                                            dropLat = ride.dropLatitude?.toDoubleOrNull() ?: 0.0,
+                                            dropLng = ride.dropLongitude?.toDoubleOrNull() ?: 0.0
+                                        )
+                                        navController.navigate(route)
+                                    }
+                                }
+                            )
                         }
                     }
                 }
@@ -110,17 +148,20 @@ fun RideHistoryScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RideHistoryItemCard(ride: RiderRideHistoryItem) {
+fun RideHistoryItemCard(
+    ride: RiderRideHistoryItem,
+    onClick: () -> Unit
+) {
     val statusColor = when (ride.status?.lowercase()) {
         "completed" -> CabMintGreen
+        "accepted" -> Color.Blue
         "cancelled" -> Color.Red
         "in_progress" -> Color(0xFFFFA500) // Orange
-        else -> Color.Blue
+        else -> Color.DarkGray
     }
 
-    // Simple date formatting (extracting YYYY-MM-DD and Time)
-    // Input: "2025-11-15T10:34:59.000Z"
     val dateStr = ride.requestedAt?.take(10) ?: "N/A"
     val timeStr = if ((ride.requestedAt?.length ?: 0) > 16) {
         ride.requestedAt?.substring(11, 16)
@@ -129,6 +170,7 @@ fun RideHistoryItemCard(ride: RiderRideHistoryItem) {
     }
 
     Card(
+        onClick = onClick, // ✅ Using Card's native onClick for reliability
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -188,12 +230,11 @@ fun RideHistoryItemCard(ride: RiderRideHistoryItem) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- Driver & Vehicle Info (Only if driver is assigned) ---
+            // --- Driver & Vehicle Info ---
             if (ride.driverId != null && ride.driverId != 0) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Driver Avatar Placeholder
                     Surface(
                         shape = CircleShape,
                         color = Color.LightGray.copy(alpha = 0.2f),
@@ -220,7 +261,7 @@ fun RideHistoryItemCard(ride: RiderRideHistoryItem) {
                             Icon(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = "Rating",
-                                tint = Color(0xFFFFD700), // Gold
+                                tint = Color(0xFFFFD700),
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -235,7 +276,6 @@ fun RideHistoryItemCard(ride: RiderRideHistoryItem) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Vehicle Info
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.DirectionsCar,
@@ -252,7 +292,6 @@ fun RideHistoryItemCard(ride: RiderRideHistoryItem) {
                     )
                 }
             } else {
-                // No Driver Assigned (e.g., just requested or cancelled before accept)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.DirectionsCar,

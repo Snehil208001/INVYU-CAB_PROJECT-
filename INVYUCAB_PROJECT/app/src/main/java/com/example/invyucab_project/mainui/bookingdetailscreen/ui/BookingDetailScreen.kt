@@ -89,6 +89,7 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -106,9 +107,28 @@ fun BookingDetailScreen(
     var showTripDetailsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
-    // Retrieve fresh data on screen launch
+    // ✅ UPDATED: Poll the server every 4 seconds to check for updates (e.g., ride completion)
     LaunchedEffect(key1 = rideId) {
-        viewModel.fetchOngoingRide(rideId)
+        while (true) {
+            viewModel.fetchOngoingRide(rideId)
+            delay(4000) // Wait 4 seconds before fetching again
+        }
+    }
+
+    // ✅ ADDED: Listen for "completed" status and navigate to Home
+    LaunchedEffect(rideState) {
+        if (rideState is Resource.Success) {
+            val response = (rideState as Resource.Success).data
+            val rideItem = response?.data?.firstOrNull()
+
+            // Check if the ride status is "completed"
+            if (rideItem != null && rideItem.status == "completed") {
+                Toast.makeText(context, "Ride Completed!", Toast.LENGTH_LONG).show()
+                navController.navigate("home_screen") {
+                    popUpTo("home_screen") { inclusive = true }
+                }
+            }
+        }
     }
 
     // ✅ Listen for Cancellation Success and Navigate
