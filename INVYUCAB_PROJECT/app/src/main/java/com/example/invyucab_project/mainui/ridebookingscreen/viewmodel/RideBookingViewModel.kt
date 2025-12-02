@@ -8,6 +8,7 @@ import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.data.models.RideBookingUiState
 import com.example.invyucab_project.data.models.RiderOngoingRideItem
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
+import com.example.invyucab_project.data.repository.AppRepository
 import com.example.invyucab_project.domain.usecase.GetDirectionsAndRouteUseCase
 import com.example.invyucab_project.domain.usecase.GetOngoingRideUseCase
 import com.google.android.gms.maps.model.LatLng
@@ -28,15 +29,20 @@ class RideBookingViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val getDirectionsAndRouteUseCase: GetDirectionsAndRouteUseCase,
     private val getOngoingRideUseCase: GetOngoingRideUseCase,
-    private val userPreferencesRepository: UserPreferencesRepository
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val appRepository: AppRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RideBookingUiState())
     val uiState = _uiState.asStateFlow()
 
-    // ✅ Navigation Event Flow
+    // ✅ Navigation Event Flow for Driver Acceptance
     private val _navigationEvent = MutableSharedFlow<RiderOngoingRideItem>()
     val navigationEvent = _navigationEvent.asSharedFlow()
+
+    // ✅ Navigation Event Flow for Cancellation
+    private val _navigateToSelection = MutableSharedFlow<Unit>()
+    val navigateToSelection = _navigateToSelection.asSharedFlow()
 
     // ✅ FIXED: Safely retrieve rideId as Any to handle both Int and String types
     private val rideId: String? = savedStateHandle.get<Any>("rideId")?.toString()
@@ -50,7 +56,9 @@ class RideBookingViewModel @Inject constructor(
 
     private val rawPickupAddress: String? = savedStateHandle.get<String>("pickupAddress")
     private val rawDropAddress: String? = savedStateHandle.get<String>("dropAddress")
-    private val dropPlaceId: String? = savedStateHandle.get<String>("dropPlaceId")
+
+    // Made public so UI can use it for navigation arguments
+    val dropPlaceId: String? = savedStateHandle.get<String>("dropPlaceId")
 
     private var isPolling = true
 
@@ -155,8 +163,32 @@ class RideBookingViewModel @Inject constructor(
 
     fun onCancelRide() {
         isPolling = false
-        _uiState.update { it.copy(isSearchingForDriver = false) }
-        // TODO: Call cancel ride API here
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            try {
+                val rideIdInt = rideId?.toIntOrNull()
+                if (rideIdInt != null) {
+                    // Call the API to update status to "cancelled"
+                    val response = appRepository.updateRideStatus(rideIdInt, "cancelled")
+
+                    if (response.isSuccessful) {
+                        // Emit navigation event on success
+                        _navigateToSelection.emit(Unit)
+                    } else {
+                        Log.e("RideBookingVM", "Failed to cancel ride: ${response.message()}")
+                        // Even if it fails on server (e.g. network), we might still want to let user go back
+                        // For now, let's navigate back to ensure user isn't stuck
+                        _navigateToSelection.emit(Unit)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("RideBookingVM", "Exception cancelling ride: ${e.message}")
+                // Navigate back on exception as fallback
+                _navigateToSelection.emit(Unit)
+            } finally {
+                _uiState.update { it.copy(isLoading = false, isSearchingForDriver = false) }
+            }
+        }
     }
 
     private fun decodeString(encoded: String?): String? {

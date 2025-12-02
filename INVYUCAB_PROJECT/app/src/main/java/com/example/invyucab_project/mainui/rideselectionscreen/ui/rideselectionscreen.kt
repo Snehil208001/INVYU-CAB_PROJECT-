@@ -503,7 +503,7 @@ fun BoxScope.RideOptionsBottomSheet(
                     }
 
                     // Spacer for some bottom breathing room inside the fixed area
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         },

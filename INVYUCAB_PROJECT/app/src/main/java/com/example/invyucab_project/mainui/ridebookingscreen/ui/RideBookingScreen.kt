@@ -108,6 +108,26 @@ fun RideBookingScreen(
         }
     }
 
+    // ✅ Observe Navigation Events from Cancellation
+    LaunchedEffect(key1 = true) {
+        viewModel.navigateToSelection.collect {
+            // Navigate back to RideSelectionScreen
+            val route = Screen.RideSelectionScreen.createRoute(
+                dropPlaceId = viewModel.dropPlaceId ?: "",
+                dropDescription = uiState.dropDescription,
+                pickupPlaceId = null, // Pickup ID not retained in VM, handled by UI logic typically
+                pickupDescription = uiState.pickupDescription,
+                pickupLat = uiState.pickupLocation?.latitude,
+                pickupLng = uiState.pickupLocation?.longitude,
+                dropLat = uiState.dropLocation?.latitude,
+                dropLng = uiState.dropLocation?.longitude
+            )
+            navController.navigate(route) {
+                popUpTo(Screen.RideBookingScreen.route) { inclusive = true }
+            }
+        }
+    }
+
     val context = LocalContext.current
     val mapStyleOptions = remember {
         try {

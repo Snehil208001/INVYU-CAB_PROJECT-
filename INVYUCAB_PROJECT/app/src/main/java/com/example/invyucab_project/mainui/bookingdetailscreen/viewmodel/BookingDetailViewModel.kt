@@ -41,7 +41,10 @@ class BookingDetailViewModel @Inject constructor(
 
     fun fetchOngoingRide(rideId: Int) {
         viewModelScope.launch {
-            _rideState.value = Resource.Loading()
+            // FIX: Only show loading if we don't have data yet to prevent flickering during polling
+            if (_rideState.value !is Resource.Success) {
+                _rideState.value = Resource.Loading()
+            }
             try {
                 val response = getOngoingRideUseCase(rideId)
                 if (response.isSuccessful && response.body() != null) {
