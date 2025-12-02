@@ -355,7 +355,7 @@ fun SearchingCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Searching for a Driver...",
+                text = "Searching for a Pilot...",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black
@@ -381,7 +381,7 @@ fun SearchingCard(
                             letterSpacing = 2.sp
                         )
                         Text(
-                            text = "Give this PIN to driver",
+                            text = "Give this PIN to Pilot",
                             fontSize = 12.sp,
                             color = Color.Gray
                         )

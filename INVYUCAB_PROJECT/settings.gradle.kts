@@ -7,6 +7,7 @@ pluginManagement {
                 includeGroupByRegex("androidx.*")
             }
         }
+
         mavenCentral()
         gradlePluginPortal()
     }
@@ -19,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Tride"
+rootProject.name = "TRide"
 include(":app")

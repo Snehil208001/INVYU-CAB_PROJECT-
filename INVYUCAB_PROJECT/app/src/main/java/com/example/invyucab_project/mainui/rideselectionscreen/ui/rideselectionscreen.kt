@@ -406,8 +406,15 @@ fun BoxScope.RideOptionsBottomSheet(
     var selectedRideId by remember { mutableStateOf(1) }
     val areDetailsCalculated = rideOptions.isNotEmpty() && rideOptions.all { !it.isLoadingPrice }
 
+    // Modified to start fully expanded
+    val scaffoldState = rememberBottomSheetScaffoldState(
+        bottomSheetState = rememberStandardBottomSheetState(
+            initialValue = SheetValue.Expanded
+        )
+    )
+
     BottomSheetScaffold(
-        scaffoldState = rememberBottomSheetScaffoldState(),
+        scaffoldState = scaffoldState,
         sheetContent = {
             // ✅ FIXED: Use Box to align content (list) and footer (button) independently
             Box(
@@ -503,7 +510,7 @@ fun BoxScope.RideOptionsBottomSheet(
                     }
 
                     // Spacer for some bottom breathing room inside the fixed area
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
         },
