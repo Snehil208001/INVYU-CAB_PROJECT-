@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -265,10 +266,11 @@ fun RideBookingScreen(
                     drop = uiState.dropDescription
                 )
 
-                // 3. Driver/Searching Card (✅ Now passing PIN and Cancel State)
+                // 3. Driver/Searching Card (✅ Now passing search status)
                 SearchingCard(
                     isSearching = uiState.isSearchingForDriver,
-                    isCancelling = uiState.isCancelling, // ✅ Passed state
+                    searchState = uiState.searchProgressState, // ✅ Pass current stage
+                    isCancelling = uiState.isCancelling,
                     userPin = userPin,
                     onCancel = { viewModel.onCancelRide() }
                 )
@@ -340,10 +342,24 @@ fun RideDetailsCard(pickup: String, drop: String) {
 @Composable
 fun SearchingCard(
     isSearching: Boolean,
-    isCancelling: Boolean, // ✅ Added parameter
+    searchState: Int, // ✅ Added parameter
+    isCancelling: Boolean,
     userPin: Int?,
     onCancel: () -> Unit
 ) {
+    // ✅ Determine text based on state
+    val searchTitle = when (searchState) {
+        1 -> "Drivers are busy..."
+        2 -> "Drivers not available"
+        else -> "Searching for a Pilot..."
+    }
+
+    val searchSubtitle = when (searchState) {
+        1 -> "But we are looking for you"
+        2 -> "Please try again later"
+        else -> ""
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -357,15 +373,27 @@ fun SearchingCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Searching for a Pilot...",
+                text = searchTitle,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = if (searchState == 2) Color.Red else Color.Black,
+                textAlign = TextAlign.Center
             )
+
+            if (searchSubtitle.isNotEmpty()) {
+                Text(
+                    text = searchSubtitle,
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = 4.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ✅ Display the PIN if available
-            if (userPin != null && userPin != 0) { // Check for 0 if it's default
+            // ✅ Display the PIN if available (Hide if failed)
+            if (userPin != null && userPin != 0 && searchState != 2) {
                 Card(
                     shape = RoundedCornerShape(8.dp),
                     colors = CardDefaults.cardColors(containerColor = CabMintGreen.copy(alpha = 0.1f)),
@@ -393,17 +421,27 @@ fun SearchingCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Placeholder Animation
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .background(Color.Gray.copy(alpha = 0.1f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = CabMintGreen)
+            // Placeholder Animation (Hide if failed)
+            if (searchState != 2) {
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .background(Color.Gray.copy(alpha = 0.1f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = CabMintGreen)
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            } else {
+                // Maybe show an error icon or sad face here for state 2
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack, // Or appropriate error icon
+                    contentDescription = null,
+                    modifier = Modifier.size(60.dp),
+                    tint = Color.Gray.copy(alpha = 0.5f)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = { if (!isCancelling) onCancel() }, // ✅ Prevent click if already cancelling
@@ -425,7 +463,8 @@ fun SearchingCard(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Cancel", fontWeight = FontWeight.Bold)
+                    // Change text to "Go Back" if failed
+                    Text(if (searchState == 2) "Go Back" else "Cancel", fontWeight = FontWeight.Bold)
                 }
             }
         }

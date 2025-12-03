@@ -65,6 +65,7 @@ class RideBookingViewModel @Inject constructor(
     init {
         initializeRideDetails()
         startPollingForDriver() // ✅ Start Polling
+        startSearchTimer()      // ✅ Start Search Message Timer
     }
 
     private fun initializeRideDetails() {
@@ -90,6 +91,25 @@ class RideBookingViewModel @Inject constructor(
             fetchRoute(pickupLocation, dropPlaceId)
         } else {
             _uiState.update { it.copy(isLoading = false) }
+        }
+    }
+
+    // ✅ ADDED: Timer to change search messages
+    private fun startSearchTimer() {
+        viewModelScope.launch {
+            // Wait 30 seconds before showing "Drivers are busy..."
+            delay(30000)
+            if (isPolling) {
+                _uiState.update { it.copy(searchProgressState = 1) }
+            }
+
+            // Wait another 30 seconds (total 60s) before showing "Drivers not available..."
+            delay(30000)
+            if (isPolling) {
+                _uiState.update { it.copy(searchProgressState = 2) }
+                // Optional: Stop polling here if you don't want to keep checking
+                // isPolling = false
+            }
         }
     }
 
