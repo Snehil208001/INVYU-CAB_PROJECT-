@@ -4,9 +4,10 @@ import com.google.android.gms.maps.model.LatLng
 
 data class RideBookingUiState(
     val isLoading: Boolean = true,
+    val isCancelling: Boolean = false, // ✅ ADDED: State for cancel button loader
     val errorMessage: String? = null,
     val rideId: String? = null,
-    val userPin: String? = null, // ✅ ADDED: To store the PIN
+    val userPin: String? = null,
 
     val pickupLocation: LatLng? = null,
     val dropLocation: LatLng? = null,
@@ -15,8 +16,4 @@ data class RideBookingUiState(
     val routePolyline: List<LatLng> = emptyList(),
 
     val isSearchingForDriver: Boolean = true
-    // We will add driver details here later, e.g.:
-    // val driverName: String? = null,
-    // val driverVehicle: String? = null,
-    // val driverRating: Float? = null,
 )

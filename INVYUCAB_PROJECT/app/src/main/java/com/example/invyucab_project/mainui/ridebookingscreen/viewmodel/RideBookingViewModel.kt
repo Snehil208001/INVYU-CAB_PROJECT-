@@ -164,7 +164,8 @@ class RideBookingViewModel @Inject constructor(
     fun onCancelRide() {
         isPolling = false
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            // ✅ CHANGED: Use isCancelling instead of isLoading so UI stays visible
+            _uiState.update { it.copy(isCancelling = true) }
             try {
                 val rideIdInt = rideId?.toIntOrNull()
                 if (rideIdInt != null) {
@@ -186,7 +187,8 @@ class RideBookingViewModel @Inject constructor(
                 // Navigate back on exception as fallback
                 _navigateToSelection.emit(Unit)
             } finally {
-                _uiState.update { it.copy(isLoading = false, isSearchingForDriver = false) }
+                // ✅ CHANGED: Reset isCancelling
+                _uiState.update { it.copy(isCancelling = false, isSearchingForDriver = false) }
             }
         }
     }

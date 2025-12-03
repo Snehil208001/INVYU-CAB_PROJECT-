@@ -265,10 +265,11 @@ fun RideBookingScreen(
                     drop = uiState.dropDescription
                 )
 
-                // 3. Driver/Searching Card (✅ Now passing PIN)
+                // 3. Driver/Searching Card (✅ Now passing PIN and Cancel State)
                 SearchingCard(
                     isSearching = uiState.isSearchingForDriver,
-                    userPin = userPin, // ✅ Passed the pin here
+                    isCancelling = uiState.isCancelling, // ✅ Passed state
+                    userPin = userPin,
                     onCancel = { viewModel.onCancelRide() }
                 )
             }
@@ -339,7 +340,8 @@ fun RideDetailsCard(pickup: String, drop: String) {
 @Composable
 fun SearchingCard(
     isSearching: Boolean,
-    userPin: Int?, // ✅ Changed to accept Int?
+    isCancelling: Boolean, // ✅ Added parameter
+    userPin: Int?,
     onCancel: () -> Unit
 ) {
     Card(
@@ -404,7 +406,7 @@ fun SearchingCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
-                onClick = onCancel,
+                onClick = { if (!isCancelling) onCancel() }, // ✅ Prevent click if already cancelling
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -415,7 +417,16 @@ fun SearchingCard(
                 ),
                 elevation = ButtonDefaults.buttonElevation(0.dp)
             ) {
-                Text("Cancel", fontWeight = FontWeight.Bold)
+                // ✅ Show Loader inside button
+                if (isCancelling) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color.Red,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Cancel", fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
