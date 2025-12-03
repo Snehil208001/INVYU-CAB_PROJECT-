@@ -44,6 +44,10 @@ class RideBookingViewModel @Inject constructor(
     private val _navigateToSelection = MutableSharedFlow<Unit>()
     val navigateToSelection = _navigateToSelection.asSharedFlow()
 
+    // ✅ NEW: Timer State
+    private val _timerCount = MutableStateFlow(60)
+    val timerCount = _timerCount.asStateFlow()
+
     // ✅ FIXED: Safely retrieve rideId as Any to handle both Int and String types
     private val rideId: String? = savedStateHandle.get<Any>("rideId")?.toString()
 
@@ -94,21 +98,26 @@ class RideBookingViewModel @Inject constructor(
         }
     }
 
-    // ✅ ADDED: Timer to change search messages
+    // ✅ ADDED: Timer to change search messages and count down
     private fun startSearchTimer() {
         viewModelScope.launch {
-            // Wait 30 seconds before showing "Drivers are busy..."
-            delay(30000)
-            if (isPolling) {
-                _uiState.update { it.copy(searchProgressState = 1) }
-            }
+            // Loop 60 times (for 60 seconds)
+            for (i in 60 downTo 0) {
+                if (!isPolling) break // Stop if ride accepted or cancelled
+                _timerCount.value = i
 
-            // Wait another 30 seconds (total 60s) before showing "Drivers not available..."
-            delay(30000)
-            if (isPolling) {
-                _uiState.update { it.copy(searchProgressState = 2) }
-                // Optional: Stop polling here if you don't want to keep checking
-                // isPolling = false
+                // At 30s remaining (30s elapsed), switch to "Drivers are busy..."
+                if (i == 30) {
+                    _uiState.update { it.copy(searchProgressState = 1) }
+                }
+
+                // At 0s remaining (60s elapsed), switch to "Drivers not available"
+                if (i == 0) {
+                    _uiState.update { it.copy(searchProgressState = 2) }
+                    // Optional: Stop polling here if you don't want to keep checking
+                    // isPolling = false
+                }
+                delay(1000)
             }
         }
     }

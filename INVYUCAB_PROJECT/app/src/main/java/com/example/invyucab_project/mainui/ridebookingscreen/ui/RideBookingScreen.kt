@@ -84,6 +84,8 @@ fun RideBookingScreen(
     viewModel: RideBookingViewModel = hiltViewModel()
 ) {
     val uiState: RideBookingUiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // ✅ Observe Timer State
+    val timerCount by viewModel.timerCount.collectAsStateWithLifecycle()
 
     // ✅ Observe Navigation Events from Polling
     LaunchedEffect(key1 = true) {
@@ -266,10 +268,11 @@ fun RideBookingScreen(
                     drop = uiState.dropDescription
                 )
 
-                // 3. Driver/Searching Card (✅ Now passing search status)
+                // 3. Driver/Searching Card (✅ Now passing search status and timer)
                 SearchingCard(
                     isSearching = uiState.isSearchingForDriver,
                     searchState = uiState.searchProgressState, // ✅ Pass current stage
+                    timerValue = timerCount, // ✅ Pass timer
                     isCancelling = uiState.isCancelling,
                     userPin = userPin,
                     onCancel = { viewModel.onCancelRide() }
@@ -343,6 +346,7 @@ fun RideDetailsCard(pickup: String, drop: String) {
 fun SearchingCard(
     isSearching: Boolean,
     searchState: Int, // ✅ Added parameter
+    timerValue: Int, // ✅ Added timer parameter
     isCancelling: Boolean,
     userPin: Int?,
     onCancel: () -> Unit
@@ -430,6 +434,13 @@ fun SearchingCard(
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(color = CabMintGreen)
+                    // ✅ Show Timer in the center
+                    Text(
+                        text = "${timerValue}s",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = CabMintGreen
+                    )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             } else {

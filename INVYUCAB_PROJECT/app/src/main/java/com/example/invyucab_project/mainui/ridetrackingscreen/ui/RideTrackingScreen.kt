@@ -51,6 +51,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -396,9 +397,20 @@ fun DriverView(otpInput: String, onOtpChange: (String) -> Unit, onStartRide: () 
 
 @Composable
 fun OtpInputField(otpText: String, onOtpModified: (String, Boolean) -> Unit) {
+    // ✅ 1. Get the keyboard controller
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     BasicTextField(
         value = otpText,
-        onValueChange = { if (it.length <= 4 && it.all { char -> char.isDigit() }) onOtpModified(it, it.length == 4) },
+        onValueChange = {
+            if (it.length <= 4 && it.all { char -> char.isDigit() }) {
+                onOtpModified(it, it.length == 4)
+                // ✅ 2. Hide keyboard when 4th digit is entered
+                if (it.length == 4) {
+                    keyboardController?.hide()
+                }
+            }
+        },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
         decorationBox = {
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
