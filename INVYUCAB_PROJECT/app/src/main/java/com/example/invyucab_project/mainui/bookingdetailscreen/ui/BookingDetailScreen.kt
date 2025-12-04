@@ -115,17 +115,26 @@ fun BookingDetailScreen(
         }
     }
 
-    // ✅ ADDED: Listen for "completed" status and navigate to Home
+    // ✅ ADDED: Listen for "completed" OR "cancelled" status and navigate to Home
     LaunchedEffect(rideState) {
         if (rideState is Resource.Success) {
             val response = (rideState as Resource.Success).data
             val rideItem = response?.data?.firstOrNull()
 
-            // Check if the ride status is "completed"
-            if (rideItem != null && rideItem.status == "completed") {
-                Toast.makeText(context, "Ride Completed!", Toast.LENGTH_LONG).show()
-                navController.navigate("home_screen") {
-                    popUpTo("home_screen") { inclusive = true }
+            if (rideItem != null) {
+                // Check if the ride status is "completed"
+                if (rideItem.status == "completed") {
+                    Toast.makeText(context, "Ride Completed!", Toast.LENGTH_LONG).show()
+                    navController.navigate("home_screen") {
+                        popUpTo("home_screen") { inclusive = true }
+                    }
+                }
+                // Check if the ride status is "cancelled" (e.g. by driver)
+                else if (rideItem.status == "cancelled") {
+                    Toast.makeText(context, "Ride was cancelled by driver", Toast.LENGTH_LONG).show()
+                    navController.navigate("home_screen") {
+                        popUpTo("home_screen") { inclusive = true }
+                    }
                 }
             }
         }
