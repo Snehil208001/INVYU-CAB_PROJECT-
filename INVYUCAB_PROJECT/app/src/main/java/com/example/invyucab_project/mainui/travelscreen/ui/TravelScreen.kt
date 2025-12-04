@@ -1,9 +1,12 @@
 package com.example.invyucab_project.mainui.travelscreen.ui
 
+import android.location.Location
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,15 +16,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -30,23 +36,66 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.core.utils.navigationsbar.AppBottomNavigation
+import com.example.invyucab_project.mainui.ridehistoryscreen.viewmodel.RideHistoryViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabVeryLightMint
 import com.example.invyucab_project.ui.theme.LightSlateGray
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TravelScreen(navController: NavController) {
+fun TravelScreen(
+    navController: NavController,
+    viewModel: RideHistoryViewModel = hiltViewModel()
+) {
+    val rideHistory by viewModel.rideHistory.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    // 1. Calculate Stats: Total Rides
+    val totalRides = rideHistory.size
+
+    // 2. Calculate Stats: Total Spent
+    val totalSpent = remember(rideHistory) {
+        rideHistory.sumOf {
+            it.actualPrice?.toDoubleOrNull() ?: it.estimatedPrice?.toDoubleOrNull() ?: 0.0
+        }
+    }
+
+    // 3. Calculate Stats: Total Distance
+    val totalDistance = remember(rideHistory) {
+        var totalMeters = 0.0f
+        val results = FloatArray(1)
+
+        for (ride in rideHistory) {
+            val startLat = ride.pickupLatitude?.toDoubleOrNull()
+            val startLng = ride.pickupLongitude?.toDoubleOrNull()
+            val endLat = ride.dropLatitude?.toDoubleOrNull()
+            val endLng = ride.dropLongitude?.toDoubleOrNull()
+
+            if (startLat != null && startLng != null && endLat != null && endLng != null) {
+                Location.distanceBetween(startLat, startLng, endLat, endLng, results)
+                totalMeters += results[0]
+            }
+        }
+        val distKm = totalMeters / 1000
+        String.format("%.1f km", distKm)
+    }
+
     Scaffold(
         containerColor = Color.White,
         topBar = {
@@ -68,53 +117,121 @@ fun TravelScreen(navController: NavController) {
             AppBottomNavigation(navController = navController, selectedItem = "Travel")
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Stats Banner
-            item {
-                TravelStatsBanner()
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = CabMintGreen)
             }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Stats Banner
+                item {
+                    TravelStatsBanner(
+                        rides = totalRides.toString(),
+                        distance = totalDistance,
+                        spent = String.format("₹%.0f", totalSpent)
+                    )
+                }
 
-            // Section Header
-            item {
-                Text(
-                    text = "Recent Activity",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
+                // Section Header
+                item {
+                    Text(
+                        text = "Recent Activity",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
 
-            // Dummy List of Rides
-            items(5) { index ->
-                val status = if (index == 0) "Ongoing" else if (index % 3 == 0) "Cancelled" else "Completed"
-                val price = if (status == "Cancelled") "₹0.00" else "₹240.50"
-                TravelHistoryItem(
-                    pickup = "Connaught Place, New Delhi",
-                    drop = "Sector 62, Noida",
-                    date = "Oct ${12 + index}, 2023 • 10:30 AM",
-                    price = price,
-                    status = status
-                )
+                if (rideHistory.isEmpty()) {
+                    item {
+                        Text(
+                            text = "No travel history found.",
+                            color = Color.Gray,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                } else {
+                    items(rideHistory) { ride ->
+                        // Helper for address/location display
+                        fun formatLoc(lat: String?, lng: String?, label: String): String {
+                            return if (!lat.isNullOrEmpty() && !lng.isNullOrEmpty()) {
+                                label // Display generic label if coordinates exist
+                            } else {
+                                label
+                            }
+                        }
+
+                        val pickup = formatLoc(ride.pickupLatitude, ride.pickupLongitude, "Pickup Location")
+                        val drop = formatLoc(ride.dropLatitude, ride.dropLongitude, "Drop Location")
+
+                        val dateStr = formatParamsDate(ride.requestedAt ?: ride.startedAt)
+                        val price = "₹${ride.actualPrice ?: ride.estimatedPrice ?: "0.00"}"
+
+                        val rawStatus = ride.status?.lowercase() ?: ""
+                        val displayStatus = rawStatus.replaceFirstChar {
+                            if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString()
+                        }.ifEmpty { "Unknown" }
+
+                        // ✅ Check if the ride is trackable
+                        val isTrackable = rawStatus == "in_progress" || rawStatus == "accepted"
+
+                        TravelHistoryItem(
+                            pickup = pickup,
+                            drop = drop,
+                            date = dateStr,
+                            price = price,
+                            status = displayStatus,
+                            isTrackable = isTrackable, // Pass trackable state
+                            onClick = {
+                                if (isTrackable) {
+                                    val safeDriverName = if (!ride.driverName.isNullOrBlank()) ride.driverName else "Unknown Driver"
+                                    val safeModel = if (!ride.model.isNullOrBlank()) ride.model else "Unknown Vehicle"
+                                    val safeOtp = "Unavailable"
+
+                                    val route = Screen.BookingDetailScreen.createRoute(
+                                        driverName = safeDriverName,
+                                        vehicleModel = safeModel,
+                                        otp = safeOtp,
+                                        rideId = ride.rideId,
+                                        riderId = ride.riderId ?: 0,
+                                        driverId = ride.driverId ?: 0,
+                                        role = "rider",
+                                        pickupLat = ride.pickupLatitude?.toDoubleOrNull() ?: 0.0,
+                                        pickupLng = ride.pickupLongitude?.toDoubleOrNull() ?: 0.0,
+                                        dropLat = ride.dropLatitude?.toDoubleOrNull() ?: 0.0,
+                                        dropLng = ride.dropLongitude?.toDoubleOrNull() ?: 0.0
+                                    )
+                                    navController.navigate(route)
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun TravelStatsBanner() {
+fun TravelStatsBanner(rides: String, distance: String, spent: String) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .height(100.dp),
         colors = CardDefaults.cardColors(containerColor = CabVeryLightMint),
         shape = RoundedCornerShape(12.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, CabMintGreen.copy(alpha = 0.3f))
+        border = BorderStroke(1.dp, CabMintGreen.copy(alpha = 0.3f))
     ) {
         Row(
             modifier = Modifier
@@ -123,21 +240,21 @@ fun TravelStatsBanner() {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceAround
         ) {
-            StatItem(value = "12", label = "Rides")
+            StatItem(value = rides, label = "Rides")
             Divider(
                 color = CabMintGreen.copy(alpha = 0.3f),
                 modifier = Modifier
                     .height(40.dp)
                     .width(1.dp)
             )
-            StatItem(value = "145 km", label = "Distance")
+            StatItem(value = distance, label = "Est. Distance")
             Divider(
                 color = CabMintGreen.copy(alpha = 0.3f),
                 modifier = Modifier
                     .height(40.dp)
                     .width(1.dp)
             )
-            StatItem(value = "₹3.2k", label = "Spent")
+            StatItem(value = spent, label = "Spent")
         }
     }
 }
@@ -159,15 +276,19 @@ fun StatItem(value: String, label: String) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TravelHistoryItem(
     pickup: String,
     drop: String,
     date: String,
     price: String,
-    status: String
+    status: String,
+    isTrackable: Boolean, // ✅ New Parameter
+    onClick: () -> Unit
 ) {
     Card(
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -244,7 +365,7 @@ fun TravelHistoryItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Total Paid",
+                    text = if (isTrackable) "Estimated Fare" else "Total Paid", // ✅ Conditional Label
                     fontSize = 14.sp,
                     color = Color.Gray
                 )
@@ -254,6 +375,33 @@ fun TravelHistoryItem(
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
+            }
+
+            // ✅ "Track Ride" Button for actionable rides
+            if (isTrackable) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(45.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Navigation,
+                        contentDescription = "Track",
+                        modifier = Modifier.size(18.dp),
+                        tint = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Track Ride",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
             }
         }
     }
@@ -287,5 +435,17 @@ fun StatusBadge(status: String) {
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold
         )
+    }
+}
+
+fun formatParamsDate(dateString: String?): String {
+    if (dateString.isNullOrEmpty()) return "N/A"
+    return try {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.getDefault())
+        val date = inputFormat.parse(dateString)
+        outputFormat.format(date!!)
+    } catch (e: Exception) {
+        dateString
     }
 }
