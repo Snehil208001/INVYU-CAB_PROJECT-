@@ -1,9 +1,7 @@
 package com.example.invyucab_project.mainui.authscreen.viewmodel
 
-// ✅ --- START OF FIX: IMPORTS ADDED ---
 import android.util.Log
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
-// ✅ --- END OF FIX ---
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -30,14 +28,10 @@ class AuthViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val credentialManager: CredentialManager,
     private val checkUserUseCase: CheckUserUseCase,
-    // ✅ --- START OF FIX: REPOSITORY INJECTED ---
     private val userPreferencesRepository: UserPreferencesRepository
-    // ✅ --- END OF FIX ---
 ) : BaseViewModel() {
 
-    // ✅ --- START OF FIX: TAG ADDED FOR LOGGING ---
     private val TAG = "AuthViewModel"
-    // ✅ --- END OF FIX ---
 
     var selectedTab by mutableStateOf(AuthTab.SIGN_UP)
         private set
@@ -129,12 +123,9 @@ class AuthViewModel @Inject constructor(
                                 )
                             ))
                         }
-                        // ✅✅✅ START OF FIX ✅✅✅ (This was in your original code)
-                        // Add an else branch to handle the 'null' case
                         else -> {
                             _apiError.value = "An unexpected error occurred."
                         }
-                        // ✅✅✅ END OF FIX ✅✅✅
                     }
                 }
                 is Resource.Error -> {
@@ -158,23 +149,26 @@ class AuthViewModel @Inject constructor(
                     _isLoading.value = false
                     when (result.data) {
                         is UserCheckStatus.Exists -> {
-                            // ✅ --- START OF FIX: SAVE USER ID, ROLE, AND STATUS ---
-                            // This is the fix. We save the userId from the use case response.
                             val userId = result.data.userId
                             val userRole = result.data.role
+
+                            // ✅ --- FIX: SAVE PHONE NUMBER ALONG WITH USER ID ---
+                            // Ensure we save it with country code because API expects +91...
+                            val formattedPhone = "+91$signInPhone"
+                            userPreferencesRepository.savePhoneNumber(formattedPhone)
 
                             userPreferencesRepository.saveUserId(userId.toString())
                             userPreferencesRepository.saveUserRole(userRole)
                             userPreferencesRepository.saveUserStatus("active")
 
-                            Log.d(TAG, "User ID $userId, Role $userRole, Status 'active' saved to preferences for sign-in.")
-                            // ✅ --- END OF FIX ---
+                            Log.d(TAG, "Saved User ID: $userId, Role: $userRole, Phone: $formattedPhone")
+                            // ✅ --- END FIX ---
 
                             sendEvent(UiEvent.Navigate(
                                 Screen.OtpScreen.createRoute(
                                     phone = signInPhone,
                                     isSignUp = false,
-                                    role = userRole, // Pass the correct role
+                                    role = userRole,
                                     name = null,
                                     gender = null,
                                     dob = null
@@ -184,12 +178,9 @@ class AuthViewModel @Inject constructor(
                         is UserCheckStatus.DoesNotExist -> {
                             _apiError.value = "This phone number is not registered. Please Register."
                         }
-                        // ✅✅✅ START OF FIX ✅✅✅ (This was in your original code)
-                        // Add an else branch to handle the 'null' case
                         else -> {
                             _apiError.value = "An unexpected error occurred."
                         }
-                        // ✅✅✅ END OF FIX ✅✅✅
                     }
                 }
                 is Resource.Error -> {

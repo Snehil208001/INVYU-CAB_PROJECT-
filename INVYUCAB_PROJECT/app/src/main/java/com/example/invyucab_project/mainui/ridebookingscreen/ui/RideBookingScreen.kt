@@ -353,8 +353,8 @@ fun SearchingCard(
 ) {
     // ✅ Determine text based on state
     val searchTitle = when (searchState) {
-        1 -> "Drivers are busy..."
-        2 -> "Drivers not available"
+        1 -> "Pilots are busy..."
+        2 -> "Pilots not available"
         else -> "Searching for a Pilot..."
     }
 

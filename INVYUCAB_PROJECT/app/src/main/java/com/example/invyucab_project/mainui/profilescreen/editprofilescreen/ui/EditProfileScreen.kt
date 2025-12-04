@@ -2,7 +2,6 @@ package com.example.invyucab_project.mainui.profilescreen.editprofilescreen.ui
 
 import android.app.DatePickerDialog
 import android.widget.DatePicker
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -36,7 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.invyucab_project.core.navigations.Screen // Import Screen
+import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.profilescreen.editprofilescreen.viewmodel.EditProfileViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.LightSlateGray
@@ -54,7 +53,7 @@ fun EditProfileScreen(
     val context = LocalContext.current
 
     // === DATE PICKER LOGIC ===
-    val calendar = remember {
+    val calendar = remember(viewModel.birthday) {
         parseDate(viewModel.birthday) ?: Calendar.getInstance()
     }
     val year = calendar.get(Calendar.YEAR)
@@ -116,7 +115,6 @@ fun EditProfileScreen(
                 item { Spacer(modifier = Modifier.height(16.dp)) }
 
                 item {
-                    // --- UPDATED THIS ROW ---
                     ClickableProfileRow(
                         label = "Level",
                         value = "Gold Member",
@@ -136,14 +134,7 @@ fun EditProfileScreen(
                         )
                     )
                 }
-                item {
-                    EditableProfileRow(
-                        label = "Email",
-                        value = viewModel.email,
-                        onValueChange = viewModel::onEmailChange,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-                    )
-                }
+                // ✅ REMOVED: Email Field
                 item {
                     ClickableProfileRow(
                         label = "Gender",
@@ -154,7 +145,7 @@ fun EditProfileScreen(
                 item {
                     ClickableProfileRow(
                         label = "Birthday",
-                        value = viewModel.birthday,
+                        value = viewModel.birthday.ifEmpty { "Select Date" },
                         onClick = { datePickerDialog.show() }
                     )
                 }
@@ -166,21 +157,7 @@ fun EditProfileScreen(
                 }
             }
 
-            // --- Save Button ---
-            Button(
-                onClick = {
-                    viewModel.onSaveClicked {
-                        navController.navigateUp()
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 20.dp)
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen)
-            ) {
-                Text("Save Changes", fontSize = 16.sp, color = Color.White)
-            }
+            // ✅ REMOVED: Save Changes Button
         }
     }
 
@@ -267,7 +244,7 @@ private fun ProfileRow(
         Text(
             text = value,
             fontSize = 16.sp,
-            color = Color.Gray, // Display-only value is gray
+            color = Color.Gray,
             textAlign = TextAlign.End,
             modifier = Modifier.weight(0.6f)
         )
@@ -293,7 +270,7 @@ private fun ClickableProfileRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick) // Clickable
+            .clickable(onClick = onClick)
             .padding(horizontal = 24.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -306,7 +283,7 @@ private fun ClickableProfileRow(
         Text(
             text = value,
             fontSize = 16.sp,
-            color = Color.Black.copy(alpha = 0.7f), // Value is not gray
+            color = Color.Black.copy(alpha = 0.7f),
             textAlign = TextAlign.End,
             modifier = Modifier.weight(0.6f)
         )
@@ -382,6 +359,7 @@ private fun GenderSelectionDialog(
 // === DATE HELPER FUNCTIONS ===
 
 private fun parseDate(dateString: String): Calendar? {
+    if (dateString.isBlank()) return null
     return try {
         val format = SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH)
         val date = format.parse(dateString)
@@ -391,7 +369,7 @@ private fun parseDate(dateString: String): Calendar? {
             }
         }
     } catch (e: Exception) {
-        null // Return null if parsing fails
+        null
     }
 }
 

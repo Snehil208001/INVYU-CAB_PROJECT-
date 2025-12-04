@@ -28,7 +28,8 @@ private data class NavItem(
 private val navItems = listOf(
     NavItem("Home", Icons.Default.Home, Screen.HomeScreen.route),
     NavItem("Services", Icons.Default.Apps, Screen.AllServicesScreen.route),
-    NavItem("Travel", Icons.Default.TravelExplore, Screen.TravelScreen.route),
+    // Changed "Travel" to "Trip"
+    NavItem("Trip", Icons.Default.TravelExplore, Screen.TravelScreen.route),
     NavItem("Profile", Icons.Default.Person, Screen.ProfileScreen.route)
 )
 
