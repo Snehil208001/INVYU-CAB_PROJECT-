@@ -15,8 +15,9 @@ class UserPreferencesRepository @Inject constructor(
         const val KEY_USER_ID = "user_id"
         const val KEY_USER_ROLE = "user_role"
         const val KEY_DRIVER_ID = "driver_id"
-        // ✅ ADDED: Key for storing Phone Number
         const val KEY_PHONE_NUMBER = "phone_number"
+        // ✅ ADDED: Key for FCM Token
+        const val KEY_FCM_TOKEN = "fcm_token"
     }
 
     fun saveUserStatus(status: String) {
@@ -35,21 +36,23 @@ class UserPreferencesRepository @Inject constructor(
         prefs.edit().putString(KEY_DRIVER_ID, driverId).apply()
     }
 
-    // ✅ ADDED: Function to save phone number
     fun savePhoneNumber(phoneNumber: String) {
         prefs.edit().putString(KEY_PHONE_NUMBER, phoneNumber).apply()
     }
 
-    /**
-     * Clears the user's status and data from SharedPreferences (e.g., on logout).
-     */
+    // ✅ ADDED: Function to save FCM token
+    fun saveFcmToken(token: String) {
+        prefs.edit().putString(KEY_FCM_TOKEN, token).apply()
+    }
+
     fun clearUserStatus() {
         prefs.edit()
             .remove(KEY_USER_STATUS)
             .remove(KEY_USER_ID)
             .remove(KEY_USER_ROLE)
             .remove(KEY_DRIVER_ID)
-            .remove(KEY_PHONE_NUMBER) // ✅ Remove phone number on logout
+            .remove(KEY_PHONE_NUMBER)
+            .remove(KEY_FCM_TOKEN) // ✅ Clear token on logout
             .apply()
     }
 
@@ -69,9 +72,13 @@ class UserPreferencesRepository @Inject constructor(
         return prefs.getString(KEY_DRIVER_ID, null)
     }
 
-    // ✅ ADDED: Function to get phone number
     fun getPhoneNumber(): String? {
         return prefs.getString(KEY_PHONE_NUMBER, null)
+    }
+
+    // ✅ ADDED: Function to get FCM token
+    fun getFcmToken(): String? {
+        return prefs.getString(KEY_FCM_TOKEN, null)
     }
 
     fun saveOnboardingCompleted() {

@@ -1,46 +1,145 @@
 package com.example.invyucab_project
 
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.SystemBarStyle // ✅ ADD THIS IMPORT
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.example.invyucab_project.core.navigations.NavGraph
 import com.example.invyucab_project.core.navigations.Screen
-// import com.example.invyucab_project.data.preferences.UserPreferencesRepository // ❌ No longer needed here
+import com.example.invyucab_project.data.repository.AppRepository
 import com.example.invyucab_project.ui.theme.INVYUCAB_PROJECTTheme
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.AndroidEntryPoint
-// import javax.inject.Inject // ❌ No longer needed here
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    // ❌ This logic is now moved to SplashScreenViewModel
-    // @Inject
-    // lateinit var userPreferencesRepository: UserPreferencesRepository
+    @Inject
+    lateinit var appRepository: AppRepository
+
+    // ✅ Permission Launcher for Android 13+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            Log.d("FCM", "Notification permission granted")
+        } else {
+            Log.d("FCM", "Notification permission denied")
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ✅✅✅ THIS IS THE FIX ✅✅✅
-        // Force the status bar icons to be dark (for light backgrounds)
+        // ✅ 1. Request Permission
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        // ✅ 2. Sync Token with Server
+        fetchAndSyncFcmToken()
+
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(
                 android.graphics.Color.TRANSPARENT,
                 android.graphics.Color.TRANSPARENT
             )
         )
-        // ✅✅✅ END OF FIX ✅✅✅
 
-        // ✅✅✅ START OF MODIFICATION ✅✅✅
-        // The app will ALWAYS start at the SplashScreenLoggedIn.
-        // This screen will then decide where to go (Onboarding or Home).
         val startDestination = Screen.SplashScreenLoggedIn.route
-        // ✅✅✅ END OF MODIFICATION ✅✅✅
 
         setContent {
             INVYUCAB_PROJECTTheme {
-                NavGraph(startDestination = startDestination) // ✅ PASS the single start route
+
+                // ✅ 3. UI LISTENER FOR MESSAGES
+                var showRideDialog by remember { mutableStateOf(false) }
+                var currentMessageTitle by remember { mutableStateOf("") }
+                var currentMessageBody by remember { mutableStateOf("") }
+
+                // This listens for messages sent from MyFirebaseMessagingService
+                LaunchedEffect(Unit) {
+                    appRepository.fcmMessages.collect { message ->
+                        currentMessageTitle = message.notification?.title ?: "New Update"
+                        currentMessageBody = message.notification?.body ?: "You have a new message"
+                        showRideDialog = true
+                    }
+                }
+
+                // ✅ 4. THE POPUP DIALOG
+                if (showRideDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showRideDialog = false },
+                        title = { Text(text = currentMessageTitle) },
+                        text = { Text(text = currentMessageBody) },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                showRideDialog = false
+                                // Optional: Handle "View" click to navigate
+                            }) {
+                                Text("View")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showRideDialog = false }) {
+                                Text("Dismiss")
+                            }
+                        }
+                    )
+                }
+
+                // ✅ 5. MAIN NAVIGATION
+                NavGraph(startDestination = startDestination)
+            }
+        }
+    }
+
+    // ✅ Helper function to sync token
+    private fun fetchAndSyncFcmToken() {
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.w("FCM", "Fetching FCM registration token failed", task.exception)
+                return@addOnCompleteListener
+            }
+
+            // Get new FCM registration token
+            val token = task.result
+            Log.d("FCM", "Token retrieved: $token")
+
+            // Save locally
+            appRepository.saveFcmTokenLocally(token)
+
+            // Sync with backend if user is logged in
+            val phoneNumber = appRepository.getSavedPhoneNumber()
+            if (!phoneNumber.isNullOrEmpty()) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val response = appRepository.updateFcmToken(phoneNumber, token)
+                        if (response.isSuccessful) {
+                            Log.d("FCM", "Token synced with backend successfully")
+                        } else {
+                            Log.e("FCM", "Failed to sync token: ${response.errorBody()?.string()}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("FCM", "Exception syncing token", e)
+                    }
+                }
             }
         }
     }

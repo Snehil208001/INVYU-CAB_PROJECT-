@@ -53,7 +53,10 @@ interface CustomApiService {
     @POST("riding_app/v1/ride_history_from_riderside")
     suspend fun getRideHistory(@Body request: RideHistoryRequest): Response<RiderRideHistoryResponse>
 
-    // ✅ ADDED: Ongoing Ride Endpoint (Polling with ride_id)
     @POST("riding_app/v1/ongoing_ride_from_riderside")
     suspend fun getOngoingRideRiderSide(@Body request: RiderOngoingRideRequest): Response<RiderOngoingRideResponse>
+
+    // ✅ ADDED: Endpoint to update FCM Token
+    @POST("riding_app/v1/update_fcm_token")
+    suspend fun updateFcmToken(@Body request: UpdateFcmTokenRequest): Response<UpdateFcmTokenResponse>
 }

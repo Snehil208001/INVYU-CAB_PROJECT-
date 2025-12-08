@@ -216,4 +216,16 @@ data class RiderRideHistoryResponse(
     @Json(name = "success") val success: Boolean,
     @Json(name = "data") val data: List<RiderRideHistoryItem>?
 )
-// ✅ REMOVED: RiderOngoingRide... classes to avoid conflict with RideBookingModels.kt
+
+// ✅ ADD THESE NEW CLASSES AT THE END OF THE FILE
+@JsonClass(generateAdapter = true)
+data class UpdateFcmTokenRequest(
+    @Json(name = "phone_number") val phoneNumber: String,
+    @Json(name = "fcm_token") val fcmToken: String
+)
+
+@JsonClass(generateAdapter = true)
+data class UpdateFcmTokenResponse(
+    @Json(name = "success") val success: Boolean,
+    @Json(name = "message") val message: String
+)

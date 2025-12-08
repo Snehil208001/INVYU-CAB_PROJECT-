@@ -100,6 +100,9 @@ dependencies {
     // Coil for Image Loading
     implementation("io.coil-kt:coil-compose:2.4.0")
 
+    //FCM
+    implementation(libs.firebase.messaging) // ✅ ADD THIS
+
     // Retrofit & Moshi
     implementation(libs.retrofit)
     implementation(libs.converter.moshi)
