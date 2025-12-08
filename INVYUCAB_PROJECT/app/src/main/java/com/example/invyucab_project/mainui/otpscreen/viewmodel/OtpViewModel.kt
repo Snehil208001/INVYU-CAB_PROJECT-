@@ -12,6 +12,7 @@ import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.data.models.CreateUserRequest
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
+import com.example.invyucab_project.data.repository.AppRepository
 import com.example.invyucab_project.domain.usecase.CreateUserUseCase
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
@@ -36,6 +37,7 @@ class OtpViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val createUserUseCase: CreateUserUseCase,
     private val userPreferencesRepository: UserPreferencesRepository,
+    private val appRepository: AppRepository, // ✅ ADDED: Inject AppRepository
     savedStateHandle: SavedStateHandle
 ) : BaseViewModel() {
 
@@ -195,9 +197,11 @@ class OtpViewModel @Inject constructor(
                     Log.d(TAG, "Sign-in: Saved role '$role' and status 'active'.")
 
                     // We still need to save the user ID on sign-in, which we get from preferences
-                    // (it was saved in AuthViewModel)
                     val userId = userPreferencesRepository.getUserId()
                     Log.d(TAG, "Sign-in: Retrieved user ID $userId")
+
+                    // ✅ ADDED: Sync FCM Token immediately after successful login
+                    appRepository.syncFcmToken()
 
                     val route = when (role.lowercase()) {
                         "driver" -> Screen.DriverScreen.route
@@ -220,7 +224,6 @@ class OtpViewModel @Inject constructor(
         val formattedDob = formatDobForApi(dob)
         val finalRole = role.lowercase()
 
-        // This request is used for BOTH Rider and Driver
         val createUserRequest = CreateUserRequest(
             fullName = name ?: "User",
             phoneNumber = "+91$fullPhoneNumber",
@@ -229,14 +232,13 @@ class OtpViewModel @Inject constructor(
             gender = gender?.lowercase(),
             dob = formattedDob,
             licenseNumber = license,
-            vehicleId = null, // Vehicle logic removed from this viewmodel
+            vehicleId = null,
             rating = null,
             walletBalance = null,
             isVerified = true,
             status = "active"
         )
 
-        // Call createUser for ALL signups
         createUserUseCase.invoke(createUserRequest).onEach { result ->
             when (result) {
                 is Resource.Loading -> {
@@ -247,27 +249,23 @@ class OtpViewModel @Inject constructor(
 
                     val newUserId = result.data?.userId
                     if (newUserId != null) {
-                        // ✅✅✅ START OF FIX ✅✅✅
-                        // Convert the Int 'newUserId' to a String before saving
                         userPreferencesRepository.saveUserId(newUserId.toString())
-                        // ✅✅✅ END OF FIX ✅✅✅
                         userPreferencesRepository.saveUserRole(finalRole)
                         userPreferencesRepository.saveUserStatus("active")
                         Log.d(TAG, "Sign-up: Saved User ID $newUserId, Role '$finalRole', and Status 'active'.")
+
+                        // ✅ ADDED: Sync FCM Token immediately after successful signup
+                        appRepository.syncFcmToken()
                     } else {
                         Log.e(TAG, "CreateUser succeeded but userId was null in response.")
                     }
 
-                    // User is created.
                     _isLoading.value = false
                     isAutoVerificationRunning = false
 
-                    // NOW, check role and navigate
                     if (finalRole == "driver") {
-                        // User is a Driver, navigate to DriverScreen
                         sendEvent(UiEvent.Navigate(Screen.DriverScreen.route))
                     } else {
-                        // User is a Rider, so we are done
                         sendEvent(UiEvent.Navigate(Screen.HomeScreen.route))
                     }
                 }
@@ -283,7 +281,6 @@ class OtpViewModel @Inject constructor(
     private fun formatDobForApi(dobString: String?): String? {
         if (dobString.isNullOrBlank()) return null
         return try {
-            // The date is in yyyy-MM-dd format from DatePicker
             val parser = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
             val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
             val date = parser.parse(dobString)

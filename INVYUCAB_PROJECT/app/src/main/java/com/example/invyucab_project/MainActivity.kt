@@ -54,7 +54,8 @@ class MainActivity : ComponentActivity() {
         }
 
         // ✅ 2. Sync Token with Server
-        fetchAndSyncFcmToken()
+        // Calls the centralized repository method to ensure token is synced
+        appRepository.syncFcmToken()
 
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(
@@ -106,40 +107,6 @@ class MainActivity : ComponentActivity() {
 
                 // ✅ 5. MAIN NAVIGATION
                 NavGraph(startDestination = startDestination)
-            }
-        }
-    }
-
-    // ✅ Helper function to sync token
-    private fun fetchAndSyncFcmToken() {
-        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            if (!task.isSuccessful) {
-                Log.w("FCM", "Fetching FCM registration token failed", task.exception)
-                return@addOnCompleteListener
-            }
-
-            // Get new FCM registration token
-            val token = task.result
-            Log.d("FCM", "Token retrieved: $token")
-
-            // Save locally
-            appRepository.saveFcmTokenLocally(token)
-
-            // Sync with backend if user is logged in
-            val phoneNumber = appRepository.getSavedPhoneNumber()
-            if (!phoneNumber.isNullOrEmpty()) {
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        val response = appRepository.updateFcmToken(phoneNumber, token)
-                        if (response.isSuccessful) {
-                            Log.d("FCM", "Token synced with backend successfully")
-                        } else {
-                            Log.e("FCM", "Failed to sync token: ${response.errorBody()?.string()}")
-                        }
-                    } catch (e: Exception) {
-                        Log.e("FCM", "Exception syncing token", e)
-                    }
-                }
             }
         }
     }

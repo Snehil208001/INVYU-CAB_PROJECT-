@@ -5,10 +5,15 @@ import com.example.invyucab_project.data.api.CustomApiService
 import com.example.invyucab_project.data.api.GoogleMapsApiService
 import com.example.invyucab_project.data.models.*
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.RemoteMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import retrofit2.Response
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,14 +25,47 @@ class AppRepository @Inject constructor(
     private val userPreferencesRepository: UserPreferencesRepository
 ) {
 
-    // ✅ ADDED: The Message Bridge (SharedFlow)
+    // The Message Bridge (SharedFlow)
     // We use a SharedFlow so that the UI can subscribe to "events" (like a new ride request)
     private val _fcmMessages = MutableSharedFlow<RemoteMessage>(extraBufferCapacity = 10)
     val fcmMessages: SharedFlow<RemoteMessage> = _fcmMessages.asSharedFlow()
 
-    // ✅ ADDED: Function called by Service to send message to UI
+    // Function called by Service to send message to UI
     suspend fun broadcastMessage(message: RemoteMessage) {
         _fcmMessages.emit(message)
+    }
+
+    // ✅ ADDED: Centralized Sync Function
+    // This fetches the token and sends it to the backend if the user is logged in.
+    fun syncFcmToken() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // 1. Get Token from Firebase
+                val token = FirebaseMessaging.getInstance().token.await()
+                Log.d("FCM", "Repository retrieved token: $token")
+
+                // 2. Save locally
+                userPreferencesRepository.saveFcmToken(token)
+
+                // 3. Check if we have a user logged in
+                val phoneNumber = userPreferencesRepository.getPhoneNumber()
+
+                if (!phoneNumber.isNullOrEmpty()) {
+                    // 4. Send to Backend
+                    Log.d("FCM", "Syncing token for user: $phoneNumber")
+                    val response = updateFcmToken(phoneNumber, token)
+                    if (response.isSuccessful) {
+                        Log.d("FCM", "Token synced with backend successfully")
+                    } else {
+                        Log.e("FCM", "Failed to sync token: ${response.errorBody()?.string()}")
+                    }
+                } else {
+                    Log.d("FCM", "User not logged in yet. Token saved locally, waiting for login.")
+                }
+            } catch (e: Exception) {
+                Log.e("FCM", "Exception in syncFcmToken", e)
+            }
+        }
     }
 
     suspend fun saveOnboardingCompleted() {
@@ -136,18 +174,15 @@ class AppRepository @Inject constructor(
         return userPreferencesRepository.getUserId()
     }
 
-    // ✅ ADDED: Function to update FCM Token
     suspend fun updateFcmToken(phoneNumber: String, token: String): Response<UpdateFcmTokenResponse> {
         val request = UpdateFcmTokenRequest(phoneNumber = phoneNumber, fcmToken = token)
         return customApiService.updateFcmToken(request)
     }
 
-    // ✅ ADDED: Helper to save token locally
     fun saveFcmTokenLocally(token: String) {
         userPreferencesRepository.saveFcmToken(token)
     }
 
-    // ✅ ADDED: Helper to get saved phone number
     fun getSavedPhoneNumber(): String? {
         return userPreferencesRepository.getPhoneNumber()
     }

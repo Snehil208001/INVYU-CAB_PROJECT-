@@ -28,16 +28,16 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     lateinit var userPreferencesRepository: UserPreferencesRepository
 
     @Inject
-    lateinit var appRepository: AppRepository // ✅ Inject Repository to pass messages to UI
+    lateinit var appRepository: AppRepository
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d("FCM", "New Token: $token")
+        Log.d("FCM", "New Token Generated: $token")
 
-        // Save token locally
-        userPreferencesRepository.saveFcmToken(token)
-
-        // Note: Actual network sync happens in MainActivity
+        // ✅ CHANGED: Use the centralized sync function
+        // This ensures if the user is already logged in, the new token goes to the server
+        appRepository.saveFcmTokenLocally(token)
+        appRepository.syncFcmToken()
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
@@ -49,7 +49,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             sendNotification(it.title, it.body)
         }
 
-        // 2. ✅ Pass Message to UI (Foreground Handling)
+        // 2. Pass Message to UI (Foreground Handling)
         // If the app is open, this allows us to show a Dialog immediately.
         CoroutineScope(Dispatchers.Main).launch {
             appRepository.broadcastMessage(remoteMessage)
