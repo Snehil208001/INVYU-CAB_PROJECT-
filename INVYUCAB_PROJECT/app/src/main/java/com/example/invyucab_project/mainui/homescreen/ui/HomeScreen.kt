@@ -392,45 +392,16 @@ fun RecentRideItem(ride: RecentRide, onClick: () -> Unit) {
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                // Pickup
-                Row(verticalAlignment = Alignment.Top) {
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 6.dp)
-                            .size(6.dp)
-                            .background(CabMintGreen, CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = ride.pickupAddress,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Dropoff
-                Row(verticalAlignment = Alignment.Top) {
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 6.dp)
-                            .size(6.dp)
-                            .background(Color.Red, CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = ride.dropAddress,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
+            // Pickup Row Removed - Only showing Dropoff Location
+            Text(
+                text = ride.dropAddress,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = Color.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }

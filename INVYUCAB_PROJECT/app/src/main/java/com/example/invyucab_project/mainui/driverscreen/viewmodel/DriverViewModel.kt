@@ -108,6 +108,15 @@ class DriverViewModel @Inject constructor(
 
     init {
         getCurrentLocation()
+        // ✅ FIXED: Check saved status on initialization
+        val savedStatus = userPreferencesRepository.getDriverOnlineStatus()
+        _isActive.value = savedStatus
+
+        if (savedStatus) {
+            // Restore operations if driver was online
+            startLocationUpdates()
+            startLookingForRides()
+        }
     }
 
     private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): String {
@@ -187,6 +196,9 @@ class DriverViewModel @Inject constructor(
 
     fun onActiveToggleChanged(active: Boolean) {
         _isActive.value = active
+        // ✅ FIXED: Save the new status to preferences
+        userPreferencesRepository.saveDriverOnlineStatus(active)
+
         if (active) {
             startLocationUpdates()
             startLookingForRides()

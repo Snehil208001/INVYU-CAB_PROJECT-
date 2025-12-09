@@ -18,6 +18,8 @@ class UserPreferencesRepository @Inject constructor(
         const val KEY_PHONE_NUMBER = "phone_number"
         // ✅ ADDED: Key for FCM Token
         const val KEY_FCM_TOKEN = "fcm_token"
+        // ✅ ADDED: Key for Driver Online Status
+        const val KEY_DRIVER_ONLINE_STATUS = "driver_online_status"
     }
 
     fun saveUserStatus(status: String) {
@@ -45,6 +47,11 @@ class UserPreferencesRepository @Inject constructor(
         prefs.edit().putString(KEY_FCM_TOKEN, token).apply()
     }
 
+    // ✅ ADDED: Function to save Driver Online Status
+    fun saveDriverOnlineStatus(isOnline: Boolean) {
+        prefs.edit().putBoolean(KEY_DRIVER_ONLINE_STATUS, isOnline).apply()
+    }
+
     fun clearUserStatus() {
         prefs.edit()
             .remove(KEY_USER_STATUS)
@@ -53,6 +60,7 @@ class UserPreferencesRepository @Inject constructor(
             .remove(KEY_DRIVER_ID)
             .remove(KEY_PHONE_NUMBER)
             .remove(KEY_FCM_TOKEN) // ✅ Clear token on logout
+            .remove(KEY_DRIVER_ONLINE_STATUS) // ✅ Clear online status on logout
             .apply()
     }
 
@@ -79,6 +87,11 @@ class UserPreferencesRepository @Inject constructor(
     // ✅ ADDED: Function to get FCM token
     fun getFcmToken(): String? {
         return prefs.getString(KEY_FCM_TOKEN, null)
+    }
+
+    // ✅ ADDED: Function to get Driver Online Status (Default is false)
+    fun getDriverOnlineStatus(): Boolean {
+        return prefs.getBoolean(KEY_DRIVER_ONLINE_STATUS, false)
     }
 
     fun saveOnboardingCompleted() {
