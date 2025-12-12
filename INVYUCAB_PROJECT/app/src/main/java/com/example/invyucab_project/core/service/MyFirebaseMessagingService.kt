@@ -12,7 +12,6 @@ import androidx.core.app.NotificationCompat
 import com.example.invyucab_project.R
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
 import com.example.invyucab_project.data.repository.AppRepository
-// ✅ Import the new Activity
 import com.example.invyucab_project.mainui.incomingride.IncomingRideActivity
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -40,37 +39,63 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
+        Log.e("FCM_DEBUG", "--- MESSAGE RECEIVED ---")
+        Log.e("FCM_DEBUG", "From: ${remoteMessage.from}")
+        Log.e("FCM_DEBUG", "Raw Data Map: ${remoteMessage.data}")
+
         // 1. Pass Message to UI (Foreground Handling via Flow)
         CoroutineScope(Dispatchers.Main).launch {
             appRepository.broadcastMessage(remoteMessage)
         }
 
         // 2. Handle Incoming Ride Request (Background/Lock Screen)
-        // Check if the payload indicates a ride request
         if (remoteMessage.data.isNotEmpty()) {
-            // Pass specific data keys
-            val title = remoteMessage.data["title"] ?: "New Ride Request"
-            val body = remoteMessage.data["body"] ?: "Incoming ride..."
-            sendNotification(title, body, remoteMessage.data)
+            val data = remoteMessage.data
+
+            // Debugging: Check specifically for ID
+            val hasId = data.containsKey("ride_id") || data.containsKey("rideId")
+            if (!hasId) {
+                Log.e("FCM_DEBUG", "CRITICAL ERROR: Backend payload is MISSING ride_id!")
+            } else {
+                Log.e("FCM_DEBUG", "Ride ID found in payload: ${data["ride_id"] ?: data["rideId"]}")
+            }
+
+            val title = data["title"] ?: "New Ride Request"
+            val body = data["body"] ?: "Incoming ride..."
+
+            sendNotification(title, body, data)
         }
     }
 
     private fun sendNotification(title: String, messageBody: String, data: Map<String, String>) {
-        // ✅ CHANGED: Point Intent to IncomingRideActivity
-        val intent = Intent(this, IncomingRideActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            // Pass data to the Activity
-            putExtra("pickup_lat", data["pickup_lat"])
-            putExtra("pickup_lng", data["pickup_lng"])
-            putExtra("pickup_address", data["pickup_address"])
-            putExtra("price", data["price"])
-            putExtra("distance", data["distance"])
+        val intent = Intent(this, IncomingRideActivity::class.java)
+
+        // Clear flags to ensure we get a fresh activity state
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
+        // 1. Pass ALL data keys blindly
+        data.forEach { (key, value) ->
+            intent.putExtra(key, value)
         }
+
+        // 2. FORCE extract ride_id and put it specifically as "ride_id"
+        // This handles "rideId", "ride_id", "id" variations from backend
+        val rideId = data["ride_id"] ?: data["rideId"] ?: data["id"]
+        if (rideId != null) {
+            intent.putExtra("ride_id", rideId)
+            Log.e("FCM_DEBUG", "Attaching ride_id to Intent: $rideId")
+        } else {
+            Log.e("FCM_DEBUG", "Cannot attach ride_id: Value is NULL")
+        }
+
+        // 3. Unique Request Code (Time-based) to prevent PendingIntent reuse/caching
+        val uniqueRequestCode = System.currentTimeMillis().toInt()
 
         val pendingIntent = PendingIntent.getActivity(
             this,
-            0,
+            uniqueRequestCode,
             intent,
+            // FLAG_UPDATE_CURRENT is critical here
             PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
@@ -83,10 +108,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setContentText(messageBody)
             .setAutoCancel(true)
             .setSound(defaultSoundUri)
-            .setPriority(NotificationCompat.PRIORITY_MAX) // MAX for calls
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            // ✅ IMPORTANT: This launches the full screen activity
             .setFullScreenIntent(pendingIntent, true)
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -99,7 +123,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             ).apply {
                 description = "Incoming ride alerts"
                 enableVibration(true)
-                // Set audio attributes to override Do Not Disturb if possible (depends on OS)
                 setSound(defaultSoundUri, android.media.AudioAttributes.Builder()
                     .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
                     .build())
@@ -107,6 +130,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             notificationManager.createNotificationChannel(channel)
         }
 
-        notificationManager.notify(System.currentTimeMillis().toInt(), notificationBuilder.build())
+        notificationManager.notify(uniqueRequestCode, notificationBuilder.build())
     }
 }

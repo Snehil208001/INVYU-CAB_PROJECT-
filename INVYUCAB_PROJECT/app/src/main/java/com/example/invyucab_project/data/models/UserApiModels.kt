@@ -153,6 +153,8 @@ data class UpcomingRide(
     @Json(name = "pickup_location") val pickupLocation: String?,
     @Json(name = "drop_address") val dropAddress: String?,
     @Json(name = "drop_location") val dropLocation: String?,
+    // ✅ ADD THIS STATUS FIELD
+    @Json(name = "status") val status: String? = null,
 
     // Price Fields
     @Json(name = "estimated_price") val estimatedPrice: Any?,

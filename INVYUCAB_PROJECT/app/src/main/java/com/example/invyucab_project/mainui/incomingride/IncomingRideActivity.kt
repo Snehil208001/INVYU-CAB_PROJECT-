@@ -51,31 +51,34 @@ class IncomingRideActivity : ComponentActivity() {
 
     private var mediaPlayer: MediaPlayer? = null
 
+    // Mutable state for the critical Ride ID
+    private var rideIdState = mutableIntStateOf(-1)
+
+    // Data holders
+    private var pickupLat: Double = 0.0
+    private var pickupLng: Double = 0.0
+    private var pickupAddress: String = "Unknown"
+    private var price: String = "₹0"
+    private var distance: String = "0 km"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // 1. Wake up the screen
         turnOnScreen()
-
-        // 2. Play Looping Ringtone
         playRingtone()
 
-        // 3. Extract Data from Notification
-        // These keys must match exactly what you put in the map in DriverViewModel
-        val pickupLat = intent.getStringExtra("pickup_lat")?.toDoubleOrNull() ?: 0.0
-        val pickupLng = intent.getStringExtra("pickup_lng")?.toDoubleOrNull() ?: 0.0
-        val pickupAddress = intent.getStringExtra("pickup_address") ?: "Unknown Location"
-        val price = intent.getStringExtra("price") ?: "₹0"
-        val distance = intent.getStringExtra("distance") ?: "0 km"
+        // 1. Parse whatever data we have
+        processIntent(intent)
 
-        // Retrieve the critical ID. If it's null, we default to -1.
-        val rideIdString = intent.getStringExtra("ride_id")
-        val rideId = rideIdString?.toIntOrNull() ?: -1
-
-        Log.d("IncomingRide", "Ride ID received: $rideIdString ($rideId)")
+        // 2. SAFETY NET: If ID is missing, fetch it from API immediately
+        if (rideIdState.intValue == -1) {
+            fetchRideIdFromApi()
+        }
 
         setContent {
             INVYUCAB_PROJECTTheme {
+                // Use the state value so UI updates when we fetch the ID
+                val currentRideId = rideIdState.intValue
+
                 IncomingRideScreen(
                     pickupLat = pickupLat,
                     pickupLng = pickupLng,
@@ -84,22 +87,77 @@ class IncomingRideActivity : ComponentActivity() {
                     distance = distance,
                     onAccept = {
                         stopRingtone()
-                        if (rideId != -1) {
-                            handleAcceptRide(rideId)
+                        if (currentRideId != -1) {
+                            handleAcceptRide(currentRideId)
                         } else {
-                            Toast.makeText(this, "Error: Invalid Ride ID", Toast.LENGTH_LONG).show()
-                            finish()
+                            // Retry fetching if user clicks too fast
+                            fetchRideIdFromApi()
+                            Toast.makeText(this, "Finding Ride ID... Try again in a second", Toast.LENGTH_SHORT).show()
                         }
                     },
                     onDecline = {
                         stopRingtone()
-                        if (rideId != -1) {
-                            handleDeclineRide(rideId)
+                        if (currentRideId != -1) {
+                            handleDeclineRide(currentRideId)
                         } else {
                             finish()
                         }
                     }
                 )
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        processIntent(intent)
+        if (rideIdState.intValue == -1) {
+            fetchRideIdFromApi()
+        }
+    }
+
+    private fun processIntent(intent: Intent) {
+        pickupLat = intent.getStringExtra("pickup_lat")?.toDoubleOrNull() ?: 0.0
+        pickupLng = intent.getStringExtra("pickup_lng")?.toDoubleOrNull() ?: 0.0
+        pickupAddress = intent.getStringExtra("pickup_address") ?: "Unknown Location"
+        price = intent.getStringExtra("price") ?: "₹0"
+        distance = intent.getStringExtra("distance") ?: "0 km"
+
+        // Attempt basic extraction
+        var id = intent.getStringExtra("ride_id")?.toIntOrNull() ?: -1
+        if (id == -1) id = intent.getIntExtra("ride_id", -1)
+        if (id == -1) id = intent.getStringExtra("rideId")?.toIntOrNull() ?: -1
+
+        rideIdState.intValue = id
+
+        Log.d("IncomingRide", "Processed Intent. Ride ID: ${rideIdState.intValue}")
+    }
+
+    // ✅ THE FIX: Fetch the pending ride list to find the ID if the notification missed it
+    private fun fetchRideIdFromApi() {
+        lifecycleScope.launch {
+            val driverId = userPreferencesRepository.getUserId()?.toIntOrNull() ?: return@launch
+
+            Log.d("IncomingRide", "Fetching ride ID from API fallback...")
+            try {
+                // Use pickup lat/lng as approximate location just to call the API
+                val response = appRepository.getDriverUpcomingRides(driverId, pickupLat, pickupLng)
+
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val rides = response.body()?.data
+                    // Find the first ride that is 'requested' (pending)
+                    val pendingRide = rides?.firstOrNull { it.status == "requested" }
+
+                    if (pendingRide != null && pendingRide.rideId != null) {
+                        rideIdState.intValue = pendingRide.rideId!!
+                        Log.d("IncomingRide", "Ride ID RECOVERED from API: ${rideIdState.intValue}")
+                    } else {
+                        Log.e("IncomingRide", "Fallback failed: No pending rides found.")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("IncomingRide", "API Fallback Error", e)
             }
         }
     }
@@ -120,19 +178,16 @@ class IncomingRideActivity : ComponentActivity() {
 
                 if (response.isSuccessful && response.body()?.success == true) {
                     Toast.makeText(this@IncomingRideActivity, "Ride Accepted!", Toast.LENGTH_SHORT).show()
-
-                    // Navigate to Main Activity (Driver Screen)
                     val mainIntent = Intent(this@IncomingRideActivity, MainActivity::class.java).apply {
-                        // Clear back stack so pressing back doesn't return here
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        putExtra("navigate_to_tab", "Ongoing") // Optional: Use this in MainActivity to switch tabs
+                        putExtra("navigate_to_tab", "Ongoing")
                     }
                     startActivity(mainIntent)
                     finish()
                 } else {
                     val error = response.body()?.message ?: "Accept failed"
                     Toast.makeText(this@IncomingRideActivity, error, Toast.LENGTH_SHORT).show()
-                    finish() // Close even on fail so driver isn't stuck
+                    finish()
                 }
             } catch (e: Exception) {
                 Log.e("IncomingRide", "Accept Error", e)
@@ -146,16 +201,13 @@ class IncomingRideActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 Toast.makeText(this@IncomingRideActivity, "Declining...", Toast.LENGTH_SHORT).show()
-                // Update status to 'cancelled' (or 'declined' if your backend supports it)
                 val response = appRepository.updateRideStatus(rideId, "cancelled")
-
                 if (!response.isSuccessful) {
                     Log.e("IncomingRide", "Decline failed on server: ${response.code()}")
                 }
             } catch (e: Exception) {
                 Log.e("IncomingRide", "Decline Error", e)
             } finally {
-                // Always close the screen
                 finish()
             }
         }
@@ -218,7 +270,6 @@ fun IncomingRideScreen(
     onAccept: () -> Unit,
     onDecline: () -> Unit
 ) {
-    // State to show loading spinner to prevent multiple clicks
     var isProcessing by remember { mutableStateOf(false) }
 
     val pickupLocation = LatLng(pickupLat, pickupLng)
@@ -226,8 +277,12 @@ fun IncomingRideScreen(
         position = CameraPosition.fromLatLngZoom(pickupLocation, 15f)
     }
 
+    // Update map if location changes late
+    LaunchedEffect(pickupLocation) {
+        cameraPositionState.position = CameraPosition.fromLatLngZoom(pickupLocation, 15f)
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
-        // 1. Full Screen Map
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState
@@ -239,7 +294,6 @@ fun IncomingRideScreen(
             )
         }
 
-        // 2. Bottom Sheet for Details & Actions
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -250,7 +304,6 @@ fun IncomingRideScreen(
                 )
                 .padding(24.dp)
         ) {
-            // Price & Distance Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -279,7 +332,6 @@ fun IncomingRideScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Address
             Row(verticalAlignment = Alignment.Top) {
                 Icon(
                     imageVector = Icons.Default.LocationOn,
@@ -297,7 +349,6 @@ fun IncomingRideScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Action Buttons
             if (isProcessing) {
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -307,13 +358,12 @@ fun IncomingRideScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Decline Button
                     Button(
                         onClick = {
                             isProcessing = true
                             onDecline()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252)), // Red
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252)),
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp),
@@ -324,13 +374,12 @@ fun IncomingRideScreen(
                         Text("Decline", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     }
 
-                    // Accept Button
                     Button(
                         onClick = {
                             isProcessing = true
                             onAccept()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853)), // Green
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853)),
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp),
