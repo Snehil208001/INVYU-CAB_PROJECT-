@@ -83,7 +83,8 @@ fun DriverScreen(
     val totalRides by viewModel.totalRides.collectAsState()
     val ongoingRides by viewModel.ongoingRides.collectAsState()
 
-    var selectedBottomNavItem by remember { mutableStateOf("Upcoming") }
+    // ✅ FIXED: Observe tab state from ViewModel instead of local state for reliable navigation
+    val selectedTab by viewModel.selectedTab.collectAsState()
 
     val context = LocalContext.current
     val activity = (LocalContext.current as? Activity)
@@ -159,18 +160,11 @@ fun DriverScreen(
         }
     }
 
-    // --- Auto Switch Tab Listener ---
-    LaunchedEffect(Unit) {
-        viewModel.navigateToTab.collect { tabName ->
-            selectedBottomNavItem = tabName
-        }
-    }
-
     // --- Fetch Rides when tab changes ---
-    LaunchedEffect(selectedBottomNavItem) {
-        if (selectedBottomNavItem == "Total") {
+    LaunchedEffect(selectedTab) {
+        if (selectedTab == "Total") {
             viewModel.fetchTotalRides()
-        } else if (selectedBottomNavItem == "Ongoing") {
+        } else if (selectedTab == "Ongoing") {
             viewModel.fetchOngoingRides()
         }
     }
@@ -264,10 +258,10 @@ fun DriverScreen(
             },
             bottomBar = {
                 DriverBottomBar(
-                    selectedItem = selectedBottomNavItem,
-                    onOngoingRidesClicked = { selectedBottomNavItem = "Ongoing" },
-                    onUpcomingRidesClicked = { selectedBottomNavItem = "Upcoming" },
-                    onTotalRidesClicked = { selectedBottomNavItem = "Total" },
+                    selectedItem = selectedTab,
+                    onOngoingRidesClicked = { viewModel.onTabSelected("Ongoing") },
+                    onUpcomingRidesClicked = { viewModel.onTabSelected("Upcoming") },
+                    onTotalRidesClicked = { viewModel.onTabSelected("Total") },
                     onProfileClicked = {
                         navController.navigate(Screen.DriverProfileScreen.route)
                     }
@@ -303,7 +297,7 @@ fun DriverScreen(
                     }
 
                     // --- CONTENT SWITCHING ---
-                    when (selectedBottomNavItem) {
+                    when (selectedTab) {
                         "Ongoing" -> {
                             if (ongoingRides.isEmpty()) {
                                 Box(

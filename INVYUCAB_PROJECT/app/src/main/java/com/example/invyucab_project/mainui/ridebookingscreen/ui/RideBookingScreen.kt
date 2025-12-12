@@ -394,35 +394,6 @@ fun SearchingCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // ✅ Display the PIN if available (Hide if failed)
-            if (userPin != null && userPin != 0 && searchState != 2) {
-                Card(
-                    shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(containerColor = CabMintGreen.copy(alpha = 0.1f)),
-                    modifier = Modifier.padding(vertical = 8.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Start PIN: $userPin",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = CabMintGreen,
-                            letterSpacing = 2.sp
-                        )
-                        Text(
-                            text = "Give this PIN to Pilot",
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                    }
-                }
-            }
-
             Spacer(modifier = Modifier.height(16.dp))
 
             // Placeholder Animation (Hide if failed)

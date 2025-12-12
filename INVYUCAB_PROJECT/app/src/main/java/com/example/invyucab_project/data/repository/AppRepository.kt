@@ -27,23 +27,43 @@ class AppRepository @Inject constructor(
     private val customApiService: CustomApiService,
     private val googleMapsApiService: GoogleMapsApiService,
     private val userPreferencesRepository: UserPreferencesRepository,
-    private val firestore: FirebaseFirestore // ✅ INJECTED FIRESTORE
+    private val firestore: FirebaseFirestore
 ) {
 
     // The Message Bridge (SharedFlow)
     private val _fcmMessages = MutableSharedFlow<RemoteMessage>(extraBufferCapacity = 10)
     val fcmMessages: SharedFlow<RemoteMessage> = _fcmMessages.asSharedFlow()
 
+    // ✅ NEW: Track processed rides to prevent duplicate notifications globally
+    private val _processedRideIds = mutableSetOf<Int>()
+
+    // ✅ NEW: Event to tell ViewModel to switch tabs
+    private val _rideAcceptedEvent = MutableSharedFlow<Unit>(replay = 1)
+    val rideAcceptedEvent: SharedFlow<Unit> = _rideAcceptedEvent.asSharedFlow()
+
     // Function called by Service to send message to UI
     suspend fun broadcastMessage(message: RemoteMessage) {
         _fcmMessages.emit(message)
     }
 
-    // ✅ ADDED: Firestore Real-time Listener
-    // Observes the 'ride_requests' collection for pending rides
+    // ✅ Mark ride as processed so it doesn't ring again
+    fun markRideProcessed(rideId: Int) {
+        _processedRideIds.add(rideId)
+    }
+
+    // ✅ Check if ride is already handled
+    fun isRideProcessed(rideId: Int): Boolean {
+        return _processedRideIds.contains(rideId)
+    }
+
+    // ✅ Trigger navigation to Ongoing tab
+    fun triggerRideAcceptedNavigation() {
+        _rideAcceptedEvent.tryEmit(Unit)
+    }
+
     fun listenForRealtimeRides(): Flow<List<DriverUpcomingRideItem>> = callbackFlow {
         val listener = firestore.collection("ride_requests")
-            .whereEqualTo("status", "pending") // Filter strictly for pending rides
+            .whereEqualTo("status", "pending")
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     Log.e("Firestore", "Listen failed.", e)
@@ -54,7 +74,6 @@ class AppRepository @Inject constructor(
                 if (snapshot != null) {
                     val rides = snapshot.documents.mapNotNull { doc ->
                         try {
-                            // Manually map fields to avoid Moshi/Reflection issues
                             DriverUpcomingRideItem(
                                 rideId = (doc.get("rideId") as? Long)?.toInt() ?: doc.get("rideId").toString().toIntOrNull(),
                                 riderId = (doc.get("riderId") as? Long)?.toInt(),
@@ -65,7 +84,6 @@ class AppRepository @Inject constructor(
                                 dropLatitude = doc.getString("dropLatitude"),
                                 dropLongitude = doc.getString("dropLongitude"),
                                 estimatedPrice = doc.getString("estimatedPrice") ?: doc.getString("price"),
-                                // Fill other fields as null/optional if not in Firestore
                                 status = doc.getString("status"),
                                 distance = doc.getString("distance"),
                                 date = doc.getString("date"),
@@ -91,31 +109,18 @@ class AppRepository @Inject constructor(
         awaitClose { listener.remove() }
     }
 
-    // ✅ ADDED: Centralized Sync Function
     fun syncFcmToken() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // 1. Get Token from Firebase
                 val token = FirebaseMessaging.getInstance().token.await()
-                Log.d("FCM", "Repository retrieved token: $token")
-
-                // 2. Save locally
                 userPreferencesRepository.saveFcmToken(token)
-
-                // 3. Check if we have a user logged in
                 val phoneNumber = userPreferencesRepository.getPhoneNumber()
 
                 if (!phoneNumber.isNullOrEmpty()) {
-                    // 4. Send to Backend
-                    Log.d("FCM", "Syncing token for user: $phoneNumber")
                     val response = updateFcmToken(phoneNumber, token)
-                    if (response.isSuccessful) {
-                        Log.d("FCM", "Token synced with backend successfully")
-                    } else {
+                    if (!response.isSuccessful) {
                         Log.e("FCM", "Failed to sync token: ${response.errorBody()?.string()}")
                     }
-                } else {
-                    Log.d("FCM", "User not logged in yet. Token saved locally, waiting for login.")
                 }
             } catch (e: Exception) {
                 Log.e("FCM", "Exception in syncFcmToken", e)

@@ -153,8 +153,11 @@ data class UpcomingRide(
     @Json(name = "pickup_location") val pickupLocation: String?,
     @Json(name = "drop_address") val dropAddress: String?,
     @Json(name = "drop_location") val dropLocation: String?,
-    // ✅ ADD THIS STATUS FIELD
+
     @Json(name = "status") val status: String? = null,
+
+    // ✅ ADDED THIS FIELD to enable time filtering
+    @Json(name = "requested_at") val requestedAt: String? = null,
 
     // Price Fields
     @Json(name = "estimated_price") val estimatedPrice: Any?,
@@ -219,7 +222,6 @@ data class RiderRideHistoryResponse(
     @Json(name = "data") val data: List<RiderRideHistoryItem>?
 )
 
-// ✅ ADD THESE NEW CLASSES AT THE END OF THE FILE
 @JsonClass(generateAdapter = true)
 data class UpdateFcmTokenRequest(
     @Json(name = "phone_number") val phoneNumber: String,

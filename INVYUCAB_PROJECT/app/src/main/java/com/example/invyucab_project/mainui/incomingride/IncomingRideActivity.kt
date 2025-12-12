@@ -50,11 +50,8 @@ class IncomingRideActivity : ComponentActivity() {
     lateinit var userPreferencesRepository: UserPreferencesRepository
 
     private var mediaPlayer: MediaPlayer? = null
-
-    // Mutable state for the critical Ride ID
     private var rideIdState = mutableIntStateOf(-1)
 
-    // Data holders
     private var pickupLat: Double = 0.0
     private var pickupLng: Double = 0.0
     private var pickupAddress: String = "Unknown"
@@ -66,17 +63,14 @@ class IncomingRideActivity : ComponentActivity() {
         turnOnScreen()
         playRingtone()
 
-        // 1. Parse whatever data we have
         processIntent(intent)
 
-        // 2. SAFETY NET: If ID is missing, fetch it from API immediately
         if (rideIdState.intValue == -1) {
             fetchRideIdFromApi()
         }
 
         setContent {
             INVYUCAB_PROJECTTheme {
-                // Use the state value so UI updates when we fetch the ID
                 val currentRideId = rideIdState.intValue
 
                 IncomingRideScreen(
@@ -90,9 +84,8 @@ class IncomingRideActivity : ComponentActivity() {
                         if (currentRideId != -1) {
                             handleAcceptRide(currentRideId)
                         } else {
-                            // Retry fetching if user clicks too fast
                             fetchRideIdFromApi()
-                            Toast.makeText(this, "Finding Ride ID... Try again in a second", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, "Finding Ride ID... Try again", Toast.LENGTH_SHORT).show()
                         }
                     },
                     onDecline = {
@@ -124,36 +117,23 @@ class IncomingRideActivity : ComponentActivity() {
         price = intent.getStringExtra("price") ?: "₹0"
         distance = intent.getStringExtra("distance") ?: "0 km"
 
-        // Attempt basic extraction
         var id = intent.getStringExtra("ride_id")?.toIntOrNull() ?: -1
         if (id == -1) id = intent.getIntExtra("ride_id", -1)
         if (id == -1) id = intent.getStringExtra("rideId")?.toIntOrNull() ?: -1
 
         rideIdState.intValue = id
-
-        Log.d("IncomingRide", "Processed Intent. Ride ID: ${rideIdState.intValue}")
     }
 
-    // ✅ THE FIX: Fetch the pending ride list to find the ID if the notification missed it
     private fun fetchRideIdFromApi() {
         lifecycleScope.launch {
             val driverId = userPreferencesRepository.getUserId()?.toIntOrNull() ?: return@launch
-
-            Log.d("IncomingRide", "Fetching ride ID from API fallback...")
             try {
-                // Use pickup lat/lng as approximate location just to call the API
                 val response = appRepository.getDriverUpcomingRides(driverId, pickupLat, pickupLng)
-
                 if (response.isSuccessful && response.body()?.success == true) {
                     val rides = response.body()?.data
-                    // Find the first ride that is 'requested' (pending)
                     val pendingRide = rides?.firstOrNull { it.status == "requested" }
-
                     if (pendingRide != null && pendingRide.rideId != null) {
                         rideIdState.intValue = pendingRide.rideId!!
-                        Log.d("IncomingRide", "Ride ID RECOVERED from API: ${rideIdState.intValue}")
-                    } else {
-                        Log.e("IncomingRide", "Fallback failed: No pending rides found.")
                     }
                 }
             } catch (e: Exception) {
@@ -165,7 +145,6 @@ class IncomingRideActivity : ComponentActivity() {
     private fun handleAcceptRide(rideId: Int) {
         lifecycleScope.launch {
             val driverId = userPreferencesRepository.getUserId()?.toIntOrNull()
-
             if (driverId == null) {
                 Toast.makeText(this@IncomingRideActivity, "Driver not logged in", Toast.LENGTH_SHORT).show()
                 finish()
@@ -173,14 +152,20 @@ class IncomingRideActivity : ComponentActivity() {
             }
 
             try {
-                // Call API
+                // ✅ Prevent future notifications immediately
+                appRepository.markRideProcessed(rideId)
+
                 val response = appRepository.acceptRide(rideId, driverId)
 
                 if (response.isSuccessful && response.body()?.success == true) {
                     Toast.makeText(this@IncomingRideActivity, "Ride Accepted!", Toast.LENGTH_SHORT).show()
+
+                    // ✅ Notify ViewModel to switch tabs
+                    appRepository.triggerRideAcceptedNavigation()
+
+                    // ✅ FIX: Use REORDER_TO_FRONT to bring existing MainActivity to top (Prevents Restart)
                     val mainIntent = Intent(this@IncomingRideActivity, MainActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        putExtra("navigate_to_tab", "Ongoing")
+                        flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                     }
                     startActivity(mainIntent)
                     finish()
@@ -200,11 +185,10 @@ class IncomingRideActivity : ComponentActivity() {
     private fun handleDeclineRide(rideId: Int) {
         lifecycleScope.launch {
             try {
+                // ✅ Mark processed so we don't see it again
+                appRepository.markRideProcessed(rideId)
                 Toast.makeText(this@IncomingRideActivity, "Declining...", Toast.LENGTH_SHORT).show()
-                val response = appRepository.updateRideStatus(rideId, "cancelled")
-                if (!response.isSuccessful) {
-                    Log.e("IncomingRide", "Decline failed on server: ${response.code()}")
-                }
+                appRepository.updateRideStatus(rideId, "cancelled")
             } catch (e: Exception) {
                 Log.e("IncomingRide", "Decline Error", e)
             } finally {
@@ -271,13 +255,11 @@ fun IncomingRideScreen(
     onDecline: () -> Unit
 ) {
     var isProcessing by remember { mutableStateOf(false) }
-
     val pickupLocation = LatLng(pickupLat, pickupLng)
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(pickupLocation, 15f)
     }
 
-    // Update map if location changes late
     LaunchedEffect(pickupLocation) {
         cameraPositionState.position = CameraPosition.fromLatLngZoom(pickupLocation, 15f)
     }
@@ -336,7 +318,7 @@ fun IncomingRideScreen(
                 Icon(
                     imageVector = Icons.Default.LocationOn,
                     contentDescription = null,
-                    tint = Color(0xFF00C853) // Green
+                    tint = Color(0xFF00C853)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -359,14 +341,9 @@ fun IncomingRideScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Button(
-                        onClick = {
-                            isProcessing = true
-                            onDecline()
-                        },
+                        onClick = { isProcessing = true; onDecline() },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
+                        modifier = Modifier.weight(1f).height(56.dp),
                         shape = CircleShape
                     ) {
                         Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
@@ -375,14 +352,9 @@ fun IncomingRideScreen(
                     }
 
                     Button(
-                        onClick = {
-                            isProcessing = true
-                            onAccept()
-                        },
+                        onClick = { isProcessing = true; onAccept() },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
+                        modifier = Modifier.weight(1f).height(56.dp),
                         shape = CircleShape
                     ) {
                         Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
