@@ -11,7 +11,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.core.navigations.Screen
-import com.example.invyucab_project.data.models.StartRideRequest
+import com.example.invyucab_project.core.utils.NotificationUtils // ✅ Import NotificationUtils
+import com.example.invyucab_project.data.models.DriverUpcomingRideItem
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
 import com.example.invyucab_project.data.repository.AppRepository
 import com.example.invyucab_project.domain.usecase.GetVehicleDetailsUseCase
@@ -33,7 +34,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
@@ -94,6 +94,11 @@ class DriverViewModel @Inject constructor(
 
     private val _declinedRideIds = mutableSetOf<Int>()
     private var pollingJob: Job? = null
+    // ✅ Job for Firestore Listener
+    private var firestoreJob: Job? = null
+
+    // ✅ Track the last ride we notified the user about to prevent spamming
+    private var lastNotifiedRideId: Int? = null
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(locationResult: LocationResult) {
@@ -108,7 +113,7 @@ class DriverViewModel @Inject constructor(
 
     init {
         getCurrentLocation()
-        // ✅ FIXED: Check saved status on initialization
+        // Check saved status on initialization
         val savedStatus = userPreferencesRepository.getDriverOnlineStatus()
         _isActive.value = savedStatus
 
@@ -196,7 +201,6 @@ class DriverViewModel @Inject constructor(
 
     fun onActiveToggleChanged(active: Boolean) {
         _isActive.value = active
-        // ✅ FIXED: Save the new status to preferences
         userPreferencesRepository.saveDriverOnlineStatus(active)
 
         if (active) {
@@ -207,6 +211,7 @@ class DriverViewModel @Inject constructor(
             stopLookingForRides()
             _rideRequests.value = emptyList()
             _declinedRideIds.clear()
+            lastNotifiedRideId = null // Reset notification tracker
             _currentLocation.value?.let {
                 val loc = Location("").apply { latitude = it.latitude; longitude = it.longitude }
                 updateBackendLocation(loc)
@@ -357,7 +362,6 @@ class DriverViewModel @Inject constructor(
         }
     }
 
-    // ✅ FIXED: Now calls API to update status, not just local remove
     fun onCancelOngoingRide(ride: RideRequestItem) {
         viewModelScope.launch {
             try {
@@ -383,6 +387,7 @@ class DriverViewModel @Inject constructor(
     }
 
     private fun startLookingForRides() {
+        // 1. Keep your existing Polling Mechanism
         pollingJob?.cancel()
         pollingJob = viewModelScope.launch {
             while (_isActive.value) {
@@ -398,45 +403,25 @@ class DriverViewModel @Inject constructor(
                         )
                         if (response.isSuccessful && response.body()?.success == true) {
                             val ridesData = response.body()?.data ?: emptyList()
-                            val mappedRides = ridesData.mapNotNull { ride ->
-                                if (ride.rideId != null && !_declinedRideIds.contains(ride.rideId)) {
-                                    val finalPrice = parsePrice(ride.estimatedPrice).takeIf { it > 0 }
-                                        ?: parsePrice(ride.fare).takeIf { it > 0 }
-                                        ?: parsePrice(ride.totalPrice).takeIf { it > 0 }
-                                        ?: parsePrice(ride.price).takeIf { it > 0 }
-                                        ?: parsePrice(ride.amount).takeIf { it > 0 }
-                                        ?: parsePrice(ride.totalAmount).takeIf { it > 0 }
-                                        ?: parsePrice(ride.estimatedFare).takeIf { it > 0 }
-                                        ?: parsePrice(ride.cost).takeIf { it > 0 }
-                                        ?: 0.0
-                                    val pLat = ride.pickupLatitude?.toDoubleOrNull() ?: 0.0
-                                    val pLng = ride.pickupLongitude?.toDoubleOrNull() ?: 0.0
-                                    val dLat = ride.dropLatitude?.toDoubleOrNull() ?: 0.0
-                                    val dLng = ride.dropLongitude?.toDoubleOrNull() ?: 0.0
-                                    val finalPickupAddress = if (!ride.pickupAddress.isNullOrEmpty()) ride.pickupAddress
-                                    else if (!ride.pickupLocation.isNullOrEmpty()) ride.pickupLocation
-                                    else getAddressFromCoordinates(pLat, pLng)
-                                    val finalDropAddress = if (!ride.dropAddress.isNullOrEmpty()) ride.dropAddress
-                                    else if (!ride.dropLocation.isNullOrEmpty()) ride.dropLocation
-                                    else getAddressFromCoordinates(dLat, dLng)
-                                    val distDriverToPickup = calculateDistance(loc.latitude, loc.longitude, pLat, pLng)
-                                    val distTrip = calculateDistance(pLat, pLng, dLat, dLng)
-                                    RideRequestItem(
-                                        rideId = ride.rideId,
-                                        riderId = 0,
-                                        pickupLat = pLat,
-                                        pickupLng = pLng,
-                                        dropLat = dLat,
-                                        dropLng = dLng,
-                                        price = finalPrice,
-                                        pickupAddress = finalPickupAddress,
-                                        dropAddress = finalDropAddress,
-                                        pickupDistance = distDriverToPickup,
-                                        tripDistance = distTrip
-                                    )
-                                } else null
-                            }.reversed()
-                            _rideRequests.value = mappedRides
+
+                            // ✅ FIX: Map API response (UpcomingRide) to Unified Model (DriverUpcomingRideItem)
+                            val mappedRides = ridesData.map { apiRide ->
+                                DriverUpcomingRideItem(
+                                    rideId = apiRide.rideId,
+                                    pickupAddress = apiRide.pickupAddress ?: apiRide.pickupLocation,
+                                    dropAddress = apiRide.dropAddress ?: apiRide.dropLocation,
+                                    pickupLatitude = apiRide.pickupLatitude,
+                                    pickupLongitude = apiRide.pickupLongitude,
+                                    dropLatitude = apiRide.dropLatitude,
+                                    dropLongitude = apiRide.dropLongitude,
+                                    // Handle price types safely
+                                    estimatedPrice = apiRide.estimatedPrice?.toString() ?: apiRide.price?.toString(),
+                                    pickupLocation = apiRide.pickupLocation,
+                                    dropLocation = apiRide.dropLocation
+                                )
+                            }
+
+                            updateRideRequestsList(mappedRides, loc)
                         }
                     }
                 } catch (e: Exception) {
@@ -445,11 +430,97 @@ class DriverViewModel @Inject constructor(
                 delay(5000)
             }
         }
+
+        // 2. Start Firestore Real-time Listener in parallel
+        firestoreJob?.cancel()
+        firestoreJob = viewModelScope.launch {
+            appRepository.listenForRealtimeRides().collect { ridesData ->
+                val loc = _currentLocation.value
+                if (loc != null) {
+                    updateRideRequestsList(ridesData, loc)
+                }
+            }
+        }
+    }
+
+    // ✅ Unified update function with Notification Trigger
+    private suspend fun updateRideRequestsList(
+        ridesData: List<DriverUpcomingRideItem>,
+        loc: LatLng
+    ) {
+        val mappedRides = ridesData.mapNotNull { ride ->
+            if (ride.rideId != null && !_declinedRideIds.contains(ride.rideId)) {
+                val finalPrice = parsePrice(ride.estimatedPrice).takeIf { it > 0 }
+                    ?: parsePrice(ride.fare).takeIf { it > 0 }
+                    ?: parsePrice(ride.totalPrice).takeIf { it > 0 }
+                    ?: parsePrice(ride.price).takeIf { it > 0 }
+                    ?: parsePrice(ride.amount).takeIf { it > 0 }
+                    ?: parsePrice(ride.totalAmount).takeIf { it > 0 }
+                    ?: parsePrice(ride.estimatedFare).takeIf { it > 0 }
+                    ?: parsePrice(ride.cost).takeIf { it > 0 }
+                    ?: 0.0
+                val pLat = ride.pickupLatitude?.toDoubleOrNull() ?: 0.0
+                val pLng = ride.pickupLongitude?.toDoubleOrNull() ?: 0.0
+                val dLat = ride.dropLatitude?.toDoubleOrNull() ?: 0.0
+                val dLng = ride.dropLongitude?.toDoubleOrNull() ?: 0.0
+                val finalPickupAddress = if (!ride.pickupAddress.isNullOrEmpty()) ride.pickupAddress
+                else if (!ride.pickupLocation.isNullOrEmpty()) ride.pickupLocation
+                else getAddressFromCoordinates(pLat, pLng)
+                val finalDropAddress = if (!ride.dropAddress.isNullOrEmpty()) ride.dropAddress
+                else if (!ride.dropLocation.isNullOrEmpty()) ride.dropLocation
+                else getAddressFromCoordinates(dLat, dLng)
+                val distDriverToPickup = calculateDistance(loc.latitude, loc.longitude, pLat, pLng)
+                val distTrip = calculateDistance(pLat, pLng, dLat, dLng)
+
+                RideRequestItem(
+                    rideId = ride.rideId,
+                    riderId = ride.riderId ?: 0,
+                    pickupLat = pLat,
+                    pickupLng = pLng,
+                    dropLat = dLat,
+                    dropLng = dLng,
+                    price = finalPrice,
+                    pickupAddress = finalPickupAddress,
+                    dropAddress = finalDropAddress,
+                    pickupDistance = distDriverToPickup,
+                    tripDistance = distTrip
+                )
+            } else null
+        }.reversed()
+
+        _rideRequests.value = mappedRides
+
+        // ✅✅✅ TRIGGER NOTIFICATION FOR NEW RIDE ✅✅✅
+        if (mappedRides.isNotEmpty()) {
+            val latestRide = mappedRides.first()
+
+            // Only notify if this is a DIFFERENT ride than the last one we rang for
+            if (latestRide.rideId != lastNotifiedRideId) {
+                lastNotifiedRideId = latestRide.rideId
+
+                withContext(Dispatchers.Main) {
+                    NotificationUtils.showRideNotification(
+                        context,
+                        title = "New Ride Request",
+                        body = "Pickup: ${latestRide.pickupAddress} - ₹${latestRide.price}",
+                        data = mapOf(
+                            "pickup_lat" to latestRide.pickupLat.toString(),
+                            "pickup_lng" to latestRide.pickupLng.toString(),
+                            "pickup_address" to latestRide.pickupAddress,
+                            "price" to latestRide.price.toString(),
+                            "distance" to latestRide.tripDistance
+                        )
+                    )
+                }
+            }
+        }
     }
 
     private fun stopLookingForRides() {
         pollingJob?.cancel()
         pollingJob = null
+        firestoreJob?.cancel()
+        firestoreJob = null
     }
 
     private suspend fun getAddressFromCoordinates(lat: Double, lng: Double): String {
@@ -481,11 +552,9 @@ class DriverViewModel @Inject constructor(
                     val acceptResponse = appRepository.acceptRide(ride.rideId, driverId)
                     if (acceptResponse.isSuccessful && acceptResponse.body()?.success == true) {
 
-                        // Stop polling for new rides as we've accepted one
                         stopLookingForRides()
                         _rideRequests.value = emptyList()
 
-                        // Navigate to Ongoing Tab and Refresh
                         _navigateToTab.emit("Ongoing")
                         fetchOngoingRides()
 

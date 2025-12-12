@@ -5,13 +5,17 @@ import com.example.invyucab_project.data.api.CustomApiService
 import com.example.invyucab_project.data.api.GoogleMapsApiService
 import com.example.invyucab_project.data.models.*
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import retrofit2.Response
@@ -22,11 +26,11 @@ import javax.inject.Singleton
 class AppRepository @Inject constructor(
     private val customApiService: CustomApiService,
     private val googleMapsApiService: GoogleMapsApiService,
-    private val userPreferencesRepository: UserPreferencesRepository
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val firestore: FirebaseFirestore // ✅ INJECTED FIRESTORE
 ) {
 
     // The Message Bridge (SharedFlow)
-    // We use a SharedFlow so that the UI can subscribe to "events" (like a new ride request)
     private val _fcmMessages = MutableSharedFlow<RemoteMessage>(extraBufferCapacity = 10)
     val fcmMessages: SharedFlow<RemoteMessage> = _fcmMessages.asSharedFlow()
 
@@ -35,8 +39,59 @@ class AppRepository @Inject constructor(
         _fcmMessages.emit(message)
     }
 
+    // ✅ ADDED: Firestore Real-time Listener
+    // Observes the 'ride_requests' collection for pending rides
+    fun listenForRealtimeRides(): Flow<List<DriverUpcomingRideItem>> = callbackFlow {
+        val listener = firestore.collection("ride_requests")
+            .whereEqualTo("status", "pending") // Filter strictly for pending rides
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    Log.e("Firestore", "Listen failed.", e)
+                    close(e)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    val rides = snapshot.documents.mapNotNull { doc ->
+                        try {
+                            // Manually map fields to avoid Moshi/Reflection issues
+                            DriverUpcomingRideItem(
+                                rideId = (doc.get("rideId") as? Long)?.toInt() ?: doc.get("rideId").toString().toIntOrNull(),
+                                riderId = (doc.get("riderId") as? Long)?.toInt(),
+                                pickupAddress = doc.getString("pickupAddress"),
+                                dropAddress = doc.getString("dropAddress"),
+                                pickupLatitude = doc.getString("pickupLatitude"),
+                                pickupLongitude = doc.getString("pickupLongitude"),
+                                dropLatitude = doc.getString("dropLatitude"),
+                                dropLongitude = doc.getString("dropLongitude"),
+                                estimatedPrice = doc.getString("estimatedPrice") ?: doc.getString("price"),
+                                // Fill other fields as null/optional if not in Firestore
+                                status = doc.getString("status"),
+                                distance = doc.getString("distance"),
+                                date = doc.getString("date"),
+                                pickupLocation = doc.getString("pickupLocation"),
+                                dropLocation = doc.getString("dropLocation"),
+                                fare = doc.getString("fare"),
+                                totalPrice = doc.getString("totalPrice"),
+                                price = doc.getString("price"),
+                                amount = doc.getString("amount"),
+                                totalAmount = doc.getString("totalAmount"),
+                                estimatedFare = doc.getString("estimatedFare"),
+                                cost = doc.getString("cost"),
+                                createdAt = doc.getString("createdAt")
+                            )
+                        } catch (e: Exception) {
+                            Log.e("Firestore", "Error parsing doc: ${doc.id}", e)
+                            null
+                        }
+                    }
+                    trySend(rides)
+                }
+            }
+        awaitClose { listener.remove() }
+    }
+
     // ✅ ADDED: Centralized Sync Function
-    // This fetches the token and sends it to the backend if the user is logged in.
     fun syncFcmToken() {
         CoroutineScope(Dispatchers.IO).launch {
             try {

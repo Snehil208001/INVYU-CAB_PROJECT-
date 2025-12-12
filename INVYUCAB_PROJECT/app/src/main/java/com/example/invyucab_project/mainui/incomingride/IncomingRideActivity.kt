@@ -2,11 +2,14 @@ package com.example.invyucab_project.mainui.incomingride
 
 import android.app.KeyguardManager
 import android.content.Context
+import android.content.Intent
 import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -21,38 +24,55 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope
+import com.example.invyucab_project.MainActivity
+import com.example.invyucab_project.data.preferences.UserPreferencesRepository
+import com.example.invyucab_project.data.repository.AppRepository
 import com.example.invyucab_project.ui.theme.INVYUCAB_PROJECTTheme
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class IncomingRideActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var appRepository: AppRepository
+
+    @Inject
+    lateinit var userPreferencesRepository: UserPreferencesRepository
 
     private var mediaPlayer: MediaPlayer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Wake up the screen (Turn on screen logic)
+        // 1. Wake up the screen
         turnOnScreen()
 
         // 2. Play Looping Ringtone
         playRingtone()
 
         // 3. Extract Data from Notification
+        // These keys must match exactly what you put in the map in DriverViewModel
         val pickupLat = intent.getStringExtra("pickup_lat")?.toDoubleOrNull() ?: 0.0
         val pickupLng = intent.getStringExtra("pickup_lng")?.toDoubleOrNull() ?: 0.0
         val pickupAddress = intent.getStringExtra("pickup_address") ?: "Unknown Location"
         val price = intent.getStringExtra("price") ?: "₹0"
         val distance = intent.getStringExtra("distance") ?: "0 km"
+
+        // Retrieve the critical ID. If it's null, we default to -1.
+        val rideIdString = intent.getStringExtra("ride_id")
+        val rideId = rideIdString?.toIntOrNull() ?: -1
+
+        Log.d("IncomingRide", "Ride ID received: $rideIdString ($rideId)")
 
         setContent {
             INVYUCAB_PROJECTTheme {
@@ -64,15 +84,79 @@ class IncomingRideActivity : ComponentActivity() {
                     distance = distance,
                     onAccept = {
                         stopRingtone()
-                        // TODO: Call Accept API and Navigate to Navigation Screen
-                        finish()
+                        if (rideId != -1) {
+                            handleAcceptRide(rideId)
+                        } else {
+                            Toast.makeText(this, "Error: Invalid Ride ID", Toast.LENGTH_LONG).show()
+                            finish()
+                        }
                     },
                     onDecline = {
                         stopRingtone()
-                        // TODO: Call Decline API
-                        finish()
+                        if (rideId != -1) {
+                            handleDeclineRide(rideId)
+                        } else {
+                            finish()
+                        }
                     }
                 )
+            }
+        }
+    }
+
+    private fun handleAcceptRide(rideId: Int) {
+        lifecycleScope.launch {
+            val driverId = userPreferencesRepository.getUserId()?.toIntOrNull()
+
+            if (driverId == null) {
+                Toast.makeText(this@IncomingRideActivity, "Driver not logged in", Toast.LENGTH_SHORT).show()
+                finish()
+                return@launch
+            }
+
+            try {
+                // Call API
+                val response = appRepository.acceptRide(rideId, driverId)
+
+                if (response.isSuccessful && response.body()?.success == true) {
+                    Toast.makeText(this@IncomingRideActivity, "Ride Accepted!", Toast.LENGTH_SHORT).show()
+
+                    // Navigate to Main Activity (Driver Screen)
+                    val mainIntent = Intent(this@IncomingRideActivity, MainActivity::class.java).apply {
+                        // Clear back stack so pressing back doesn't return here
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        putExtra("navigate_to_tab", "Ongoing") // Optional: Use this in MainActivity to switch tabs
+                    }
+                    startActivity(mainIntent)
+                    finish()
+                } else {
+                    val error = response.body()?.message ?: "Accept failed"
+                    Toast.makeText(this@IncomingRideActivity, error, Toast.LENGTH_SHORT).show()
+                    finish() // Close even on fail so driver isn't stuck
+                }
+            } catch (e: Exception) {
+                Log.e("IncomingRide", "Accept Error", e)
+                Toast.makeText(this@IncomingRideActivity, "Network Error", Toast.LENGTH_SHORT).show()
+                finish()
+            }
+        }
+    }
+
+    private fun handleDeclineRide(rideId: Int) {
+        lifecycleScope.launch {
+            try {
+                Toast.makeText(this@IncomingRideActivity, "Declining...", Toast.LENGTH_SHORT).show()
+                // Update status to 'cancelled' (or 'declined' if your backend supports it)
+                val response = appRepository.updateRideStatus(rideId, "cancelled")
+
+                if (!response.isSuccessful) {
+                    Log.e("IncomingRide", "Decline failed on server: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                Log.e("IncomingRide", "Decline Error", e)
+            } finally {
+                // Always close the screen
+                finish()
             }
         }
     }
@@ -84,6 +168,7 @@ class IncomingRideActivity : ComponentActivity() {
             val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
             keyguardManager.requestDismissKeyguard(this, null)
         } else {
+            @Suppress("DEPRECATION")
             window.addFlags(
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
                         WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
@@ -95,7 +180,10 @@ class IncomingRideActivity : ComponentActivity() {
 
     private fun playRingtone() {
         try {
-            val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            var notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            if (notification == null) {
+                notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            }
             mediaPlayer = MediaPlayer.create(this, notification)
             mediaPlayer?.isLooping = true
             mediaPlayer?.start()
@@ -105,9 +193,13 @@ class IncomingRideActivity : ComponentActivity() {
     }
 
     private fun stopRingtone() {
-        mediaPlayer?.stop()
-        mediaPlayer?.release()
-        mediaPlayer = null
+        try {
+            mediaPlayer?.stop()
+            mediaPlayer?.release()
+            mediaPlayer = null
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override fun onDestroy() {
@@ -126,6 +218,9 @@ fun IncomingRideScreen(
     onAccept: () -> Unit,
     onDecline: () -> Unit
 ) {
+    // State to show loading spinner to prevent multiple clicks
+    var isProcessing by remember { mutableStateOf(false) }
+
     val pickupLocation = LatLng(pickupLat, pickupLng)
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(pickupLocation, 15f)
@@ -164,7 +259,7 @@ fun IncomingRideScreen(
                 Column {
                     Text(text = "New Ride Request", color = Color.Gray, fontSize = 14.sp)
                     Text(
-                        text = price,
+                        text = if (price.startsWith("₹")) price else "₹$price",
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
@@ -202,37 +297,49 @@ fun IncomingRideScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Action Buttons (Accept / Decline)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Decline Button
-                Button(
-                    onClick = onDecline,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252)), // Red
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
-                    shape = CircleShape
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Decline", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            // Action Buttons
+            if (isProcessing) {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
-
-                // Accept Button
-                Button(
-                    onClick = onAccept,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853)), // Green
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
-                    shape = CircleShape
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Accept", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    // Decline Button
+                    Button(
+                        onClick = {
+                            isProcessing = true
+                            onDecline()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252)), // Red
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                        shape = CircleShape
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Decline", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    // Accept Button
+                    Button(
+                        onClick = {
+                            isProcessing = true
+                            onAccept()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853)), // Green
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                        shape = CircleShape
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Accept", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

@@ -102,7 +102,8 @@ dependencies {
 
     //FCM
     implementation(libs.firebase.messaging) // ✅ ADD THIS
-
+    // Firestore
+    implementation("com.google.firebase:firebase-firestore:25.1.1")
     // Retrofit & Moshi
     implementation(libs.retrofit)
     implementation(libs.converter.moshi)

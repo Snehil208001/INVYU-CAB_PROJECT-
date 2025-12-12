@@ -122,9 +122,7 @@ data class UpdateRideStatusRequest(
 )
 
 data class UpdateRideStatusResponse(
-    // FIX: Match the server's typo "succcess"
     @Json(name = "succcess") val success: Boolean,
-
     @Json(name = "message") val message: String? = null,
     @Json(name = "data") val data: Any? = null
 )
@@ -157,6 +155,31 @@ data class RiderOngoingRideItem(
     @Json(name = "driver_rating") val driverRating: String? = null,
     @Json(name = "pickup_address") val pickupAddress: String? = null,
     @Json(name = "drop_address") val dropAddress: String? = null,
-    // ✅ ADDED: Estimated Price to show in Trip Details
     @Json(name = "estimated_price") val estimatedPrice: String? = null
+)
+
+// ✅ ADD THIS CLASS TO FIX THE ERROR
+data class DriverUpcomingRideItem(
+    val rideId: Int?,
+    val riderId: Int? = null,
+    val pickupAddress: String? = null,
+    val dropAddress: String? = null,
+    val pickupLatitude: String? = null,
+    val pickupLongitude: String? = null,
+    val dropLatitude: String? = null,
+    val dropLongitude: String? = null,
+    val estimatedPrice: String? = null,
+    val status: String? = null,
+    val distance: String? = null,
+    val date: String? = null,
+    val pickupLocation: String? = null,
+    val dropLocation: String? = null,
+    val fare: String? = null,
+    val totalPrice: String? = null,
+    val price: String? = null,
+    val amount: String? = null,
+    val totalAmount: String? = null,
+    val estimatedFare: String? = null,
+    val cost: String? = null,
+    val createdAt: String? = null
 )
