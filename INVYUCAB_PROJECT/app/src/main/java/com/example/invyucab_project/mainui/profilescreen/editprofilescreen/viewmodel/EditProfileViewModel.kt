@@ -1,5 +1,6 @@
 package com.example.invyucab_project.mainui.profilescreen.editprofilescreen.viewmodel
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -8,6 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
 import com.example.invyucab_project.data.repository.AppRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -19,20 +22,28 @@ class EditProfileViewModel @Inject constructor(
     private val userPreferences: UserPreferencesRepository
 ) : ViewModel() {
 
-    // State variables
+    // --- State Variables ---
     var name by mutableStateOf("")
         private set
-    // ✅ REMOVED: Email State
+
     var gender by mutableStateOf("Male")
         private set
+
     var birthday by mutableStateOf("")
         private set
+
     var phone by mutableStateOf("")
         private set
 
     var nameError by mutableStateOf<String?>(null)
         private set
-    // ✅ REMOVED: Email Error State
+
+    var isLoading by mutableStateOf(false)
+        private set
+
+    // Channel for one-time events like Toasts
+    private val _uiEvent = Channel<String>()
+    val uiEvent = _uiEvent.receiveAsFlow()
 
     init {
         loadUserAndFetchProfile()
@@ -40,32 +51,44 @@ class EditProfileViewModel @Inject constructor(
 
     private fun loadUserAndFetchProfile() {
         val savedPhone = userPreferences.getPhoneNumber()
+        Log.d("EditProfileVM", "Loaded Phone from Prefs: '$savedPhone'")
 
         if (!savedPhone.isNullOrBlank()) {
             phone = savedPhone
             fetchUserProfile(savedPhone)
         } else {
-            println("No phone number found in preferences. Cannot fetch profile.")
+            sendUiEvent("Error: No phone number found. Please log in again.")
         }
     }
 
     private fun fetchUserProfile(phoneNumber: String) {
         viewModelScope.launch {
+            isLoading = true
             try {
+                Log.d("EditProfileVM", "Calling checkUser API for: $phoneNumber")
                 val response = repository.checkUser(phoneNumber)
 
                 if (response.isSuccessful) {
                     val user = response.body()?.existingUser
                     if (user != null) {
+                        Log.d("EditProfileVM", "User Found: ${user.fullName}")
                         name = user.fullName ?: ""
                         gender = capitalizeFirstLetter(user.gender ?: "Male")
                         birthday = formatApiDateToUi(user.dob)
+                    } else {
+                        Log.e("EditProfileVM", "Response successful but user is null")
+                        sendUiEvent("User profile not found on server.")
                     }
                 } else {
-                    println("Error fetching profile: ${response.message()}")
+                    val errorMsg = response.errorBody()?.string() ?: response.message()
+                    Log.e("EditProfileVM", "API Error: $errorMsg")
+                    sendUiEvent("Failed to fetch profile: $errorMsg")
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("EditProfileVM", "Exception", e)
+                sendUiEvent("Network error: ${e.message}")
+            } finally {
+                isLoading = false
             }
         }
     }
@@ -73,14 +96,13 @@ class EditProfileViewModel @Inject constructor(
     // --- INPUT HANDLERS ---
 
     fun onNameChange(value: String) {
+        // Allow letters and spaces only
         val nameRegex = "^[a-zA-Z ]*$".toRegex()
         if (value.matches(nameRegex)) {
             name = value
             if (nameError != null) validateName()
         }
     }
-
-    // ✅ REMOVED: onEmailChange
 
     fun onGenderChange(value: String) {
         gender = value
@@ -101,22 +123,26 @@ class EditProfileViewModel @Inject constructor(
         return true
     }
 
-    // ✅ REMOVED: validateEmail
-
     // --- ACTIONS ---
 
     fun onSaveClicked(onNavigate: () -> Unit) {
-        // Only validate Name now
         if (validateName()) {
-            // TODO: Implement Update Profile API here
-            println("Saving updated details: Name=$name, Gender=$gender, Birthday=$birthday")
+            // TODO: Call Update Profile API here
+            sendUiEvent("Profile Updated (Local Only)")
             onNavigate()
         }
     }
 
     // --- HELPERS ---
 
+    private fun sendUiEvent(message: String) {
+        viewModelScope.launch {
+            _uiEvent.send(message)
+        }
+    }
+
     private fun capitalizeFirstLetter(text: String): String {
+        if (text.isEmpty()) return ""
         return text.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
     }
 

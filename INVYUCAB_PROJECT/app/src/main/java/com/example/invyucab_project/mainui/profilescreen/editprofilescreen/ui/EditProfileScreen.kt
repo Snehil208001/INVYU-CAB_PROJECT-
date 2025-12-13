@@ -2,6 +2,7 @@ package com.example.invyucab_project.mainui.profilescreen.editprofilescreen.ui
 
 import android.app.DatePickerDialog
 import android.widget.DatePicker
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,11 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,6 +48,13 @@ fun EditProfileScreen(
     // === STATE FOR DIALOGS ===
     var showGenderDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+    // === LISTEN FOR UI EVENTS (TOASTS) ===
+    LaunchedEffect(Unit) {
+        viewModel.uiEvent.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     // === DATE PICKER LOGIC ===
     val calendar = remember(viewModel.birthday) {
@@ -101,7 +105,7 @@ fun EditProfileScreen(
         },
         containerColor = Color.White
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
@@ -109,7 +113,7 @@ fun EditProfileScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .fillMaxHeight()
             ) {
 
                 item { Spacer(modifier = Modifier.height(16.dp)) }
@@ -134,7 +138,6 @@ fun EditProfileScreen(
                         )
                     )
                 }
-                // ✅ REMOVED: Email Field
                 item {
                     ClickableProfileRow(
                         label = "Gender",
@@ -157,7 +160,13 @@ fun EditProfileScreen(
                 }
             }
 
-            // ✅ REMOVED: Save Changes Button
+            // === LOADING INDICATOR ===
+            if (viewModel.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = CabMintGreen
+                )
+            }
         }
     }
 

@@ -131,7 +131,7 @@ fun BookingDetailScreen(
                 }
                 // Check if the ride status is "cancelled" (e.g. by driver)
                 else if (rideItem.status == "cancelled") {
-                    Toast.makeText(context, "Ride was cancelled by driver", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Ride was cancelled", Toast.LENGTH_LONG).show()
                     navController.navigate("home_screen") {
                         popUpTo("home_screen") { inclusive = true }
                     }
