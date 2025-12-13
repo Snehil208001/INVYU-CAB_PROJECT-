@@ -3,6 +3,8 @@ package com.example.invyucab_project.mainui.incomingride
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.os.Build
@@ -12,6 +14,7 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -25,16 +28,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.invyucab_project.MainActivity
+import com.example.invyucab_project.R
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
 import com.example.invyucab_project.data.repository.AppRepository
 import com.example.invyucab_project.ui.theme.INVYUCAB_PROJECTTheme
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -55,6 +64,11 @@ class IncomingRideActivity : ComponentActivity() {
     private var pickupLat: Double = 0.0
     private var pickupLng: Double = 0.0
     private var pickupAddress: String = "Unknown"
+
+    private var dropoffLat: Double = 0.0
+    private var dropoffLng: Double = 0.0
+    private var dropoffAddress: String = "Unknown"
+
     private var price: String = "₹0"
     private var distance: String = "0 km"
 
@@ -77,6 +91,9 @@ class IncomingRideActivity : ComponentActivity() {
                     pickupLat = pickupLat,
                     pickupLng = pickupLng,
                     pickupAddress = pickupAddress,
+                    dropoffLat = dropoffLat,
+                    dropoffLng = dropoffLng,
+                    dropoffAddress = dropoffAddress,
                     price = price,
                     distance = distance,
                     onAccept = {
@@ -114,6 +131,11 @@ class IncomingRideActivity : ComponentActivity() {
         pickupLat = intent.getStringExtra("pickup_lat")?.toDoubleOrNull() ?: 0.0
         pickupLng = intent.getStringExtra("pickup_lng")?.toDoubleOrNull() ?: 0.0
         pickupAddress = intent.getStringExtra("pickup_address") ?: "Unknown Location"
+
+        dropoffLat = intent.getStringExtra("dropoff_lat")?.toDoubleOrNull() ?: 0.0
+        dropoffLng = intent.getStringExtra("dropoff_lng")?.toDoubleOrNull() ?: 0.0
+        dropoffAddress = intent.getStringExtra("dropoff_address") ?: "Unknown Location"
+
         price = intent.getStringExtra("price") ?: "₹0"
         distance = intent.getStringExtra("distance") ?: "0 km"
 
@@ -244,11 +266,28 @@ class IncomingRideActivity : ComponentActivity() {
     }
 }
 
+// Helper to convert Vector Drawable to BitmapDescriptor
+fun bitmapDescriptorFromVector(context: Context, @DrawableRes vectorResId: Int): BitmapDescriptor? {
+    val vectorDrawable = ContextCompat.getDrawable(context, vectorResId) ?: return null
+    vectorDrawable.setBounds(0, 0, vectorDrawable.intrinsicWidth, vectorDrawable.intrinsicHeight)
+    val bitmap = Bitmap.createBitmap(
+        vectorDrawable.intrinsicWidth,
+        vectorDrawable.intrinsicHeight,
+        Bitmap.Config.ARGB_8888
+    )
+    val canvas = Canvas(bitmap)
+    vectorDrawable.draw(canvas)
+    return BitmapDescriptorFactory.fromBitmap(bitmap)
+}
+
 @Composable
 fun IncomingRideScreen(
     pickupLat: Double,
     pickupLng: Double,
     pickupAddress: String,
+    dropoffLat: Double,
+    dropoffLng: Double,
+    dropoffAddress: String,
     price: String,
     distance: String,
     onAccept: () -> Unit,
@@ -256,8 +295,19 @@ fun IncomingRideScreen(
 ) {
     var isProcessing by remember { mutableStateOf(false) }
     val pickupLocation = LatLng(pickupLat, pickupLng)
+    val dropoffLocation = LatLng(dropoffLat, dropoffLng)
+
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(pickupLocation, 15f)
+    }
+
+    val context = LocalContext.current
+
+    // Load Custom Map Style
+    val mapProperties = remember {
+        MapProperties(
+            mapStyleOptions = MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style_retro)
+        )
     }
 
     LaunchedEffect(pickupLocation) {
@@ -267,13 +317,26 @@ fun IncomingRideScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
-            cameraPositionState = cameraPositionState
+            cameraPositionState = cameraPositionState,
+            properties = mapProperties
         ) {
+            // Pickup Marker with Custom Icon
             Marker(
                 state = MarkerState(position = pickupLocation),
                 title = "Pickup Location",
-                snippet = pickupAddress
+                snippet = pickupAddress,
+                icon = bitmapDescriptorFromVector(context, R.drawable.ic_pickup_marker)
             )
+
+            // Dropoff Marker with Custom Icon (only if coordinates exist)
+            if (dropoffLat != 0.0 && dropoffLng != 0.0) {
+                Marker(
+                    state = MarkerState(position = dropoffLocation),
+                    title = "Dropoff Location",
+                    snippet = dropoffAddress,
+                    icon = bitmapDescriptorFromVector(context, R.drawable.ic_dropoff_marker)
+                )
+            }
         }
 
         Column(
