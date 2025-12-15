@@ -730,22 +730,18 @@ fun RideHistoryCard(ride: RideHistoryUiModel) {
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header: ID and Date
+            // Header: Date ONLY (Removed Ride ID as requested)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.Start, // Adjusted to Start
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Ride #${ride.rideId}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
+                // ✅ REMOVED: Text(text = "Ride #${ride.rideId}", ...)
                 Text(
                     text = ride.date,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    style = MaterialTheme.typography.titleMedium, // Upgraded style to look like a header
+                    color = Color.Black, // Made Black for visibility
+                    fontWeight = FontWeight.Bold
                 )
             }
 

@@ -155,11 +155,8 @@ data class UpcomingRide(
     @Json(name = "drop_location") val dropLocation: String?,
 
     @Json(name = "status") val status: String? = null,
-
-    // ✅ ADDED THIS FIELD to enable time filtering
     @Json(name = "requested_at") val requestedAt: String? = null,
 
-    // Price Fields
     @Json(name = "estimated_price") val estimatedPrice: Any?,
     @Json(name = "fare") val fare: Any?,
     @Json(name = "total_price") val totalPrice: Any?,

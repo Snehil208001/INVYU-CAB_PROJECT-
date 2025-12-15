@@ -566,6 +566,9 @@ class DriverViewModel @Inject constructor(
                     val acceptResponse = appRepository.acceptRide(ride.rideId, driverId)
                     if (acceptResponse.isSuccessful && acceptResponse.body()?.success == true) {
 
+                        // ✅ FIXED: Cancel the system notification immediately
+                        NotificationUtils.cancelNotification(context, ride.rideId)
+
                         appRepository.markRideProcessed(ride.rideId)
 
                         stopLookingForRides()

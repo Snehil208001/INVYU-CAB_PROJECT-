@@ -158,7 +158,8 @@ data class RiderOngoingRideItem(
     @Json(name = "estimated_price") val estimatedPrice: String? = null
 )
 
-// ✅ ADD THIS CLASS TO FIX THE ERROR
+// --- Local Data Models ---
+
 data class DriverUpcomingRideItem(
     val rideId: Int?,
     val riderId: Int? = null,

@@ -17,6 +17,12 @@ import com.example.invyucab_project.mainui.incomingride.IncomingRideActivity
 
 object NotificationUtils {
 
+    // ✅ ADDED: Function to cancel a specific notification by ID
+    fun cancelNotification(context: Context, rideId: Int) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(rideId) // Cancels the specific ride notification
+    }
+
     fun showRideNotification(context: Context, title: String, body: String, data: Map<String, String>) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -52,23 +58,27 @@ object NotificationUtils {
             data.forEach { (key, value) -> putExtra(key, value) }
         }
 
+        // Use rideId as the request code to ensure uniqueness
+        val rideId = data["ride_id"]?.toIntOrNull() ?: System.currentTimeMillis().toInt()
+
         val pendingIntent = PendingIntent.getActivity(
             context,
-            System.currentTimeMillis().toInt(),
+            rideId, // ✅ Use rideId for PendingIntent uniqueness
             intent,
             PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val notificationBuilder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.mipmap.ic_launcher) // Make sure this icon exists
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setAutoCancel(true)
             .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE))
-            .setFullScreenIntent(pendingIntent, true) // Triggers the "Incoming Call" style screen
+            .setFullScreenIntent(pendingIntent, true)
 
-        NotificationManagerCompat.from(context).notify(System.currentTimeMillis().toInt(), notificationBuilder.build())
+        // ✅ Use rideId as the notification ID so we can cancel it later
+        NotificationManagerCompat.from(context).notify(rideId, notificationBuilder.build())
     }
 }
