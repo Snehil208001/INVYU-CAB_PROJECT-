@@ -75,6 +75,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.invyucab_project.R
 import com.example.invyucab_project.core.common.Resource
+import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.bookingdetailscreen.viewmodel.BookingDetailViewModel
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
@@ -107,7 +108,7 @@ fun BookingDetailScreen(
     var showTripDetailsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
-    // ✅ UPDATED: Poll the server every 4 seconds to check for updates (e.g., ride completion)
+    // ✅ UPDATED: Poll the server every 4 seconds to check for updates
     LaunchedEffect(key1 = rideId) {
         while (true) {
             viewModel.fetchOngoingRide(rideId)
@@ -115,38 +116,45 @@ fun BookingDetailScreen(
         }
     }
 
-    // ✅ ADDED: Listen for "completed" OR "cancelled" status and navigate to Home
-    LaunchedEffect(rideState) {
-        if (rideState is Resource.Success) {
-            val response = (rideState as Resource.Success).data
-            val rideItem = response?.data?.firstOrNull()
-
-            if (rideItem != null) {
-                // Check if the ride status is "completed"
-                if (rideItem.status == "completed") {
-                    Toast.makeText(context, "Ride Completed!", Toast.LENGTH_LONG).show()
-                    navController.navigate("home_screen") {
-                        popUpTo("home_screen") { inclusive = true }
+    // ✅ ADDED: Listen for Navigation Events (Driver Cancelled -> Search, Rider Cancelled -> Home)
+    LaunchedEffect(key1 = true) {
+        viewModel.navigationEvent.collect { event ->
+            when (event) {
+                is BookingDetailViewModel.BookingNavigationEvent.NavigateHome -> {
+                    Toast.makeText(context, "Ride Ended", Toast.LENGTH_SHORT).show()
+                    navController.navigate(Screen.HomeScreen.route) {
+                        popUpTo(Screen.HomeScreen.route) { inclusive = true }
                     }
                 }
-                // Check if the ride status is "cancelled" (e.g. by driver)
-                else if (rideItem.status == "cancelled") {
-                    Toast.makeText(context, "Ride was cancelled", Toast.LENGTH_LONG).show()
-                    navController.navigate("home_screen") {
-                        popUpTo("home_screen") { inclusive = true }
+                is BookingDetailViewModel.BookingNavigationEvent.NavigateToSearching -> {
+                    Toast.makeText(context, "Driver Cancelled. Searching new ride...", Toast.LENGTH_LONG).show()
+                    val route = Screen.RideBookingScreen.createRoute(
+                        rideId = event.rideId,
+                        // ✅ FIX: Removed .toFloat() because createRoute expects Double
+                        pickupLat = event.pickupLat,
+                        pickupLng = event.pickupLng,
+                        dropLat = event.dropLat,
+                        dropLng = event.dropLng,
+                        pickupAddress = event.pickupAddress,
+                        dropAddress = event.dropAddress,
+                        dropPlaceId = event.dropPlaceId,
+                        userPin = event.userPin
+                    )
+                    navController.navigate(route) {
+                        popUpTo(Screen.BookingDetailScreen.route) { inclusive = true }
                     }
                 }
             }
         }
     }
 
-    // ✅ Listen for Cancellation Success and Navigate
+    // ✅ Listen for Rider Cancellation Success and Navigate
     LaunchedEffect(cancelState) {
         if (cancelState is Resource.Success) {
             Toast.makeText(context, "Ride Cancelled Successfully", Toast.LENGTH_SHORT).show()
             // Navigate to Home Screen and remove backstack
-            navController.navigate("home_screen") {
-                popUpTo("home_screen") { inclusive = true }
+            navController.navigate(Screen.HomeScreen.route) {
+                popUpTo(Screen.HomeScreen.route) { inclusive = true }
             }
         } else if (cancelState is Resource.Error) {
             Toast.makeText(context, (cancelState as Resource.Error).message ?: "Cancellation Failed", Toast.LENGTH_LONG).show()
