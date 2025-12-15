@@ -74,29 +74,48 @@ class AppRepository @Inject constructor(
                 if (snapshot != null) {
                     val rides = snapshot.documents.mapNotNull { doc ->
                         try {
+                            // ✅ FIX: Robust Price Fetching (Checks snake_case AND camelCase)
+                            val priceVal = doc.get("estimatedPrice")
+                                ?: doc.get("estimated_price") // Check snake_case
+                                ?: doc.get("price")
+                                ?: doc.get("totalPrice")
+                                ?: doc.get("total_price") // Check snake_case
+                                ?: doc.get("totalAmount")
+                                ?: doc.get("total_amount") // Check snake_case
+                                ?: doc.get("fare")
+                                ?: doc.get("amount")
+
                             DriverUpcomingRideItem(
-                                rideId = (doc.get("rideId") as? Long)?.toInt() ?: doc.get("rideId").toString().toIntOrNull(),
-                                riderId = (doc.get("riderId") as? Long)?.toInt(),
-                                pickupAddress = doc.getString("pickupAddress"),
-                                dropAddress = doc.getString("dropAddress"),
-                                pickupLatitude = doc.getString("pickupLatitude"),
-                                pickupLongitude = doc.getString("pickupLongitude"),
-                                dropLatitude = doc.getString("dropLatitude"),
-                                dropLongitude = doc.getString("dropLongitude"),
-                                estimatedPrice = doc.getString("estimatedPrice") ?: doc.getString("price"),
+                                rideId = (doc.get("rideId") as? Long)?.toInt() ?: doc.get("ride_id")?.toString()?.toIntOrNull() ?: doc.get("rideId")?.toString()?.toIntOrNull(),
+                                riderId = (doc.get("riderId") as? Long)?.toInt() ?: doc.get("rider_id")?.toString()?.toIntOrNull(),
+
+                                // Locations (Check both camelCase and snake_case)
+                                pickupAddress = doc.getString("pickupAddress") ?: doc.getString("pickup_address"),
+                                dropAddress = doc.getString("dropAddress") ?: doc.getString("drop_address"),
+                                pickupLatitude = doc.getString("pickupLatitude") ?: doc.getString("pickup_latitude"),
+                                pickupLongitude = doc.getString("pickupLongitude") ?: doc.getString("pickup_longitude"),
+                                dropLatitude = doc.getString("dropLatitude") ?: doc.getString("drop_latitude"),
+                                dropLongitude = doc.getString("dropLongitude") ?: doc.getString("drop_longitude"),
+
+                                // ✅ Assign the found price value (converted to String)
+                                estimatedPrice = priceVal?.toString(),
+
                                 status = doc.getString("status"),
                                 distance = doc.getString("distance"),
-                                date = doc.getString("date"),
-                                pickupLocation = doc.getString("pickupLocation"),
-                                dropLocation = doc.getString("dropLocation"),
-                                fare = doc.getString("fare"),
-                                totalPrice = doc.getString("totalPrice"),
-                                price = doc.getString("price"),
-                                amount = doc.getString("amount"),
-                                totalAmount = doc.getString("totalAmount"),
-                                estimatedFare = doc.getString("estimatedFare"),
-                                cost = doc.getString("cost"),
-                                createdAt = doc.getString("createdAt")
+                                date = doc.getString("date") ?: doc.getString("requested_at") ?: doc.getString("requestedAt"),
+                                pickupLocation = doc.getString("pickupLocation") ?: doc.getString("pickup_location"),
+                                dropLocation = doc.getString("dropLocation") ?: doc.getString("drop_location"),
+
+                                // Other price fields just in case
+                                fare = doc.get("fare")?.toString(),
+                                totalPrice = doc.get("totalPrice")?.toString(),
+                                price = doc.get("price")?.toString(),
+                                amount = doc.get("amount")?.toString(),
+                                totalAmount = doc.get("totalAmount")?.toString(),
+                                estimatedFare = doc.get("estimatedFare")?.toString(),
+                                cost = doc.get("cost")?.toString(),
+
+                                createdAt = doc.getString("createdAt") ?: doc.getString("created_at")
                             )
                         } catch (e: Exception) {
                             Log.e("Firestore", "Error parsing doc: ${doc.id}", e)

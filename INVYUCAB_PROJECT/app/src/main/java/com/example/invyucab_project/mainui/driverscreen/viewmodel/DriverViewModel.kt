@@ -278,9 +278,14 @@ class DriverViewModel @Inject constructor(
                             val drop = item.dropAddress?.takeIf { it.isNotBlank() }
                                 ?: item.dropLocation?.takeIf { it.isNotBlank() }
                                 ?: getAddressFromCoordinates(dLat, dLng)
+
+                            // ✅ FIXED: Check estimatedPrice and amount as fallbacks
                             val priceVal = parsePrice(item.totalAmount).takeIf { it > 0 }
                                 ?: parsePrice(item.price).takeIf { it > 0 }
+                                ?: parsePrice(item.estimatedPrice).takeIf { it > 0 } // ✅ Use Estimated Price
+                                ?: parsePrice(item.amount).takeIf { it > 0 }
                                 ?: 0.0
+
                             val dateVal = item.date ?: item.createdAt ?: ""
                             RideHistoryUiModel(
                                 rideId = item.rideId ?: 0,
