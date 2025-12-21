@@ -1,15 +1,10 @@
 package com.example.invyucab_project.mainui.profilescreen.editprofilescreen.ui
 
-import android.app.DatePickerDialog
-import android.widget.DatePicker
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -20,24 +15,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.profilescreen.editprofilescreen.viewmodel.EditProfileViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.LightSlateGray
-import java.text.SimpleDateFormat
-import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,8 +33,6 @@ fun EditProfileScreen(
     navController: NavController,
     viewModel: EditProfileViewModel = hiltViewModel()
 ) {
-    // === STATE FOR DIALOGS ===
-    var showGenderDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     // === LISTEN FOR UI EVENTS (TOASTS) ===
@@ -56,29 +42,10 @@ fun EditProfileScreen(
         }
     }
 
-    // === DATE PICKER LOGIC ===
-    val calendar = remember(viewModel.birthday) {
-        parseDate(viewModel.birthday) ?: Calendar.getInstance()
-    }
-    val year = calendar.get(Calendar.YEAR)
-    val month = calendar.get(Calendar.MONTH)
-    val day = calendar.get(Calendar.DAY_OF_MONTH)
-
-    val datePickerDialog = DatePickerDialog(
-        context,
-        { _: DatePicker, selectedYear: Int, selectedMonth: Int, selectedDay: Int ->
-            val selectedCalendar = Calendar.getInstance().apply {
-                set(selectedYear, selectedMonth, selectedDay)
-            }
-            viewModel.onBirthdayChange(formatDate(selectedCalendar))
-        }, year, month, day
-    )
-    // ==========================
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("My Account", fontWeight = FontWeight.Bold) },
+                title = { Text("Profile Details", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -118,6 +85,7 @@ fun EditProfileScreen(
 
                 item { Spacer(modifier = Modifier.height(16.dp)) }
 
+                // Level can still be clickable for navigation
                 item {
                     ClickableProfileRow(
                         label = "Level",
@@ -127,31 +95,32 @@ fun EditProfileScreen(
                         }
                     )
                 }
+
+                // Name - Read Only
                 item {
-                    EditableProfileRow(
+                    ProfileRow(
                         label = "Name",
-                        value = viewModel.name,
-                        onValueChange = viewModel::onNameChange,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Text,
-                            capitalization = KeyboardCapitalization.Words
-                        )
+                        value = viewModel.name
                     )
                 }
+
+                // Gender - Read Only
                 item {
-                    ClickableProfileRow(
+                    ProfileRow(
                         label = "Gender",
-                        value = viewModel.gender,
-                        onClick = { showGenderDialog = true }
+                        value = viewModel.gender
                     )
                 }
+
+                // Birthday - Read Only
                 item {
-                    ClickableProfileRow(
+                    ProfileRow(
                         label = "Birthday",
-                        value = viewModel.birthday.ifEmpty { "Select Date" },
-                        onClick = { datePickerDialog.show() }
+                        value = viewModel.birthday.ifEmpty { "Not Available" }
                     )
                 }
+
+                // Phone number - Read Only
                 item {
                     ProfileRow(
                         label = "Phone number",
@@ -169,69 +138,10 @@ fun EditProfileScreen(
             }
         }
     }
-
-    // === GENDER SELECTION DIALOG ===
-    if (showGenderDialog) {
-        GenderSelectionDialog(
-            currentGender = viewModel.gender,
-            onGenderSelected = {
-                viewModel.onGenderChange(it)
-                showGenderDialog = false
-            },
-            onDismiss = { showGenderDialog = false }
-        )
-    }
 }
 
 /**
- * An editable row with a BasicTextField.
- */
-@Composable
-private fun EditableProfileRow(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-) {
-    val textStyle = TextStyle(
-        fontSize = 16.sp,
-        color = Color.Black.copy(alpha = 0.7f),
-        textAlign = TextAlign.End
-    )
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 18.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            fontSize = 16.sp,
-            color = Color.Black,
-            modifier = Modifier.weight(0.4f)
-        )
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.weight(0.6f),
-            textStyle = textStyle,
-            keyboardOptions = keyboardOptions,
-            singleLine = true,
-            cursorBrush = SolidColor(CabMintGreen)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = Color.Gray.copy(alpha = 0.7f)
-        )
-    }
-    Divider(color = LightSlateGray.copy(alpha = 0.5f), thickness = 0.5.dp, modifier = Modifier.padding(start = 24.dp))
-}
-
-/**
- * A non-editable row used for display only (e.g., Phone).
+ * A non-editable row used for display only.
  */
 @Composable
 private fun ProfileRow(
@@ -258,17 +168,18 @@ private fun ProfileRow(
             modifier = Modifier.weight(0.6f)
         )
         Spacer(modifier = Modifier.width(8.dp))
+        // Icon removed or kept gray to indicate non-interactivity
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = Color.Gray.copy(alpha = 0.7f)
+            tint = Color.Gray.copy(alpha = 0.3f) // Faded arrow to show it's static
         )
     }
     Divider(color = LightSlateGray.copy(alpha = 0.5f), thickness = 0.5.dp, modifier = Modifier.padding(start = 24.dp))
 }
 
 /**
- * A row that looks like ProfileRow but is clickable to trigger an action.
+ * A row that is clickable to trigger an action (like Navigation).
  */
 @Composable
 private fun ClickableProfileRow(
@@ -304,85 +215,4 @@ private fun ClickableProfileRow(
         )
     }
     Divider(color = LightSlateGray.copy(alpha = 0.5f), thickness = 0.5.dp, modifier = Modifier.padding(start = 24.dp))
-}
-
-/**
- * A dialog for selecting gender.
- */
-@Composable
-private fun GenderSelectionDialog(
-    currentGender: String,
-    onGenderSelected: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val genderOptions = listOf("Male", "Female", "Prefer not to say")
-    var selectedOption by remember { mutableStateOf(currentGender) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Select Gender") },
-        text = {
-            Column(Modifier.fillMaxWidth()) {
-                genderOptions.forEach { gender ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = (gender == selectedOption),
-                                onClick = { selectedOption = gender }
-                            )
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = (gender == selectedOption),
-                            onClick = { selectedOption = gender },
-                            colors = RadioButtonDefaults.colors(selectedColor = CabMintGreen)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = gender)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onGenderSelected(selectedOption) },
-                colors = ButtonDefaults.textButtonColors(contentColor = CabMintGreen)
-            ) {
-                Text("OK")
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                colors = ButtonDefaults.textButtonColors(contentColor = Color.Gray)
-            ) {
-                Text("Cancel")
-            }
-        },
-        properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
-    )
-}
-
-// === DATE HELPER FUNCTIONS ===
-
-private fun parseDate(dateString: String): Calendar? {
-    if (dateString.isBlank()) return null
-    return try {
-        val format = SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH)
-        val date = format.parse(dateString)
-        Calendar.getInstance().apply {
-            if (date != null) {
-                time = date
-            }
-        }
-    } catch (e: Exception) {
-        null
-    }
-}
-
-private fun formatDate(calendar: Calendar): String {
-    val format = SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH)
-    return format.format(calendar.time)
 }

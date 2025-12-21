@@ -18,29 +18,26 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val logoutUserUseCase: LogoutUserUseCase // ✅ INJECTED USECASE
-) : ViewModel() { // ⬅️ Does not inherit from BaseViewModel
+    private val logoutUserUseCase: LogoutUserUseCase
+) : ViewModel() {
 
     private val _userProfile = MutableStateFlow(UserProfile())
     val userProfile: StateFlow<UserProfile> = _userProfile
 
-    // Define the list of profile options
     val profileOptions = listOf(
-        ProfileOption(Icons.Default.AccountCircle, "Edit Profile") { /* Handled in UI */ },
-        ProfileOption(Icons.Default.CreditCard, "Payment Methods") { /* Handled in UI */ },
-        ProfileOption(Icons.Default.History, "Ride History") { /* TODO: Navigate/Action */ },
-        ProfileOption(Icons.Default.Settings, "Settings") { /* TODO: Navigate/Action */ },
-        ProfileOption(Icons.AutoMirrored.Filled.HelpOutline, "Help & Support") { /* TODO: Navigate/Action */ },
-        ProfileOption(Icons.AutoMirrored.Filled.Logout, "Logout") { } // Click is handled by UI
+        ProfileOption(Icons.Default.AccountCircle, "Edit Profile") { },
+        ProfileOption(Icons.Default.CreditCard, "Payment Methods") { },
+        ProfileOption(Icons.Default.History, "Ride History") { },
+        ProfileOption(Icons.Default.Settings, "Settings") { },
+        ProfileOption(Icons.AutoMirrored.Filled.HelpOutline, "Help & Support") { },
+        ProfileOption(Icons.AutoMirrored.Filled.Logout, "Logout") { }
     )
 
-    // ✅ REFACTORED: Calls UseCase
     fun logout() {
         viewModelScope.launch {
+            // This invokes the logic to clear shared preferences
             logoutUserUseCase.invoke()
             Log.d("ProfileViewModel", "Logout successful")
-            // Navigation should be handled in the UI by observing a state
-            // or by the click handler in the UI itself
         }
     }
 }

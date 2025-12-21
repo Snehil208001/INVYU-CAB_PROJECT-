@@ -22,20 +22,17 @@ class EditProfileViewModel @Inject constructor(
     private val userPreferences: UserPreferencesRepository
 ) : ViewModel() {
 
-    // --- State Variables ---
-    var name by mutableStateOf("")
+    // --- State Variables (Read-Only Logic) ---
+    var name by mutableStateOf("Loading...")
         private set
 
-    var gender by mutableStateOf("Male")
+    var gender by mutableStateOf("")
         private set
 
     var birthday by mutableStateOf("")
         private set
 
     var phone by mutableStateOf("")
-        private set
-
-    var nameError by mutableStateOf<String?>(null)
         private set
 
     var isLoading by mutableStateOf(false)
@@ -57,6 +54,7 @@ class EditProfileViewModel @Inject constructor(
             phone = savedPhone
             fetchUserProfile(savedPhone)
         } else {
+            name = "Guest"
             sendUiEvent("Error: No phone number found. Please log in again.")
         }
     }
@@ -65,71 +63,37 @@ class EditProfileViewModel @Inject constructor(
         viewModelScope.launch {
             isLoading = true
             try {
-                Log.d("EditProfileVM", "Calling checkUser API for: $phoneNumber")
-                val response = repository.checkUser(phoneNumber)
+                // Ensure correct format for API
+                val formattedPhone = if (phoneNumber.startsWith("+91")) phoneNumber else "+91$phoneNumber"
+                Log.d("EditProfileVM", "Calling checkUser API for: $formattedPhone")
+
+                val response = repository.checkUser(formattedPhone)
 
                 if (response.isSuccessful) {
                     val user = response.body()?.existingUser
                     if (user != null) {
                         Log.d("EditProfileVM", "User Found: ${user.fullName}")
-                        name = user.fullName ?: ""
-                        gender = capitalizeFirstLetter(user.gender ?: "Male")
+                        name = user.fullName ?: "No Name"
+                        gender = capitalizeFirstLetter(user.gender ?: "Not Specified")
                         birthday = formatApiDateToUi(user.dob)
                     } else {
                         Log.e("EditProfileVM", "Response successful but user is null")
+                        name = "User Not Found"
                         sendUiEvent("User profile not found on server.")
                     }
                 } else {
                     val errorMsg = response.errorBody()?.string() ?: response.message()
                     Log.e("EditProfileVM", "API Error: $errorMsg")
+                    name = "Error Fetching Data"
                     sendUiEvent("Failed to fetch profile: $errorMsg")
                 }
             } catch (e: Exception) {
                 Log.e("EditProfileVM", "Exception", e)
+                name = "Network Error"
                 sendUiEvent("Network error: ${e.message}")
             } finally {
                 isLoading = false
             }
-        }
-    }
-
-    // --- INPUT HANDLERS ---
-
-    fun onNameChange(value: String) {
-        // Allow letters and spaces only
-        val nameRegex = "^[a-zA-Z ]*$".toRegex()
-        if (value.matches(nameRegex)) {
-            name = value
-            if (nameError != null) validateName()
-        }
-    }
-
-    fun onGenderChange(value: String) {
-        gender = value
-    }
-
-    fun onBirthdayChange(value: String) {
-        birthday = value
-    }
-
-    // --- VALIDATION ---
-
-    private fun validateName(): Boolean {
-        if (name.isBlank()) {
-            nameError = "Name cannot be empty"
-            return false
-        }
-        nameError = null
-        return true
-    }
-
-    // --- ACTIONS ---
-
-    fun onSaveClicked(onNavigate: () -> Unit) {
-        if (validateName()) {
-            // TODO: Call Update Profile API here
-            sendUiEvent("Profile Updated (Local Only)")
-            onNavigate()
         }
     }
 
