@@ -143,7 +143,36 @@ fun OtpScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // --- ADDED: RESEND OTP LOGIC ---
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (viewModel.resendTimer > 0) {
+                        Text(
+                            text = "Resend code in ${viewModel.resendTimer} s",
+                            color = Color.Gray,
+                            fontSize = 14.sp
+                        )
+                    } else {
+                        TextButton(
+                            onClick = { viewModel.resendOtp(activity) },
+                            enabled = viewModel.canResend
+                        ) {
+                            Text(
+                                text = "Resend Code",
+                                color = CabMintGreen,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+                // --- END OF ADDED LOGIC ---
+
+                Spacer(modifier = Modifier.height(24.dp))
 
                 // Verify Button
                 Button(

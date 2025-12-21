@@ -37,7 +37,7 @@ class OtpViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val createUserUseCase: CreateUserUseCase,
     private val userPreferencesRepository: UserPreferencesRepository,
-    private val appRepository: AppRepository, // ✅ ADDED: Inject AppRepository
+    private val appRepository: AppRepository,
     savedStateHandle: SavedStateHandle
 ) : BaseViewModel() {
 
@@ -73,6 +73,7 @@ class OtpViewModel @Inject constructor(
 
     // --- Firebase Internal State ---
     private var verificationId: String? by mutableStateOf(null)
+    private var resendToken: PhoneAuthProvider.ForceResendingToken? = null // ✅ ADDED: To store resend token
     private lateinit var callbacks: PhoneAuthProvider.OnVerificationStateChangedCallbacks
 
     private var isAutoVerificationRunning = false
@@ -87,6 +88,7 @@ class OtpViewModel @Inject constructor(
                 Log.d(TAG, "onCodeSent: $id")
                 _isLoading.value = false
                 verificationId = id
+                resendToken = token // ✅ FIXED: Save the token here
                 _apiError.value = null
             }
 
@@ -128,12 +130,19 @@ class OtpViewModel @Inject constructor(
         }
         _isLoading.value = true
         _apiError.value = null
-        val options = PhoneAuthOptions.newBuilder(auth)
+
+        val builder = PhoneAuthOptions.newBuilder(auth)
             .setPhoneNumber("+91$fullPhoneNumber") // Make sure it's the full number with country code
             .setTimeout(60L, TimeUnit.SECONDS)
             .setActivity(activity)
             .setCallbacks(callbacks)
-            .build()
+
+        // ✅ FIXED: Attach the resend token if it exists
+        if (resendToken != null) {
+            builder.setForceResendingToken(resendToken!!)
+        }
+
+        val options = builder.build()
         PhoneAuthProvider.verifyPhoneNumber(options)
 
         startResendTimer()
