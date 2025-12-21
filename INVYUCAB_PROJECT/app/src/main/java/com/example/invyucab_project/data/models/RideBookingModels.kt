@@ -88,7 +88,9 @@ data class OngoingRideItem(
     @Json(name = "pickup_latitude") val pickupLatitude: String? = null,
     @Json(name = "pickup_longitude") val pickupLongitude: String? = null,
     @Json(name = "drop_latitude") val dropLatitude: String? = null,
-    @Json(name = "drop_longitude") val dropLongitude: String? = null
+    @Json(name = "drop_longitude") val dropLongitude: String? = null,
+    // ✅ ADDED: Field for calling rider
+    @Json(name = "rider_phone") val riderPhone: String? = null
 )
 
 // --- Start Ride Models ---
@@ -155,7 +157,9 @@ data class RiderOngoingRideItem(
     @Json(name = "driver_rating") val driverRating: String? = null,
     @Json(name = "pickup_address") val pickupAddress: String? = null,
     @Json(name = "drop_address") val dropAddress: String? = null,
-    @Json(name = "estimated_price") val estimatedPrice: String? = null
+    @Json(name = "estimated_price") val estimatedPrice: String? = null,
+    // ✅ ADDED: Field for calling driver
+    @Json(name = "driver_phone") val driverPhone: String? = null
 )
 
 // --- Local Data Models ---

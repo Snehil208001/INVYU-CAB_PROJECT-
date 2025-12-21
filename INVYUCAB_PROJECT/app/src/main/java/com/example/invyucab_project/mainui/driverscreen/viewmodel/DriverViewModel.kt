@@ -127,6 +127,15 @@ class DriverViewModel @Inject constructor(
                 fetchOngoingRides()
             }
         }
+
+        // ✅ ADDED: Sync Driver to Firestore on launch
+        syncFirestore()
+    }
+
+    private fun syncFirestore() {
+        viewModelScope.launch {
+            appRepository.syncCurrentUserToFirestore()
+        }
     }
 
     fun onTabSelected(tab: String) {
@@ -141,18 +150,17 @@ class DriverViewModel @Inject constructor(
         return String.format("%.1f km", distanceInMeters / 1000)
     }
 
-    // ✅ NEW HELPER: Check if a ride is recent (e.g., within last 30 mins)
     private fun isRideRecent(dateStr: String?): Boolean {
-        if (dateStr.isNullOrBlank()) return true // Fallback if no date provided
+        if (dateStr.isNullOrBlank()) return true
         return try {
             val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-            sdf.timeZone = TimeZone.getTimeZone("UTC") // API seems to return UTC or Server time
+            sdf.timeZone = TimeZone.getTimeZone("UTC")
             val date = sdf.parse(dateStr)
             val diff = System.currentTimeMillis() - (date?.time ?: 0)
             val minutes = diff / (1000 * 60)
-            minutes < 30 // Only allow rides created in last 30 minutes
+            minutes < 30
         } catch (e: Exception) {
-            true // If format is weird, let it pass (or set false to be strict)
+            true
         }
     }
 
@@ -279,10 +287,9 @@ class DriverViewModel @Inject constructor(
                                 ?: item.dropLocation?.takeIf { it.isNotBlank() }
                                 ?: getAddressFromCoordinates(dLat, dLng)
 
-                            // ✅ FIXED: Check estimatedPrice and amount as fallbacks
                             val priceVal = parsePrice(item.totalAmount).takeIf { it > 0 }
                                 ?: parsePrice(item.price).takeIf { it > 0 }
-                                ?: parsePrice(item.estimatedPrice).takeIf { it > 0 } // ✅ Use Estimated Price
+                                ?: parsePrice(item.estimatedPrice).takeIf { it > 0 }
                                 ?: parsePrice(item.amount).takeIf { it > 0 }
                                 ?: 0.0
 
@@ -422,9 +429,6 @@ class DriverViewModel @Inject constructor(
                         )
                         if (response.isSuccessful && response.body()?.success == true) {
                             val ridesData = response.body()?.data ?: emptyList()
-
-                            // ✅ CRITICAL FIX: Filter API rides by time (within 30 mins)
-                            // This stops old requests from appearing
                             val recentRides = ridesData.filter { isRideRecent(it.requestedAt) }
 
                             val mappedRides = recentRides.map { apiRide ->
@@ -439,8 +443,6 @@ class DriverViewModel @Inject constructor(
                                     estimatedPrice = apiRide.estimatedPrice?.toString() ?: apiRide.price?.toString(),
                                     pickupLocation = apiRide.pickupLocation,
                                     dropLocation = apiRide.dropLocation,
-
-                                    // Pass date to model so we can filter in updateRideRequestsList too
                                     date = apiRide.requestedAt
                                 )
                             }
@@ -470,7 +472,6 @@ class DriverViewModel @Inject constructor(
         loc: LatLng
     ) {
         val mappedRides = ridesData.mapNotNull { ride ->
-            // ✅ Double Check: Filter by repository processed state AND time freshness
             if (ride.rideId != null &&
                 !appRepository.isRideProcessed(ride.rideId) &&
                 isRideRecent(ride.date ?: ride.createdAt)
@@ -565,17 +566,12 @@ class DriverViewModel @Inject constructor(
                 if (driverId != null) {
                     val acceptResponse = appRepository.acceptRide(ride.rideId, driverId)
                     if (acceptResponse.isSuccessful && acceptResponse.body()?.success == true) {
-
-                        // ✅ FIXED: Cancel the system notification immediately
                         NotificationUtils.cancelNotification(context, ride.rideId)
-
                         appRepository.markRideProcessed(ride.rideId)
-
                         stopLookingForRides()
                         _rideRequests.value = emptyList()
                         _selectedTab.value = "Ongoing"
                         fetchOngoingRides()
-
                     } else {
                         val errorMsg = acceptResponse.body()?.message ?: "Failed to accept ride."
                         sendEvent(UiEvent.ShowSnackbar(errorMsg))

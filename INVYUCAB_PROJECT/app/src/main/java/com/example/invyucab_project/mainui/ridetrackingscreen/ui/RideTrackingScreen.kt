@@ -10,17 +10,7 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -28,23 +18,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,18 +43,8 @@ import com.example.invyucab_project.ui.theme.CabLightGreen
 import com.example.invyucab_project.ui.theme.CabMintGreen
 import com.example.invyucab_project.ui.theme.CabPrimaryGreen
 import com.google.android.gms.maps.MapsInitializer
-import com.google.android.gms.maps.model.BitmapDescriptor
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MapStyleOptions
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.MapProperties
-import com.google.maps.android.compose.MapUiSettings
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
-import com.google.maps.android.compose.Polyline
-import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.android.gms.maps.model.*
+import com.google.maps.android.compose.*
 
 @Composable
 fun RideTrackingScreen(
@@ -93,17 +58,19 @@ fun RideTrackingScreen(
     dropLat: Double,
     dropLng: Double,
     otp: String,
+    driverPhone: String? = null,
+    riderPhone: String? = null,
     viewModel: RideTrackingViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val startRideSuccess by viewModel.startRideSuccess
 
-    // ✅ 1. Observe the Route Polyline State from ViewModel
     val routePoints by viewModel.routePolyline
+    // ✅ ADDED: Observe fetched rider phone from ViewModel
+    val fetchedRiderPhone by viewModel.riderPhone
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Map Locations
     val pickupLocation = LatLng(pickupLat, pickupLng)
     val dropLocation = LatLng(dropLat, dropLng)
 
@@ -111,12 +78,18 @@ fun RideTrackingScreen(
         position = CameraPosition.fromLatLngZoom(pickupLocation, 15.5f)
     }
 
-    // --- Assets State ---
     var mapStyleOptions by remember { mutableStateOf<MapStyleOptions?>(null) }
     var pickupIcon by remember { mutableStateOf<BitmapDescriptor?>(null) }
     var dropIcon by remember { mutableStateOf<BitmapDescriptor?>(null) }
 
-    // --- Initialization ---
+    // --- Driver OTP Input State ---
+    var otpInput by remember { mutableStateOf("") }
+
+    // ✅ ADDED: Fetch Rider Details (phone) from Firestore when screen opens
+    LaunchedEffect(riderId) {
+        viewModel.fetchRiderDetails(riderId)
+    }
+
     LaunchedEffect(Unit) {
         try {
             MapsInitializer.initialize(context)
@@ -124,10 +97,7 @@ fun RideTrackingScreen(
             dropIcon = bitmapDescriptorFromDrawable(context, R.drawable.ic_dropoff_marker)
             val json = context.resources.openRawResource(R.raw.map_style_retro).bufferedReader().use { it.readText() }
             mapStyleOptions = MapStyleOptions(json)
-
-            // ✅ 2. Trigger the API call to get the route
             viewModel.fetchRoute(pickupLat, pickupLng, dropLat, dropLng)
-
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -135,20 +105,24 @@ fun RideTrackingScreen(
 
     LaunchedEffect(startRideSuccess) {
         if (startRideSuccess) {
+            // Determines who to call on the next screen
+            // If I am driver, target is rider (try arg first, then fetched)
+            // If I am rider, target is driver
+            val targetPhoneForNextScreen = if (role == "driver") (riderPhone ?: fetchedRiderPhone) else driverPhone
+
             navController.navigate(
                 Screen.RideInProgressScreen.createRoute(
                     rideId = rideId,
                     dropLat = dropLat,
-                    dropLng = dropLng
+                    dropLng = dropLng,
+                    otp = otpInput,
+                    targetPhone = targetPhoneForNextScreen
                 )
             ) {
                 popUpTo(Screen.RideTrackingScreen.route) { inclusive = true }
             }
         }
     }
-
-    // --- Driver OTP Input State ---
-    var otpInput by remember { mutableStateOf("") }
 
     LaunchedEffect(true) {
         viewModel.eventFlow.collect { event ->
@@ -169,12 +143,7 @@ fun RideTrackingScreen(
                 .padding(paddingValues)
                 .background(Color.White)
         ) {
-            // 1. Google Map (Top 50%)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            ) {
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 GoogleMap(
                     modifier = Modifier.fillMaxSize(),
                     cameraPositionState = cameraPositionState,
@@ -184,25 +153,14 @@ fun RideTrackingScreen(
                     ),
                     uiSettings = MapUiSettings(zoomControlsEnabled = false, compassEnabled = true)
                 ) {
-                    // ✅ 3. Draw the Polyline
                     if (routePoints.isNotEmpty()) {
-                        Polyline(
-                            points = routePoints,
-                            color = CabPrimaryGreen, // Or Color.Blue / Color.Black
-                            width = 12f // Make it thick enough to see
-                        )
+                        Polyline(points = routePoints, color = CabPrimaryGreen, width = 12f)
                     }
-
-                    pickupIcon?.let { icon ->
-                        Marker(state = MarkerState(position = pickupLocation), title = "Pickup", icon = icon)
-                    }
-                    dropIcon?.let { icon ->
-                        Marker(state = MarkerState(position = dropLocation), title = "Drop", icon = icon)
-                    }
+                    pickupIcon?.let { icon -> Marker(state = MarkerState(position = pickupLocation), title = "Pickup", icon = icon) }
+                    dropIcon?.let { icon -> Marker(state = MarkerState(position = dropLocation), title = "Drop", icon = icon) }
                 }
             }
 
-            // 2. Bottom Sheet (Bottom 50%)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -212,12 +170,9 @@ fun RideTrackingScreen(
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Drag Handle
                     Box(
                         modifier = Modifier
                             .width(48.dp)
@@ -225,7 +180,6 @@ fun RideTrackingScreen(
                             .clip(RoundedCornerShape(10.dp))
                             .background(Color.LightGray.copy(alpha = 0.5f))
                     )
-
                     Spacer(modifier = Modifier.height(24.dp))
 
                     if (role == "driver") {
@@ -235,7 +189,17 @@ fun RideTrackingScreen(
                             onStartRide = { viewModel.startRide(rideId, riderId, driverId, otpInput) }
                         )
                     } else {
-                        RiderView(otp = otp, context = context)
+                        RiderView(
+                            otp = otp,
+                            context = context,
+                            onCallDriver = {
+                                if (!driverPhone.isNullOrEmpty()) {
+                                    viewModel.initiateCall(driverPhone)
+                                } else {
+                                    Toast.makeText(context, "Driver number not available", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -243,11 +207,9 @@ fun RideTrackingScreen(
     }
 }
 
-// ... (Rest of the helper functions: RiderView, DriverView, OtpInputField, bitmapDescriptorFromDrawable remain the same)
 @Composable
-fun RiderView(otp: String, context: Context) {
+fun RiderView(otp: String, context: Context, onCallDriver: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        // Status Badge
         Surface(
             color = CabMintGreen.copy(alpha = 0.2f),
             shape = RoundedCornerShape(50),
@@ -257,47 +219,18 @@ fun RiderView(otp: String, context: Context) {
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .background(CabPrimaryGreen, CircleShape)
-                )
+                Box(modifier = Modifier.size(8.dp).background(CabPrimaryGreen, CircleShape))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Driver is arriving soon",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = CabPrimaryGreen,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("Driver is arriving soon", style = MaterialTheme.typography.labelMedium, color = CabPrimaryGreen, fontWeight = FontWeight.Bold)
             }
         }
 
-        Text(
-            text = "Your Ride PIN",
-            style = MaterialTheme.typography.titleMedium,
-            color = Color.Gray,
-            letterSpacing = 1.sp
-        )
-
+        Text("Your Ride PIN", style = MaterialTheme.typography.titleMedium, color = Color.Gray, letterSpacing = 1.sp)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Large PIN Display
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = otp,
-                style = MaterialTheme.typography.displayLarge.copy(
-                    fontSize = 60.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 6.sp
-                ),
-                color = Color.Black
-            )
-
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+            Text(otp, style = MaterialTheme.typography.displayLarge.copy(fontSize = 60.sp, fontWeight = FontWeight.Bold, letterSpacing = 6.sp), color = Color.Black)
             Spacer(modifier = Modifier.width(16.dp))
-
             IconButton(
                 onClick = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -305,30 +238,19 @@ fun RiderView(otp: String, context: Context) {
                     clipboard.setPrimaryClip(clip)
                     Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
                 },
-                modifier = Modifier
-                    .background(Color.LightGray.copy(alpha = 0.2f), CircleShape)
-                    .size(44.dp)
+                modifier = Modifier.background(Color.LightGray.copy(alpha = 0.2f), CircleShape).size(44.dp)
             ) {
                 Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color.Gray)
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = "Share this code with the driver to start the ride.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 32.dp)
-        )
-
+        Text("Share this code with the driver to start the ride.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
         Spacer(modifier = Modifier.weight(1f))
 
-        // Action Buttons
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             OutlinedButton(
-                onClick = { /* Call Driver Logic */ },
+                onClick = onCallDriver,
                 modifier = Modifier.weight(1f).height(50.dp),
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, Color.LightGray)
@@ -337,12 +259,11 @@ fun RiderView(otp: String, context: Context) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Call Driver", color = Color.Black)
             }
-
             Button(
-                onClick = { /* Support Logic */ },
+                onClick = { },
                 modifier = Modifier.weight(1f).height(50.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Black) // Dark theme for secondary
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
             ) {
                 Text("Safety", color = Color.White)
             }
@@ -353,19 +274,9 @@ fun RiderView(otp: String, context: Context) {
 @Composable
 fun DriverView(otpInput: String, onOtpChange: (String) -> Unit, onStartRide: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = "Enter Rider's PIN",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black
-        )
+        Text("Enter Rider's PIN", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.Black)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Ask the rider for the 4-digit start code",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray
-        )
-
+        Text("Ask the rider for the 4-digit start code", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
         Spacer(modifier = Modifier.height(32.dp))
 
         OtpInputField(otpText = otpInput, onOtpModified = { value, _ -> if (value.length <= 4) onOtpChange(value) })
@@ -375,40 +286,25 @@ fun DriverView(otpInput: String, onOtpChange: (String) -> Unit, onStartRide: () 
         Button(
             onClick = onStartRide,
             enabled = otpInput.length == 4,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = CabPrimaryGreen,
-                disabledContainerColor = Color.LightGray
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = CabPrimaryGreen, disabledContainerColor = Color.LightGray),
+            modifier = Modifier.fillMaxWidth().height(54.dp),
             shape = RoundedCornerShape(12.dp),
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
         ) {
-            Text(
-                "START RIDE",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (otpInput.length == 4) Color.White else Color.DarkGray
-            )
+            Text("START RIDE", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = if (otpInput.length == 4) Color.White else Color.DarkGray)
         }
     }
 }
 
 @Composable
 fun OtpInputField(otpText: String, onOtpModified: (String, Boolean) -> Unit) {
-    // ✅ 1. Get the keyboard controller
     val keyboardController = LocalSoftwareKeyboardController.current
-
     BasicTextField(
         value = otpText,
         onValueChange = {
             if (it.length <= 4 && it.all { char -> char.isDigit() }) {
                 onOtpModified(it, it.length == 4)
-                // ✅ 2. Hide keyboard when 4th digit is entered
-                if (it.length == 4) {
-                    keyboardController?.hide()
-                }
+                if (it.length == 4) keyboardController?.hide()
             }
         },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
@@ -417,24 +313,13 @@ fun OtpInputField(otpText: String, onOtpModified: (String, Boolean) -> Unit) {
                 repeat(4) { index ->
                     val char = if (index < otpText.length) otpText[index].toString() else ""
                     val isFocused = otpText.length == index
-
                     val borderColor = if (isFocused) CabPrimaryGreen else Color.LightGray
                     val backgroundColor = if (isFocused) CabLightGreen.copy(alpha = 0.1f) else Color.Transparent
-
                     Box(
-                        modifier = Modifier
-                            .width(60.dp)
-                            .height(64.dp)
-                            .border(if (isFocused) 2.dp else 1.dp, borderColor, RoundedCornerShape(12.dp))
-                            .background(backgroundColor, RoundedCornerShape(12.dp)),
+                        modifier = Modifier.width(60.dp).height(64.dp).border(if (isFocused) 2.dp else 1.dp, borderColor, RoundedCornerShape(12.dp)).background(backgroundColor, RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = char,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black
-                        )
+                        Text(text = char, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.Black)
                     }
                 }
             }

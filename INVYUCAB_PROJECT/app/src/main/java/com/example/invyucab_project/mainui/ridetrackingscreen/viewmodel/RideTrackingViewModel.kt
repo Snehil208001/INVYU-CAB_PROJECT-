@@ -21,16 +21,30 @@ import javax.inject.Inject
 @HiltViewModel
 class RideTrackingViewModel @Inject constructor(
     private val appRepository: AppRepository,
-    private val getDirectionsAndRouteUseCase: GetDirectionsAndRouteUseCase // ✅ Inject UseCase
+    private val getDirectionsAndRouteUseCase: GetDirectionsAndRouteUseCase
 ) : BaseViewModel() {
 
     val startRideSuccess = mutableStateOf(false)
 
-    // ✅ State for the real route path
+    // State for the real route path
     private val _routePolyline = mutableStateOf<List<LatLng>>(emptyList())
     val routePolyline: State<List<LatLng>> = _routePolyline
 
-    // ✅ Function to fetch the real road path
+    // ✅ ADDED: State to hold the Rider's Phone Number (fetched from Firestore)
+    private val _riderPhone = mutableStateOf<String?>(null)
+    val riderPhone: State<String?> = _riderPhone
+
+    // ✅ ADDED: Function to fetch Rider Phone from Firestore
+    // This is vital because the API doesn't send the phone number
+    fun fetchRiderDetails(riderId: Int) {
+        viewModelScope.launch {
+            val phone = appRepository.getPhoneFromFirestore(riderId)
+            if (phone != null) {
+                _riderPhone.value = phone
+            }
+        }
+    }
+
     fun fetchRoute(pickupLat: Double, pickupLng: Double, dropLat: Double, dropLng: Double) {
         val origin = LatLng(pickupLat, pickupLng)
         val destination = LatLng(dropLat, dropLng)
@@ -70,6 +84,30 @@ class RideTrackingViewModel @Inject constructor(
                     sendEvent(UiEvent.ShowSnackbar(response.body()?.message ?: "Ride Started!"))
                 } else {
                     sendEvent(UiEvent.ShowSnackbar(response.body()?.message ?: "Failed"))
+                }
+            } catch (e: Exception) {
+                sendEvent(UiEvent.ShowSnackbar("Error: ${e.message}"))
+            }
+        }
+    }
+
+    // ✅ UPDATED: Function to call the other party
+    // Handles case where phone number was not passed via navigation
+    fun initiateCall(targetPhone: String?) {
+        val phoneToCall = targetPhone ?: _riderPhone.value // Use fetched phone if arg is null
+
+        if (phoneToCall.isNullOrEmpty()) {
+            sendEvent(UiEvent.ShowSnackbar("Rider number not available"))
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = appRepository.initiateCall(phoneToCall)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    sendEvent(UiEvent.ShowSnackbar("Connecting Call..."))
+                } else {
+                    sendEvent(UiEvent.ShowSnackbar("Call Failed: ${response.body()?.message ?: response.message()}"))
                 }
             } catch (e: Exception) {
                 sendEvent(UiEvent.ShowSnackbar("Error: ${e.message}"))

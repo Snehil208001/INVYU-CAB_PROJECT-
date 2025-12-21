@@ -31,4 +31,17 @@ class RideInProgressViewModel @Inject constructor(
             }
         }
     }
+
+    // ✅ ADDED: Function to call the other party
+    fun initiateCall(targetPhone: String) {
+        viewModelScope.launch {
+            try {
+                // We don't need to observe this heavily in UI, just fire and forget or show a toast via repository logic if needed.
+                // ideally, add a SharedFlow for Events like "ShowSnackbar" similar to RideTrackingViewModel
+                repository.initiateCall(targetPhone)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 }

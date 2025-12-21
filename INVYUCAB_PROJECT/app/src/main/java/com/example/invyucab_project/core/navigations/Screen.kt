@@ -4,10 +4,50 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
 sealed class Screen(val route: String) {
+    // ... (Keep other screens as they are) ...
+
     object OnboardingScreen : Screen("onboarding_screen")
     object AuthScreen : Screen("auth_screen")
     object SplashScreenLoggedIn : Screen("splash_screen_logged_in")
 
+    // ... (Keep OtpScreen, UserDetailsScreen, etc. as they are) ...
+
+    // ✅ 1. UPDATE RideTrackingScreen Route
+    object RideTrackingScreen : Screen("ride_tracking_screen/{rideId}/{riderId}/{driverId}/{role}?pickupLat={pickupLat}&pickupLng={pickupLng}&dropLat={dropLat}&dropLng={dropLng}&otp={otp}&driverPhone={driverPhone}&riderPhone={riderPhone}") {
+        fun createRoute(
+            rideId: Int,
+            riderId: Int,
+            driverId: Int,
+            role: String,
+            pickupLat: Double,
+            pickupLng: Double,
+            dropLat: Double,
+            dropLng: Double,
+            otp: String = "1234",
+            driverPhone: String? = null,
+            riderPhone: String? = null
+        ): String {
+            val dPhone = driverPhone ?: ""
+            val rPhone = riderPhone ?: ""
+            return "ride_tracking_screen/$rideId/$riderId/$driverId/$role?pickupLat=$pickupLat&pickupLng=$pickupLng&dropLat=$dropLat&dropLng=$dropLng&otp=$otp&driverPhone=$dPhone&riderPhone=$rPhone"
+        }
+    }
+
+    // ✅ 2. UPDATE RideInProgressScreen Route (Added OTP and TargetPhone)
+    object RideInProgressScreen : Screen("ride_in_progress_screen/{rideId}/{dropLat}/{dropLng}?otp={otp}&targetPhone={targetPhone}") {
+        fun createRoute(
+            rideId: Int,
+            dropLat: Double,
+            dropLng: Double,
+            otp: String,
+            targetPhone: String? = null
+        ): String {
+            val tPhone = targetPhone ?: ""
+            return "ride_in_progress_screen/$rideId/${dropLat.toFloat()}/${dropLng.toFloat()}?otp=$otp&targetPhone=$tPhone"
+        }
+    }
+
+    // ... (Keep rest of file unchanged) ...
     object OtpScreen :
         Screen("otp_screen/{phone}/{isSignUp}/{role}?name={name}&gender={gender}&dob={dob}&license={license}&aadhaar={aadhaar}&vehicleNumber={vehicleNumber}&vehicleModel={vehicleModel}&vehicleType={vehicleType}&vehicleColor={vehicleColor}&vehicleCapacity={vehicleCapacity}") {
         fun createRoute(
@@ -135,22 +175,6 @@ sealed class Screen(val route: String) {
         }
     }
 
-    object RideTrackingScreen : Screen("ride_tracking_screen/{rideId}/{riderId}/{driverId}/{role}?pickupLat={pickupLat}&pickupLng={pickupLng}&dropLat={dropLat}&dropLng={dropLng}&otp={otp}") {
-        fun createRoute(
-            rideId: Int,
-            riderId: Int,
-            driverId: Int,
-            role: String,
-            pickupLat: Double,
-            pickupLng: Double,
-            dropLat: Double,
-            dropLng: Double,
-            otp: String = "1234"
-        ): String {
-            return "ride_tracking_screen/$rideId/$riderId/$driverId/$role?pickupLat=$pickupLat&pickupLng=$pickupLng&dropLat=$dropLat&dropLng=$dropLng&otp=$otp"
-        }
-    }
-
     object BookingDetailScreen : Screen("booking_detail_screen/{driverName}/{vehicleModel}/{otp}/{rideId}/{riderId}/{driverId}/{role}?pickupLat={pickupLat}&pickupLng={pickupLng}&dropLat={dropLat}&dropLng={dropLng}") {
         fun createRoute(
             driverName: String,
@@ -170,16 +194,6 @@ sealed class Screen(val route: String) {
             val encodedOtp = URLEncoder.encode(otp, StandardCharsets.UTF_8.toString())
 
             return "booking_detail_screen/$encodedName/$encodedModel/$encodedOtp/$rideId/$riderId/$driverId/$role?pickupLat=$pickupLat&pickupLng=$pickupLng&dropLat=$dropLat&dropLng=$dropLng"
-        }
-    }
-
-    object RideInProgressScreen : Screen("ride_in_progress_screen/{rideId}/{dropLat}/{dropLng}") {
-        fun createRoute(
-            rideId: Int,
-            dropLat: Double,
-            dropLng: Double
-        ): String {
-            return "ride_in_progress_screen/$rideId/${dropLat.toFloat()}/${dropLng.toFloat()}"
         }
     }
 }

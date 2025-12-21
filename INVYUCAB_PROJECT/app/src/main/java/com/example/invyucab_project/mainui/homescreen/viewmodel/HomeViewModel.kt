@@ -11,6 +11,7 @@ import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
+import com.example.invyucab_project.data.repository.AppRepository
 import com.example.invyucab_project.domain.model.AutocompletePrediction
 import com.example.invyucab_project.domain.model.HomeUiState
 import com.example.invyucab_project.domain.model.RecentRide
@@ -36,6 +37,7 @@ class HomeViewModel @Inject constructor(
     private val locationManager: LocationManager,
     private val getRideHistoryUseCase: GetRideHistoryUseCase,
     private val userPreferencesRepository: UserPreferencesRepository,
+    private val appRepository: AppRepository,
     private val application: Application
 ) : BaseViewModel() {
 
@@ -47,7 +49,16 @@ class HomeViewModel @Inject constructor(
     init {
         getCurrentLocation()
         fetchRecentRides()
+        // ✅ ADDED: Sync user to Firestore on launch
+        syncFirestore()
     }
+
+    private fun syncFirestore() {
+        viewModelScope.launch {
+            appRepository.syncCurrentUserToFirestore()
+        }
+    }
+
 
     private fun isLocationEnabled(): Boolean {
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
@@ -162,15 +173,14 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    // ✅ ADDED: Handle click on recent ride
     fun onRecentRideClicked(ride: RecentRide) {
         viewModelScope.launch {
             sendEvent(
                 UiEvent.Navigate(
                     Screen.RideSelectionScreen.createRoute(
-                        dropPlaceId = "", // ✅ Fixed: Empty string prevents API call for "recent_ride"
+                        dropPlaceId = "",
                         dropDescription = ride.dropAddress,
-                        pickupPlaceId = "", // ✅ Fixed: Empty string prevents API call for "recent_ride"
+                        pickupPlaceId = "",
                         pickupDescription = ride.pickupAddress,
                         pickupLat = ride.pickupLat,
                         pickupLng = ride.pickupLng,
@@ -182,7 +192,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    // --- Search Logic (Unchanged) ---
+    // --- Search Logic ---
 
     fun onPickupQueryChange(query: String) {
         _uiState.update { it.copy(pickupQuery = query, activeField = SearchField.PICKUP) }

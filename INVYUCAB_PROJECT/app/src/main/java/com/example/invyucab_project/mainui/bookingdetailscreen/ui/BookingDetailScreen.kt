@@ -258,7 +258,17 @@ fun BookingDetailScreen(
                             vehicleModel = rideItem.model ?: "Cab",
                             userPin = rideItem.userPin?.toString() ?: "----",
                             pickupAddress = rideItem.pickupAddress ?: "Address not available",
-                            onTripDetailsClick = { showTripDetailsSheet = true }
+                            onTripDetailsClick = { showTripDetailsSheet = true },
+                            // ✅ ADDED: Calling Logic
+                            onCallClick = {
+                                val phone = rideItem.driverPhone
+                                if (!phone.isNullOrEmpty()) {
+                                    Toast.makeText(context, "Calling Driver...", Toast.LENGTH_SHORT).show()
+                                    viewModel.initiateCall(phone)
+                                } else {
+                                    Toast.makeText(context, "Driver number not available", Toast.LENGTH_SHORT).show()
+                                }
+                            }
                         )
 
                         // --- 4. Trip Details Bottom Sheet Overlay ---
@@ -481,7 +491,9 @@ fun RideDetailsBottomCard(
     vehicleModel: String,
     userPin: String,
     pickupAddress: String,
-    onTripDetailsClick: () -> Unit
+    onTripDetailsClick: () -> Unit,
+    // ✅ ADDED Callback
+    onCallClick: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     var replyText by remember { mutableStateOf("") }
@@ -574,7 +586,7 @@ fun RideDetailsBottomCard(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 IconButton(
-                    onClick = { /* TODO */ },
+                    onClick = onCallClick, // ✅ Trigger Call
                     modifier = Modifier
                         .size(40.dp)
                         .background(Color(0xFF4CAF50), CircleShape)

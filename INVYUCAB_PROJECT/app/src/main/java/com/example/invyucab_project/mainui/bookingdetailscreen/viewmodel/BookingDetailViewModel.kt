@@ -32,8 +32,8 @@ import javax.inject.Inject
 class BookingDetailViewModel @Inject constructor(
     private val getOngoingRideUseCase: GetOngoingRideUseCase,
     private val getDirectionsAndRouteUseCase: GetDirectionsAndRouteUseCase,
-    private val createRideUseCase: CreateRideUseCase, // ✅ Added for re-booking
-    private val userPreferencesRepository: UserPreferencesRepository, // ✅ Added for userId
+    private val createRideUseCase: CreateRideUseCase,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val repository: AppRepository,
     private val application: Application
 ) : ViewModel() {
@@ -44,11 +44,11 @@ class BookingDetailViewModel @Inject constructor(
     private val _routePolyline = MutableStateFlow<List<LatLng>>(emptyList())
     val routePolyline: StateFlow<List<LatLng>> = _routePolyline.asStateFlow()
 
-    // ✅ State for Cancel Ride
+    // State for Cancel Ride
     private val _cancelRideState = MutableStateFlow<Resource<Unit>?>(null)
     val cancelRideState: StateFlow<Resource<Unit>?> = _cancelRideState.asStateFlow()
 
-    // ✅ New Navigation Events
+    // New Navigation Events
     sealed class BookingNavigationEvent {
         object NavigateHome : BookingNavigationEvent()
         data class NavigateToSearching(
@@ -72,7 +72,6 @@ class BookingDetailViewModel @Inject constructor(
 
     fun fetchOngoingRide(rideId: Int) {
         viewModelScope.launch {
-            // FIX: Only show loading if we don't have data yet to prevent flickering during polling
             if (_rideState.value !is Resource.Success) {
                 _rideState.value = Resource.Loading()
             }
@@ -80,25 +79,35 @@ class BookingDetailViewModel @Inject constructor(
                 val response = getOngoingRideUseCase(rideId)
                 if (response.isSuccessful && response.body() != null) {
                     var responseBody = response.body()!!
+
+                    // Update data with Address and fetch missing Driver Phone
                     val updatedData = responseBody.data?.map { ride ->
                         val finalPickup = if (ride.pickupAddress.isNullOrEmpty()) getAddressFromLatLng(ride.pickupLatitude, ride.pickupLongitude) else ride.pickupAddress
                         val finalDrop = if (ride.dropAddress.isNullOrEmpty()) getAddressFromLatLng(ride.dropLatitude, ride.dropLongitude) else ride.dropAddress
-                        ride.copy(pickupAddress = finalPickup, dropAddress = finalDrop)
+
+                        // ✅ FIX: Check if driver_phone is missing and fetch from Firestore using driver_id
+                        var driverPhone = ride.driverPhone
+                        if (driverPhone.isNullOrEmpty() && ride.driverId != null) {
+                            driverPhone = repository.getPhoneFromFirestore(ride.driverId)
+                        }
+
+                        ride.copy(
+                            pickupAddress = finalPickup,
+                            dropAddress = finalDrop,
+                            driverPhone = driverPhone
+                        )
                     }
                     responseBody = responseBody.copy(data = updatedData)
                     _rideState.value = Resource.Success(responseBody)
 
                     val rideItem = responseBody.data?.firstOrNull()
                     if (rideItem != null) {
-                        // ✅ Handle Status Changes
                         if (rideItem.status == "completed") {
                             _navigationEvent.emit(BookingNavigationEvent.NavigateHome)
                         } else if (rideItem.status == "cancelled") {
                             if (isRiderCancelling) {
-                                // Rider initiated cancellation -> Go Home
                                 _navigationEvent.emit(BookingNavigationEvent.NavigateHome)
                             } else {
-                                // Driver initiated cancellation -> Auto Rebook
                                 if (!isRebooking) {
                                     isRebooking = true
                                     rebookRide(rideItem)
@@ -119,35 +128,42 @@ class BookingDetailViewModel @Inject constructor(
         }
     }
 
-    // ✅ FIXED: Cancel Ride with correct status string and flag
     fun cancelRide(rideId: Int) {
-        isRiderCancelling = true // ✅ Flag that rider is cancelling
+        isRiderCancelling = true
         viewModelScope.launch {
             _cancelRideState.value = Resource.Loading()
             try {
                 Log.d("BookingDetailVM", "Attempting to cancel ride: $rideId")
-                // Sending "cancelled" (lowercase) as required by API
                 val response = repository.updateRideStatus(rideId, "cancelled")
 
                 if (response.isSuccessful) {
                     Log.d("BookingDetailVM", "Cancellation Successful: ${response.body()}")
                     _cancelRideState.value = Resource.Success(Unit)
-                    // Navigation will be handled by UI observing cancelRideState or navigationEvent
                 } else {
                     val error = response.errorBody()?.string() ?: response.message()
                     Log.e("BookingDetailVM", "Cancellation Failed: $error")
                     _cancelRideState.value = Resource.Error("Failed: $error")
-                    isRiderCancelling = false // Reset on failure
+                    isRiderCancelling = false
                 }
             } catch (e: Exception) {
                 Log.e("BookingDetailVM", "Exception cancelling ride", e)
                 _cancelRideState.value = Resource.Error(e.message ?: "Network error")
-                isRiderCancelling = false // Reset on failure
+                isRiderCancelling = false
             }
         }
     }
 
-    // ✅ Logic to Rebook Ride automatically
+    // ✅ ADDED: Function to initiate call
+    fun initiateCall(driverPhone: String) {
+        viewModelScope.launch {
+            try {
+                repository.initiateCall(driverPhone)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     private fun rebookRide(oldRide: RiderOngoingRideItem) {
         viewModelScope.launch {
             try {
@@ -191,14 +207,12 @@ class BookingDetailViewModel @Inject constructor(
                                 dropLng = dropLng,
                                 pickupAddress = oldRide.pickupAddress ?: "",
                                 dropAddress = oldRide.dropAddress ?: "",
-                                dropPlaceId = "" // Place ID might be lost, rely on coords
+                                dropPlaceId = ""
                             ))
                         } else {
-                            // Fallback if rebooking fails parsing
                             _navigationEvent.emit(BookingNavigationEvent.NavigateHome)
                         }
                     } else if (result is Resource.Error) {
-                        // Fallback if rebooking API fails
                         _navigationEvent.emit(BookingNavigationEvent.NavigateHome)
                     }
                 }

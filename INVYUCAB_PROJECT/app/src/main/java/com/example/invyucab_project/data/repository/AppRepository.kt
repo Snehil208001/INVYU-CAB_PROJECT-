@@ -6,6 +6,7 @@ import com.example.invyucab_project.data.api.GoogleMapsApiService
 import com.example.invyucab_project.data.models.*
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CoroutineScope
@@ -18,6 +19,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import okhttp3.ResponseBody
 import retrofit2.Response
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,10 +37,10 @@ class AppRepository @Inject constructor(
     private val _fcmMessages = MutableSharedFlow<RemoteMessage>(extraBufferCapacity = 10)
     val fcmMessages: SharedFlow<RemoteMessage> = _fcmMessages.asSharedFlow()
 
-    // ✅ NEW: Track processed rides to prevent duplicate notifications globally
+    // Track processed rides to prevent duplicate notifications globally
     private val _processedRideIds = mutableSetOf<Int>()
 
-    // ✅ NEW: Event to tell ViewModel to switch tabs
+    // Event to tell ViewModel to switch tabs
     private val _rideAcceptedEvent = MutableSharedFlow<Unit>(replay = 1)
     val rideAcceptedEvent: SharedFlow<Unit> = _rideAcceptedEvent.asSharedFlow()
 
@@ -46,20 +49,101 @@ class AppRepository @Inject constructor(
         _fcmMessages.emit(message)
     }
 
-    // ✅ Mark ride as processed so it doesn't ring again
+    // Mark ride as processed so it doesn't ring again
     fun markRideProcessed(rideId: Int) {
         _processedRideIds.add(rideId)
     }
 
-    // ✅ Check if ride is already handled
+    // Check if ride is already handled
     fun isRideProcessed(rideId: Int): Boolean {
         return _processedRideIds.contains(rideId)
     }
 
-    // ✅ Trigger navigation to Ongoing tab
+    // Trigger navigation to Ongoing tab
     fun triggerRideAcceptedNavigation() {
         _rideAcceptedEvent.tryEmit(Unit)
     }
+
+    // -------------------------------------------------------------------------
+    // ✅ FIRESTORE USER DIRECTORY LOGIC
+    // -------------------------------------------------------------------------
+
+    // 1. Save User to Firestore (so others can find their phone number)
+    suspend fun saveUserToFirestore(userId: Int, phoneNumber: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                val userMap = hashMapOf(
+                    "user_id" to userId,
+                    "phone_number" to phoneNumber
+                )
+                // Use userId as document ID for O(1) lookup speed
+                firestore.collection("users")
+                    .document(userId.toString())
+                    .set(userMap, SetOptions.merge())
+                    .await()
+                Log.d("AppRepository", "✅ Synced user $userId to Firestore: $phoneNumber")
+            } catch (e: Exception) {
+                Log.e("AppRepository", "❌ Failed to sync user to Firestore", e)
+            }
+        }
+    }
+
+    // 2. Sync Current User (Called on App Launch)
+    suspend fun syncCurrentUserToFirestore() {
+        val userId = userPreferencesRepository.getUserId()?.toIntOrNull()
+        val phone = userPreferencesRepository.getPhoneNumber()
+        if (userId != null && !phone.isNullOrEmpty()) {
+            saveUserToFirestore(userId, phone)
+        }
+    }
+
+    // 3. Fetch Phone Number from Firestore (Used when calling)
+    suspend fun getPhoneFromFirestore(userId: Int): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Try direct lookup by ID first
+                val docSnap = firestore.collection("users")
+                    .document(userId.toString())
+                    .get()
+                    .await()
+
+                if (docSnap.exists()) {
+                    val phone = docSnap.getString("phone_number")
+                        ?: docSnap.getString("phoneNumber")
+                    Log.d("AppRepository", "✅ Fetched phone for $userId: $phone")
+                    return@withContext phone
+                } else {
+                    // Fallback query if document ID isn't matching
+                    val querySnap = firestore.collection("users")
+                        .whereEqualTo("user_id", userId)
+                        .get()
+                        .await()
+                    if (!querySnap.isEmpty) {
+                        return@withContext querySnap.documents[0].getString("phone_number")
+                    }
+                }
+                null
+            } catch (e: Exception) {
+                Log.e("AppRepository", "❌ Error fetching phone for user $userId", e)
+                null
+            }
+        }
+    }
+
+    // 4. Initiate Call via Twilio
+    suspend fun initiateCall(targetPhoneNumber: String): Response<InitiateCallResponse> {
+        val currentUserPhone = userPreferencesRepository.getPhoneNumber() ?: ""
+
+        if (currentUserPhone.isEmpty() || targetPhoneNumber.isEmpty()) {
+            return Response.error(400, ResponseBody.create(null, "Missing phone numbers. Me: $currentUserPhone, Target: $targetPhoneNumber"))
+        }
+
+        val url = "https://cab-masked-calling-2047.twil.io/initiate-call"
+        val request = InitiateCallRequest(fromNumber = currentUserPhone, toNumber = targetPhoneNumber)
+        return customApiService.initiateCall(url, request)
+    }
+
+    // -------------------------------------------------------------------------
 
     fun listenForRealtimeRides(): Flow<List<DriverUpcomingRideItem>> = callbackFlow {
         val listener = firestore.collection("ride_requests")
@@ -74,14 +158,14 @@ class AppRepository @Inject constructor(
                 if (snapshot != null) {
                     val rides = snapshot.documents.mapNotNull { doc ->
                         try {
-                            // ✅ FIX: Robust Price Fetching (Checks snake_case AND camelCase)
+                            // Robust Price Fetching (Checks snake_case AND camelCase)
                             val priceVal = doc.get("estimatedPrice")
-                                ?: doc.get("estimated_price") // Check snake_case
+                                ?: doc.get("estimated_price")
                                 ?: doc.get("price")
                                 ?: doc.get("totalPrice")
-                                ?: doc.get("total_price") // Check snake_case
+                                ?: doc.get("total_price")
                                 ?: doc.get("totalAmount")
-                                ?: doc.get("total_amount") // Check snake_case
+                                ?: doc.get("total_amount")
                                 ?: doc.get("fare")
                                 ?: doc.get("amount")
 
@@ -97,7 +181,7 @@ class AppRepository @Inject constructor(
                                 dropLatitude = doc.getString("dropLatitude") ?: doc.getString("drop_latitude"),
                                 dropLongitude = doc.getString("dropLongitude") ?: doc.getString("drop_longitude"),
 
-                                // ✅ Assign the found price value (converted to String)
+                                // Assign the found price value (converted to String)
                                 estimatedPrice = priceVal?.toString(),
 
                                 status = doc.getString("status"),
@@ -153,11 +237,23 @@ class AppRepository @Inject constructor(
 
     suspend fun checkUser(phoneNumber: String): Response<CheckUserResponse> {
         val request = CheckUserRequest(phoneNumber = phoneNumber)
-        return customApiService.checkUser(request)
+        val response = customApiService.checkUser(request)
+
+        // ✅ ADDED: Auto-sync on successful login
+        if (response.isSuccessful && response.body()?.existingUser != null) {
+            val user = response.body()!!.existingUser!!
+            saveUserToFirestore(user.userId, user.phoneNumber)
+        }
+        return response
     }
 
     suspend fun createUser(request: CreateUserRequest): CreateUserResponse {
-        return customApiService.createUser(request)
+        val response = customApiService.createUser(request)
+
+        // ✅ ADDED: Auto-sync on successful signup
+        saveUserToFirestore(response.userId, request.phoneNumber)
+
+        return response
     }
 
     suspend fun addVehicle(request: AddVehicleRequest): AddVehicleResponse {

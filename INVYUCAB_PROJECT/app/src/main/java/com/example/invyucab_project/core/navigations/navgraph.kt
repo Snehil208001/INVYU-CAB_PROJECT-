@@ -41,6 +41,7 @@ fun NavGraph(
         navController = navController,
         startDestination = startDestination
     ) {
+        // ... (Keep existing screens: SplashScreenLoggedIn, OnboardingScreen, etc.) ...
         composable(Screen.SplashScreenLoggedIn.route) { SplashScreenLoggedIn(navController = navController) }
         composable(Screen.OnboardingScreen.route) { OnboardingScreen(navController = navController) }
         composable(Screen.AuthScreen.route) { AuthScreen(navController = navController) }
@@ -95,8 +96,6 @@ fun NavGraph(
         composable(Screen.PaymentMethodScreen.route) { PaymentMethodScreen(navController = navController) }
         composable(Screen.RideHistoryScreen.route) { RideHistoryScreen(navController = navController) }
 
-        // ✅ FIXED: Removed duplicate query parameters.
-        // Screen.RideSelectionScreen.route ALREADY contains "?dropPlaceId={dropPlaceId}..."
         composable(
             route = Screen.RideSelectionScreen.route,
             arguments = listOf(
@@ -148,7 +147,10 @@ fun NavGraph(
                 navArgument("pickupLng") { type = NavType.FloatType },
                 navArgument("dropLat") { type = NavType.FloatType },
                 navArgument("dropLng") { type = NavType.FloatType },
-                navArgument("otp") { type = NavType.StringType }
+                navArgument("otp") { type = NavType.StringType },
+                // ✅ ADDED: Capture optional phone parameters
+                navArgument("driverPhone") { type = NavType.StringType; defaultValue = "" },
+                navArgument("riderPhone") { type = NavType.StringType; defaultValue = "" }
             )
         ) { backStackEntry ->
             val rideId = backStackEntry.arguments?.getInt("rideId") ?: 0
@@ -160,6 +162,9 @@ fun NavGraph(
             val dropLat = backStackEntry.arguments?.getFloat("dropLat")?.toDouble() ?: 0.0
             val dropLng = backStackEntry.arguments?.getFloat("dropLng")?.toDouble() ?: 0.0
             val otp = backStackEntry.arguments?.getString("otp") ?: ""
+            // ✅ RETRIEVE: Get optional phone numbers
+            val driverPhone = backStackEntry.arguments?.getString("driverPhone").takeIf { !it.isNullOrEmpty() }
+            val riderPhone = backStackEntry.arguments?.getString("riderPhone").takeIf { !it.isNullOrEmpty() }
 
             RideTrackingScreen(
                 navController = navController,
@@ -171,7 +176,9 @@ fun NavGraph(
                 pickupLng = pickupLng,
                 dropLat = dropLat,
                 dropLng = dropLng,
-                otp = otp
+                otp = otp,
+                driverPhone = driverPhone, // Pass to screen
+                riderPhone = riderPhone    // Pass to screen
             )
         }
 
@@ -204,20 +211,25 @@ fun NavGraph(
                 navArgument("rideId") { type = NavType.IntType },
                 navArgument("dropLat") { type = NavType.FloatType },
                 navArgument("dropLng") { type = NavType.FloatType },
-                navArgument("otp") { type = NavType.StringType; defaultValue = "" }
+                navArgument("otp") { type = NavType.StringType; defaultValue = "" },
+                // ✅ ADDED: Capture optional target phone
+                navArgument("targetPhone") { type = NavType.StringType; defaultValue = "" }
             )
         ) { backStackEntry ->
             val rideId = backStackEntry.arguments?.getInt("rideId") ?: 0
             val dropLat = backStackEntry.arguments?.getFloat("dropLat")?.toDouble() ?: 0.0
             val dropLng = backStackEntry.arguments?.getFloat("dropLng")?.toDouble() ?: 0.0
             val otp = backStackEntry.arguments?.getString("otp") ?: ""
+            // ✅ RETRIEVE: Get optional phone number
+            val targetPhone = backStackEntry.arguments?.getString("targetPhone").takeIf { !it.isNullOrEmpty() }
 
             RideInProgressScreen(
                 navController = navController,
                 rideId = rideId,
                 dropLat = dropLat,
                 dropLng = dropLng,
-                otp = otp
+                otp = otp,
+                targetPhone = targetPhone // Pass to screen
             )
         }
     }

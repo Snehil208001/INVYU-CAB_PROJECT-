@@ -2,6 +2,7 @@ package com.example.invyucab_project.mainui.rideinprogressscreen.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -40,7 +41,9 @@ fun RideInProgressScreen(
     rideId: Int,
     dropLat: Double,
     dropLng: Double,
-    otp: String, // ✅ Added 'otp' parameter to fix the error
+    otp: String,
+    // ✅ ADDED: Phone number of the other party (Rider or Driver)
+    targetPhone: String? = null,
     viewModel: RideInProgressViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -197,7 +200,15 @@ fun RideInProgressScreen(
                         // Action Buttons
                         Row {
                             IconButton(
-                                onClick = { },
+                                onClick = {
+                                    // ✅ ADDED: Calling Logic
+                                    if (!targetPhone.isNullOrEmpty()) {
+                                        viewModel.initiateCall(targetPhone)
+                                        Toast.makeText(context, "Calling...", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Number not available", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
                                 modifier = Modifier
                                     .background(CabLightGreen, CircleShape)
                                     .size(45.dp)
