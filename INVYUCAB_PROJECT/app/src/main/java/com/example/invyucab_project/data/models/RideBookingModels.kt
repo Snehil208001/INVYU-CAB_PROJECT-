@@ -89,8 +89,7 @@ data class OngoingRideItem(
     @Json(name = "pickup_longitude") val pickupLongitude: String? = null,
     @Json(name = "drop_latitude") val dropLatitude: String? = null,
     @Json(name = "drop_longitude") val dropLongitude: String? = null,
-    // ✅ ADDED: Field for calling rider
-    @Json(name = "rider_phone") val riderPhone: String? = null
+    @Json(name = "rider_mobile_number") val riderMobileNumber: String? = null
 )
 
 // --- Start Ride Models ---
@@ -158,8 +157,9 @@ data class RiderOngoingRideItem(
     @Json(name = "pickup_address") val pickupAddress: String? = null,
     @Json(name = "drop_address") val dropAddress: String? = null,
     @Json(name = "estimated_price") val estimatedPrice: String? = null,
-    // ✅ ADDED: Field for calling driver
-    @Json(name = "driver_phone") val driverPhone: String? = null
+    @Json(name = "driver_phone") val driverPhone: String? = null,
+    // ✅ ADDED: This field was missing, causing the error
+    @Json(name = "rider_mobile_number") val riderMobileNumber: String? = null
 )
 
 // --- Local Data Models ---

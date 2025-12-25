@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.R
+import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.rideinprogressscreen.viewmodel.RideInProgressViewModel
 import com.example.invyucab_project.ui.theme.CabLightGreen
@@ -34,6 +35,7 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
+import kotlinx.coroutines.delay
 
 @Composable
 fun RideInProgressScreen(
@@ -42,11 +44,12 @@ fun RideInProgressScreen(
     dropLat: Double,
     dropLng: Double,
     otp: String,
-    // ✅ ADDED: Phone number of the other party (Rider or Driver)
+    // Phone number of the other party (Rider or Driver) - fallback
     targetPhone: String? = null,
     viewModel: RideInProgressViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val rideState by viewModel.rideState.collectAsState()
 
     // --- Helper Function to Open Google Maps Navigation ---
     fun openGoogleMaps() {
@@ -68,6 +71,14 @@ fun RideInProgressScreen(
     // Automatically Open Maps on Screen Entry
     LaunchedEffect(Unit) {
         openGoogleMaps()
+    }
+
+    // Poll the server to get fresh ride details (specifically rider phone number)
+    LaunchedEffect(key1 = rideId) {
+        while (true) {
+            viewModel.fetchOngoingRide(rideId)
+            delay(4000)
+        }
     }
 
     // Map State
@@ -153,7 +164,7 @@ fun RideInProgressScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        // ✅ Displaying the OTP here
+                        // Displaying the OTP here
                         text = "PIN: $otp • NAVIGATE",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
@@ -201,10 +212,24 @@ fun RideInProgressScreen(
                         Row {
                             IconButton(
                                 onClick = {
-                                    // ✅ ADDED: Calling Logic
-                                    if (!targetPhone.isNullOrEmpty()) {
-                                        viewModel.initiateCall(targetPhone)
-                                        Toast.makeText(context, "Calling...", Toast.LENGTH_SHORT).show()
+                                    // Use the phone number from API if available, else fallback
+                                    var phoneToCall = targetPhone
+                                    if (rideState is Resource.Success) {
+                                        // ✅ This line will now compile correctly
+                                        val fetchedPhone = (rideState as Resource.Success).data?.data?.firstOrNull()?.riderMobileNumber
+                                        if (!fetchedPhone.isNullOrEmpty()) {
+                                            phoneToCall = fetchedPhone
+                                        }
+                                    }
+
+                                    if (!phoneToCall.isNullOrEmpty()) {
+                                        try {
+                                            val intent = Intent(Intent.ACTION_DIAL)
+                                            intent.data = Uri.parse("tel:$phoneToCall")
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Unable to make call", Toast.LENGTH_SHORT).show()
+                                        }
                                     } else {
                                         Toast.makeText(context, "Number not available", Toast.LENGTH_SHORT).show()
                                     }

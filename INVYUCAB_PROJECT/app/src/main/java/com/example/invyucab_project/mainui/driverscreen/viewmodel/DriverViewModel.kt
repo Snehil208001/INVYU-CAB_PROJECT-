@@ -51,7 +51,8 @@ data class RideRequestItem(
     val pickupAddress: String,
     val dropAddress: String,
     val pickupDistance: String = "0 km",
-    val tripDistance: String = "0 km"
+    val tripDistance: String = "0 km",
+    val riderPhone: String? = null
 )
 
 data class RideHistoryUiModel(
@@ -128,7 +129,7 @@ class DriverViewModel @Inject constructor(
             }
         }
 
-        // ✅ ADDED: Sync Driver to Firestore on launch
+        // Sync Driver to Firestore on launch
         syncFirestore()
     }
 
@@ -352,7 +353,9 @@ class DriverViewModel @Inject constructor(
                                         pickupAddress = pickup,
                                         dropAddress = drop,
                                         pickupDistance = distDriverToPickup,
-                                        tripDistance = distTrip
+                                        tripDistance = distTrip,
+                                        // ✅ MAPPED: Rider Phone from API (rider_mobile_number)
+                                        riderPhone = item.riderMobileNumber
                                     )
                                 )
                             }
@@ -501,7 +504,8 @@ class DriverViewModel @Inject constructor(
                     pickupAddress = finalPickupAddress,
                     dropAddress = finalDropAddress,
                     pickupDistance = distDriverToPickup,
-                    tripDistance = distTrip
+                    tripDistance = distTrip,
+                    riderPhone = null // Phone usually not available for upcoming/requested rides
                 )
             } else null
         }.reversed()

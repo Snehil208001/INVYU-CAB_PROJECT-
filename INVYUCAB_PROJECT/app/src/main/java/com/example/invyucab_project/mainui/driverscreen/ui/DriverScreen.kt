@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.History
@@ -83,7 +84,7 @@ fun DriverScreen(
     val totalRides by viewModel.totalRides.collectAsState()
     val ongoingRides by viewModel.ongoingRides.collectAsState()
 
-    // ✅ FIXED: Observe tab state from ViewModel instead of local state for reliable navigation
+    // Observe tab state from ViewModel instead of local state for reliable navigation
     val selectedTab by viewModel.selectedTab.collectAsState()
 
     val context = LocalContext.current
@@ -327,6 +328,21 @@ fun DriverScreen(
                                                 } catch (e: Exception) {
                                                     Toast.makeText(context, "Google Maps not installed", Toast.LENGTH_SHORT).show()
                                                 }
+                                            },
+                                            // Handle Call
+                                            onCallClick = {
+                                                val phone = ride.riderPhone
+                                                if (!phone.isNullOrEmpty()) {
+                                                    try {
+                                                        val intent = Intent(Intent.ACTION_DIAL)
+                                                        intent.data = Uri.parse("tel:$phone")
+                                                        context.startActivity(intent)
+                                                    } catch (e: Exception) {
+                                                        Toast.makeText(context, "Unable to make call", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                } else {
+                                                    Toast.makeText(context, "Rider number not available", Toast.LENGTH_SHORT).show()
+                                                }
                                             }
                                         )
                                     }
@@ -435,13 +451,14 @@ fun OngoingRideCard(
     ride: RideRequestItem,
     onAccept: () -> Unit,
     onCancel: () -> Unit,
-    onClick: () -> Unit // ✅ New callback for handling card click
+    onClick: () -> Unit,
+    onCallClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)
-            .clickable { onClick() }, // ✅ Trigger navigation on click
+            .clickable { onClick() }, // Trigger navigation on click
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(16.dp)
@@ -459,16 +476,25 @@ fun OngoingRideCard(
                     color = CabMintGreen,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    text = "Ride #${ride.rideId}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
+                // ✅ UPDATED: Removed Ride Number Text, kept Call Icon
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onCallClick,
+                        modifier = Modifier.size(32.dp).background(CabMintGreen, CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Call,
+                            contentDescription = "Call Rider",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
 
             Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = Color.LightGray)
 
-            // ✅ Visible Pickup
+            // Visible Pickup
             Row(
                 verticalAlignment = Alignment.Top,
                 modifier = Modifier.fillMaxWidth()
@@ -499,7 +525,7 @@ fun OngoingRideCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ✅ Visible Drop
+            // Visible Drop
             Row(
                 verticalAlignment = Alignment.Top,
                 modifier = Modifier.fillMaxWidth()
@@ -530,7 +556,7 @@ fun OngoingRideCard(
 
             Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = Color.LightGray)
 
-            // ✅ Distances Row
+            // Distances Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -618,7 +644,7 @@ fun RideRequestCard(
 
             Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = Color.LightGray)
 
-            // ✅ Visible Pickup
+            // Visible Pickup
             Row(
                 verticalAlignment = Alignment.Top,
                 modifier = Modifier.fillMaxWidth()
@@ -649,7 +675,7 @@ fun RideRequestCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ✅ Visible Drop
+            // Visible Drop
             Row(
                 verticalAlignment = Alignment.Top,
                 modifier = Modifier.fillMaxWidth()
@@ -680,7 +706,7 @@ fun RideRequestCard(
 
             Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = Color.LightGray)
 
-            // ✅ Distances Row
+            // Distances Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -718,7 +744,7 @@ fun RideRequestCard(
     }
 }
 
-// ✅ REDESIGNED RideHistoryCard (Matches other cards now)
+// REDESIGNED RideHistoryCard (Matches other cards now)
 @Composable
 fun RideHistoryCard(ride: RideHistoryUiModel) {
     Card(
@@ -730,13 +756,12 @@ fun RideHistoryCard(ride: RideHistoryUiModel) {
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header: Date ONLY (Removed Ride ID as requested)
+            // Header: Date ONLY
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Start, // Adjusted to Start
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // ✅ REMOVED: Text(text = "Ride #${ride.rideId}", ...)
                 Text(
                     text = ride.date,
                     style = MaterialTheme.typography.titleMedium, // Upgraded style to look like a header

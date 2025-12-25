@@ -2,20 +2,43 @@ package com.example.invyucab_project.mainui.rideinprogressscreen.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.invyucab_project.core.common.Resource
+import com.example.invyucab_project.data.models.RiderOngoingRideResponse
 import com.example.invyucab_project.data.repository.AppRepository
+import com.example.invyucab_project.domain.usecase.GetOngoingRideUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class RideInProgressViewModel @Inject constructor(
-    private val repository: AppRepository
+    private val repository: AppRepository,
+    private val getOngoingRideUseCase: GetOngoingRideUseCase
 ) : ViewModel() {
 
     private val _updateStatus = MutableStateFlow<Result<Unit>?>(null)
     val updateStatus: StateFlow<Result<Unit>?> = _updateStatus
+
+    private val _rideState = MutableStateFlow<Resource<RiderOngoingRideResponse>>(Resource.Loading())
+    val rideState: StateFlow<Resource<RiderOngoingRideResponse>> = _rideState.asStateFlow()
+
+    fun fetchOngoingRide(rideId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = getOngoingRideUseCase(rideId)
+                if (response.isSuccessful && response.body() != null) {
+                    _rideState.value = Resource.Success(response.body()!!)
+                } else {
+                    _rideState.value = Resource.Error(response.message() ?: "Failed to fetch ride")
+                }
+            } catch (e: Exception) {
+                _rideState.value = Resource.Error(e.message ?: "Error loading ride")
+            }
+        }
+    }
 
     fun updateRideStatus(rideId: Int, status: String) {
         viewModelScope.launch {

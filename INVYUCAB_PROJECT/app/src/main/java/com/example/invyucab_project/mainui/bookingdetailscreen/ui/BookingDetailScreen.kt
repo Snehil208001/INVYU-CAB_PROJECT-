@@ -2,6 +2,8 @@ package com.example.invyucab_project.mainui.bookingdetailscreen.ui
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent // Added
+import android.net.Uri // Added
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.widget.Toast
@@ -259,12 +261,17 @@ fun BookingDetailScreen(
                             userPin = rideItem.userPin?.toString() ?: "----",
                             pickupAddress = rideItem.pickupAddress ?: "Address not available",
                             onTripDetailsClick = { showTripDetailsSheet = true },
-                            // ✅ ADDED: Calling Logic
+                            // ✅ UPDATED: Calls the driver using the phone number from API
                             onCallClick = {
                                 val phone = rideItem.driverPhone
                                 if (!phone.isNullOrEmpty()) {
-                                    Toast.makeText(context, "Calling Driver...", Toast.LENGTH_SHORT).show()
-                                    viewModel.initiateCall(phone)
+                                    try {
+                                        val intent = Intent(Intent.ACTION_DIAL)
+                                        intent.data = Uri.parse("tel:$phone")
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Unable to make call", Toast.LENGTH_SHORT).show()
+                                    }
                                 } else {
                                     Toast.makeText(context, "Driver number not available", Toast.LENGTH_SHORT).show()
                                 }
