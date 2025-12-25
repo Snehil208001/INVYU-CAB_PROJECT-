@@ -82,12 +82,13 @@ fun TravelScreen(
         val results = FloatArray(1)
 
         for (ride in rideHistory) {
-            val startLat = ride.pickupLatitude?.toDoubleOrNull()
-            val startLng = ride.pickupLongitude?.toDoubleOrNull()
-            val endLat = ride.dropLatitude?.toDoubleOrNull()
-            val endLng = ride.dropLongitude?.toDoubleOrNull()
+            // ✅ FIX: Use Double values directly from UI Model
+            val startLat = ride.pickupLat
+            val startLng = ride.pickupLng
+            val endLat = ride.dropLat
+            val endLng = ride.dropLng
 
-            if (startLat != null && startLng != null && endLat != null && endLng != null) {
+            if (startLat != 0.0 && startLng != 0.0 && endLat != 0.0 && endLng != 0.0) {
                 Location.distanceBetween(startLat, startLng, endLat, endLng, results)
                 totalMeters += results[0]
             }
@@ -163,17 +164,10 @@ fun TravelScreen(
                     }
                 } else {
                     items(rideHistory) { ride ->
-                        // Helper for address/location display
-                        fun formatLoc(lat: String?, lng: String?, label: String): String {
-                            return if (!lat.isNullOrEmpty() && !lng.isNullOrEmpty()) {
-                                label // Display generic label if coordinates exist
-                            } else {
-                                label
-                            }
-                        }
 
-                        val pickup = formatLoc(ride.pickupLatitude, ride.pickupLongitude, "Pickup Location")
-                        val drop = formatLoc(ride.dropLatitude, ride.dropLongitude, "Drop Location")
+                        // ✅ FIX: Use the resolved address from ViewModel
+                        val pickup = ride.pickupAddress
+                        val drop = ride.dropAddress
 
                         val dateStr = formatParamsDate(ride.requestedAt ?: ride.startedAt)
                         val price = "₹${ride.actualPrice ?: ride.estimatedPrice ?: "0.00"}"
@@ -207,10 +201,11 @@ fun TravelScreen(
                                         riderId = ride.riderId ?: 0,
                                         driverId = ride.driverId ?: 0,
                                         role = "rider",
-                                        pickupLat = ride.pickupLatitude?.toDoubleOrNull() ?: 0.0,
-                                        pickupLng = ride.pickupLongitude?.toDoubleOrNull() ?: 0.0,
-                                        dropLat = ride.dropLatitude?.toDoubleOrNull() ?: 0.0,
-                                        dropLng = ride.dropLongitude?.toDoubleOrNull() ?: 0.0
+                                        // ✅ FIX: Use Double values directly from UI Model
+                                        pickupLat = ride.pickupLat,
+                                        pickupLng = ride.pickupLng,
+                                        dropLat = ride.dropLat,
+                                        dropLng = ride.dropLng
                                     )
                                     navController.navigate(route)
                                 }

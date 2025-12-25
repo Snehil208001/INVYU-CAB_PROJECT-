@@ -68,6 +68,8 @@ fun RideTrackingScreen(
     val routePoints by viewModel.routePolyline
     // ✅ ADDED: Observe fetched rider phone from ViewModel
     val fetchedRiderPhone by viewModel.riderPhone
+    // ✅ ADDED: Observe ride status
+    val rideStatus by viewModel.rideStatus
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -85,9 +87,10 @@ fun RideTrackingScreen(
     // --- Driver OTP Input State ---
     var otpInput by remember { mutableStateOf("") }
 
-    // ✅ ADDED: Fetch Rider Details (phone) from Firestore when screen opens
+    // ✅ ADDED: Fetch Rider Details and Start Monitoring Ride Status
     LaunchedEffect(riderId) {
         viewModel.fetchRiderDetails(riderId)
+        viewModel.monitorRideStatus(rideId) // Start polling
     }
 
     LaunchedEffect(Unit) {
@@ -100,6 +103,24 @@ fun RideTrackingScreen(
             viewModel.fetchRoute(pickupLat, pickupLng, dropLat, dropLng)
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    // ✅ ADDED: Handle Ride Cancellation
+    LaunchedEffect(rideStatus) {
+        if (rideStatus == "cancelled") {
+            Toast.makeText(context, "Ride was cancelled.", Toast.LENGTH_LONG).show()
+            if (role == "driver") {
+                // Navigate back to Driver Home Screen
+                navController.navigate(Screen.DriverScreen.route) {
+                    popUpTo(Screen.DriverScreen.route) { inclusive = true }
+                }
+            } else {
+                // Navigate back to Rider Home Screen
+                navController.navigate(Screen.HomeScreen.route) {
+                    popUpTo(Screen.HomeScreen.route) { inclusive = true }
+                }
+            }
         }
     }
 

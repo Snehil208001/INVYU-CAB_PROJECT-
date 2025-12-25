@@ -25,7 +25,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.invyucab_project.core.navigations.Screen
-import com.example.invyucab_project.data.models.RiderRideHistoryItem
+// ✅ IMPORT FIXED: Use the ViewModel's UI Model
+import com.example.invyucab_project.mainui.ridehistoryscreen.viewmodel.TravelHistoryUiModel
 import com.example.invyucab_project.mainui.ridehistoryscreen.viewmodel.RideHistoryViewModel
 import com.example.invyucab_project.ui.theme.CabMintGreen
 
@@ -131,10 +132,11 @@ fun RideHistoryScreen(
                                             riderId = ride.riderId ?: 0,
                                             driverId = ride.driverId ?: 0,
                                             role = "rider",
-                                            pickupLat = ride.pickupLatitude?.toDoubleOrNull() ?: 0.0,
-                                            pickupLng = ride.pickupLongitude?.toDoubleOrNull() ?: 0.0,
-                                            dropLat = ride.dropLatitude?.toDoubleOrNull() ?: 0.0,
-                                            dropLng = ride.dropLongitude?.toDoubleOrNull() ?: 0.0
+                                            // ✅ FIX: Use Double values directly from UI Model
+                                            pickupLat = ride.pickupLat,
+                                            pickupLng = ride.pickupLng,
+                                            dropLat = ride.dropLat,
+                                            dropLng = ride.dropLng
                                         )
                                         navController.navigate(route)
                                     }
@@ -151,7 +153,7 @@ fun RideHistoryScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RideHistoryItemCard(
-    ride: RiderRideHistoryItem,
+    ride: TravelHistoryUiModel, // ✅ TYPE FIXED: Changed to TravelHistoryUiModel
     onClick: () -> Unit
 ) {
     val statusColor = when (ride.status?.lowercase()) {
@@ -266,7 +268,7 @@ fun RideHistoryItemCard(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = ride.driverRating ?: "4.5",
+                                text = ride.driverRating ?: "4.5", // ✅ Now accessible
                                 fontSize = 12.sp,
                                 color = Color.Gray
                             )
@@ -285,7 +287,7 @@ fun RideHistoryItemCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "${ride.model ?: "Car"} • ${ride.vehicleNumber ?: "N/A"}",
+                        text = "${ride.model ?: "Car"} • ${ride.vehicleNumber ?: "N/A"}", // ✅ Now accessible
                         fontSize = 14.sp,
                         color = Color.DarkGray,
                         fontWeight = FontWeight.Medium

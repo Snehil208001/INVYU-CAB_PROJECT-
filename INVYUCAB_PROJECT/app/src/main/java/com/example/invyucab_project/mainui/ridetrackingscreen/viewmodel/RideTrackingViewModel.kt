@@ -10,6 +10,7 @@ import com.example.invyucab_project.data.repository.AppRepository
 import com.example.invyucab_project.domain.usecase.GetDirectionsAndRouteUseCase
 import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -34,6 +35,10 @@ class RideTrackingViewModel @Inject constructor(
     private val _riderPhone = mutableStateOf<String?>(null)
     val riderPhone: State<String?> = _riderPhone
 
+    // ✅ ADDED: State to track Ride Status (e.g., "cancelled")
+    private val _rideStatus = mutableStateOf<String?>(null)
+    val rideStatus: State<String?> = _rideStatus
+
     // ✅ ADDED: Function to fetch Rider Phone from Firestore
     // This is vital because the API doesn't send the phone number
     fun fetchRiderDetails(riderId: Int) {
@@ -41,6 +46,28 @@ class RideTrackingViewModel @Inject constructor(
             val phone = appRepository.getPhoneFromFirestore(riderId)
             if (phone != null) {
                 _riderPhone.value = phone
+            }
+        }
+    }
+
+    // ✅ ADDED: Function to monitor Ride Status (Polling)
+    // This allows the driver to know if the rider cancelled the ride
+    fun monitorRideStatus(rideId: Int) {
+        viewModelScope.launch {
+            while (true) {
+                try {
+                    // We reuse the existing API to fetch ride details by ID
+                    val response = appRepository.getOngoingRideRiderSide(rideId)
+                    if (response.isSuccessful && response.body() != null) {
+                        val ride = response.body()?.data?.firstOrNull()
+                        if (ride != null) {
+                            _rideStatus.value = ride.status
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                delay(3000) // Poll every 3 seconds
             }
         }
     }
