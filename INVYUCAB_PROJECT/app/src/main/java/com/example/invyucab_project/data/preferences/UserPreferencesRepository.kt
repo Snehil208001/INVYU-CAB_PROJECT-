@@ -48,14 +48,14 @@ class UserPreferencesRepository @Inject constructor(
         prefs.edit().putBoolean(KEY_DRIVER_ONLINE_STATUS, isOnline).apply()
     }
 
-    // This function is called on Logout to remove data
+    // ✅ This function effectively clears the phone number and all session data
     fun clearUserStatus() {
         prefs.edit()
             .remove(KEY_USER_STATUS)
             .remove(KEY_USER_ID)
             .remove(KEY_USER_ROLE)
             .remove(KEY_DRIVER_ID)
-            .remove(KEY_PHONE_NUMBER) // ✅ Removes phone number
+            .remove(KEY_PHONE_NUMBER) // ✅ Ensure this is removed
             .remove(KEY_FCM_TOKEN)
             .remove(KEY_DRIVER_ONLINE_STATUS)
             .apply()

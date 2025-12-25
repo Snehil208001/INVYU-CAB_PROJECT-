@@ -13,10 +13,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +40,9 @@ fun DriverProfileScreen(
     viewModel: DriverProfileViewModel = hiltViewModel()
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // ✅ Observe the dynamic name from ViewModel
+    val driverName by viewModel.driverName.collectAsState()
 
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collect { event ->
@@ -63,7 +67,6 @@ fun DriverProfileScreen(
                 onBackClicked = { navController.popBackStack() }
             )
         },
-        // ✅ BottomAppBar removed from here
         containerColor = Color.White
     ) { padding ->
         Column(
@@ -92,37 +95,13 @@ fun DriverProfileScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // ✅ Display the Dynamic Name
             Text(
-                text = "Snehil",
+                text = driverName,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = { /* TODO */ },
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = CabMintGreen,
-                    contentColor = Color.White
-                ),
-                elevation = ButtonDefaults.buttonElevation(0.dp)
-            ) {
-                Icon(
-                    Icons.Default.PersonAdd,
-                    contentDescription = "Switch to user",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Switch to user",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            }
 
             Spacer(modifier = Modifier.height(32.dp))
 

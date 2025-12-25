@@ -72,10 +72,14 @@ class EditProfileViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     val user = response.body()?.existingUser
                     if (user != null) {
-                        Log.d("EditProfileVM", "User Found: ${user.fullName}")
+                        // ✅ LOG THE RAW DOB HERE TO DEBUG
+                        Log.d("EditProfileVM", "User Found: ${user.fullName}, DOB Raw: '${user.dob}'")
+
                         name = user.fullName ?: "No Name"
                         gender = capitalizeFirstLetter(user.gender ?: "Not Specified")
+                        // Format the date for UI
                         birthday = formatApiDateToUi(user.dob)
+                        Log.d("EditProfileVM", "Formatted Birthday: '$birthday'")
                     } else {
                         Log.e("EditProfileVM", "Response successful but user is null")
                         name = "User Not Found"
@@ -113,12 +117,15 @@ class EditProfileViewModel @Inject constructor(
     private fun formatApiDateToUi(apiDate: String?): String {
         if (apiDate.isNullOrBlank()) return ""
         return try {
+            // Take first 10 chars (yyyy-MM-dd) to ignore time parts if present
             val datePart = if (apiDate.length >= 10) apiDate.substring(0, 10) else apiDate
             val apiFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
             val uiFormat = SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH)
             val date = apiFormat.parse(datePart)
             if (date != null) uiFormat.format(date) else apiDate
         } catch (e: Exception) {
+            // Fallback: show the raw string if parsing fails
+            Log.e("EditProfileVM", "Date parsing failed for: $apiDate", e)
             apiDate
         }
     }

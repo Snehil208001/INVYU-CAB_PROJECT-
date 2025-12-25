@@ -37,10 +37,10 @@ fun ProfileScreen(
     navController: NavController,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
+    // ✅ Collects the dynamic user state from ViewModel
     val userProfile by viewModel.userProfile.collectAsState()
     val profileOptions = viewModel.profileOptions
 
-    // Separate "Logout" to display it as a button at the bottom, matching the design
     val displayOptions = profileOptions.filter { it.title != "Logout" }
 
     Scaffold(
@@ -58,7 +58,7 @@ fun ProfileScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp) // Height covering top bar area and part of avatar
+                    .height(180.dp)
                     .background(
                         color = CabMintGreen,
                         shape = RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp)
@@ -97,7 +97,7 @@ fun ProfileScreen(
                 // 3. Avatar (Overlapping)
                 Surface(
                     shape = CircleShape,
-                    color = Color.White, // White border/background
+                    color = Color.White,
                     modifier = Modifier.size(100.dp),
                     shadowElevation = 8.dp
                 ) {
@@ -105,7 +105,7 @@ fun ProfileScreen(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(4.dp) // Inner border spacing
+                            .padding(4.dp)
                             .background(CabMintGreen, CircleShape)
                     ) {
                         Icon(
@@ -119,9 +119,9 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 4. User Name
+                // 4. User Name (Dynamic)
                 Text(
-                    text = userProfile.name,
+                    text = userProfile.name, // ✅ Shows the name fetched from API
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
@@ -129,7 +129,7 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 5. Options List (Styled as Green Cards)
+                // 5. Options List
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -146,7 +146,7 @@ fun ProfileScreen(
                     }
                 }
 
-                // 6. Logout Button (Black Button at Bottom)
+                // 6. Logout Button
                 Button(
                     onClick = {
                         viewModel.logout()
@@ -181,7 +181,6 @@ fun ProfileOptionCard(
     navController: NavController,
     viewModel: ProfileViewModel
 ) {
-    // Style matches the image: Light Green background, Rounded corners, Arrow icon
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -189,7 +188,6 @@ fun ProfileOptionCard(
                 when (option.title) {
                     "Edit Profile" -> navController.navigate(Screen.EditProfileScreen.route)
                     "Payment Methods" -> navController.navigate(Screen.PaymentMethodScreen.route)
-                    // ✅ UPDATED: Navigation for Ride History
                     "Ride History" -> navController.navigate(Screen.RideHistoryScreen.route)
                     "Logout" -> { /* Handled by bottom button */ }
                     else -> option.onClick()
@@ -197,9 +195,9 @@ fun ProfileOptionCard(
             }),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = CabMintGreen.copy(alpha = 0.1f) // Light Mint Background
+            containerColor = CabMintGreen.copy(alpha = 0.1f)
         ),
-        border = BorderStroke(1.dp, CabMintGreen.copy(alpha = 0.3f)), // Subtle Border
+        border = BorderStroke(1.dp, CabMintGreen.copy(alpha = 0.3f)),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Row(
@@ -218,7 +216,7 @@ fun ProfileOptionCard(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = "Go",
-                tint = CabMintGreen // Green Arrow
+                tint = CabMintGreen
             )
         }
     }

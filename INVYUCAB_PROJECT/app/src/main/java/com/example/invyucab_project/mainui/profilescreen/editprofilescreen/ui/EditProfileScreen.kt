@@ -108,7 +108,7 @@ fun EditProfileScreen(
                 item {
                     ProfileRow(
                         label = "Gender",
-                        value = viewModel.gender
+                        value = viewModel.gender.ifEmpty { "Not Specified" }
                     )
                 }
 
