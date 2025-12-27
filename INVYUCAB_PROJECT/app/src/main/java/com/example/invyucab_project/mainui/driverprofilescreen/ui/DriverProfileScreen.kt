@@ -43,6 +43,8 @@ fun DriverProfileScreen(
 
     // ✅ Observe the dynamic name from ViewModel
     val driverName by viewModel.driverName.collectAsState()
+    // ✅ Observe the dynamic phone number from ViewModel
+    val driverPhoneNumber by viewModel.driverPhoneNumber.collectAsState()
 
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collect { event ->
@@ -101,6 +103,15 @@ fun DriverProfileScreen(
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black
+            )
+
+            // ✅ Display the Phone Number
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = driverPhoneNumber,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.Gray
             )
 
             Spacer(modifier = Modifier.height(32.dp))

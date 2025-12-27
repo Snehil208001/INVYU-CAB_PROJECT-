@@ -92,104 +92,44 @@ fun VehiclePreferencesScreen(
 
             VehicleTextField(
                 value = vehicleNumber,
-                onValueChange = viewModel::onVehicleNumberChange,
+                onValueChange = {}, // Disabled editing
                 label = "Vehicle Number",
-                readOnly = isLoading
+                readOnly = true // Set to true
             )
 
             VehicleTextField(
                 value = model,
-                onValueChange = viewModel::onModelChange,
+                onValueChange = {}, // Disabled editing
                 label = "Model",
-                readOnly = isLoading
+                readOnly = true // Set to true
             )
 
-            ExposedDropdownMenuBox(
-                expanded = isTypeDropdownExpanded,
-                onExpandedChange = { if (!isLoading) viewModel.onSetTypeDropdownExpanded(it) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                OutlinedTextField(
-                    value = type,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Type") },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = isTypeDropdownExpanded)
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
-                        disabledTextColor = if (isLoading) Color.Gray.copy(alpha = 0.8f) else Color.Black,
-                        disabledLabelColor = Color.Gray.copy(alpha = 0.5f)
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(),
-                    enabled = !isLoading
-                )
-                ExposedDropdownMenu(
-                    expanded = isTypeDropdownExpanded,
-                    onDismissRequest = { viewModel.onSetTypeDropdownExpanded(false) }
-                ) {
-                    vehicleTypes.forEach { item ->
-                        DropdownMenuItem(
-                            text = { Text(item) },
-                            onClick = {
-                                viewModel.onTypeChange(item)
-                            }
-                        )
-                    }
-                }
-            }
+            // Replaced Dropdown with a ReadOnly TextField for Type
+            VehicleTextField(
+                value = type,
+                onValueChange = {},
+                label = "Type",
+                readOnly = true
+            )
 
             VehicleTextField(
                 value = color,
-                onValueChange = viewModel::onColorChange,
+                onValueChange = {}, // Disabled editing
                 label = "Color",
-                readOnly = isLoading
+                readOnly = true // Set to true
             )
 
             VehicleTextField(
                 value = capacity,
-                onValueChange = viewModel::onCapacityChange,
+                onValueChange = {}, // Disabled editing
                 label = "Capacity",
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Done,
-                readOnly = isLoading
+                readOnly = true // Set to true
             )
 
             Spacer(modifier = Modifier.weight(1f))
 
-            Button(
-                onClick = {
-                    // ✅ --- THIS IS THE FIX ---
-                    // Clear focus from any TextField BEFORE starting the ViewModel logic
-                    focusManager.clearFocus()
-                    // ---
-                    viewModel.onAddVehicleClicked()
-                },
-                enabled = !isLoading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = CabMintGreen)
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White,
-                        strokeWidth = 3.dp
-                    )
-                } else {
-                    Text(
-                        text = if (isEditMode) "Update Vehicle" else "Add Vehicle",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
         }
     }
 }

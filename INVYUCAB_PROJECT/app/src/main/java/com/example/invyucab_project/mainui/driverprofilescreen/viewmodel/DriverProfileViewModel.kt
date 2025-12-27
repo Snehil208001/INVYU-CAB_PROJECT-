@@ -27,6 +27,10 @@ class DriverProfileViewModel @Inject constructor(
     private val _driverName = MutableStateFlow("Loading...")
     val driverName: StateFlow<String> = _driverName
 
+    // ✅ Dynamic State for Phone Number
+    private val _driverPhoneNumber = MutableStateFlow("")
+    val driverPhoneNumber: StateFlow<String> = _driverPhoneNumber
+
     // We can also fetch the profile image dynamically later, keeping placeholder for now
     val profileImageUrl: String = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=100&h=100&fit=crop&crop=faces"
 
@@ -45,12 +49,14 @@ class DriverProfileViewModel @Inject constructor(
                     is Resource.Success -> {
                         val status = result.data
                         if (status is UserCheckStatus.Exists) {
-                            // ✅ Update the name from the API response
+                            // ✅ Update the name and phone from the API response
                             _driverName.value = status.name
+                            _driverPhoneNumber.value = status.phoneNumber
                         }
                     }
                     is Resource.Error -> {
                         _driverName.value = "Driver" // Fallback on error
+                        _driverPhoneNumber.value = storedPhone // Show stored phone on error
                     }
                     is Resource.Loading -> {
                         // Optional: Show loading state if needed

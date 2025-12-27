@@ -32,9 +32,11 @@ class CheckUserUseCase @Inject constructor(
                 val userId = user.userId
                 // ✅ CAPTURE THE NAME FROM API
                 val name = user.fullName ?: "User"
+                // ✅ CAPTURE THE PHONE NUMBER FROM API
+                val phone = user.phoneNumber
 
-                // ✅ PASS NAME TO THE STATE
-                emit(Resource.Success(UserCheckStatus.Exists(role, userId, name)))
+                // ✅ PASS NAME AND PHONE TO THE STATE
+                emit(Resource.Success(UserCheckStatus.Exists(role, userId, name, phone)))
             } else {
                 emit(Resource.Success(UserCheckStatus.DoesNotExist))
             }
@@ -54,7 +56,7 @@ class CheckUserUseCase @Inject constructor(
 }
 
 sealed interface UserCheckStatus {
-    // ✅ ADDED name parameter
-    data class Exists(val role: String, val userId: Int, val name: String) : UserCheckStatus
+    // ✅ ADDED name and phoneNumber parameter
+    data class Exists(val role: String, val userId: Int, val name: String, val phoneNumber: String) : UserCheckStatus
     object DoesNotExist : UserCheckStatus
 }

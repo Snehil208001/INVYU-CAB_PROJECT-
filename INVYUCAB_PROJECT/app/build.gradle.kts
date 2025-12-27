@@ -87,10 +87,6 @@ dependencies {
     ksp("com.google.dagger:hilt-android-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
-    // Lottie for animations
-    val lottieVersion = "6.3.0"
-    implementation("com.airbnb.android:lottie-compose:$lottieVersion")
-
     // Google Maps for Compose
     implementation("com.google.maps.android:maps-compose:4.3.3")
     implementation("com.google.android.gms:play-services-maps:18.2.0")
