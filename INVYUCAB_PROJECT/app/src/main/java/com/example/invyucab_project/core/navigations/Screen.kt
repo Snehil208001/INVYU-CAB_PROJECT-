@@ -196,4 +196,7 @@ sealed class Screen(val route: String) {
             return "booking_detail_screen/$encodedName/$encodedModel/$encodedOtp/$rideId/$riderId/$driverId/$role?pickupLat=$pickupLat&pickupLng=$pickupLng&dropLat=$dropLat&dropLng=$dropLng"
         }
     }
+
+    // ✅ NEW: About Us Screen
+    object AboutUsScreen : Screen("about_us_screen")
 }

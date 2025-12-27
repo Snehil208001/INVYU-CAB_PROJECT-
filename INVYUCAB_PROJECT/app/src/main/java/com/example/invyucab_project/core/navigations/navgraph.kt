@@ -31,6 +31,8 @@ import com.example.invyucab_project.mainui.splashscreen_loggedin.ui.SplashScreen
 import com.example.invyucab_project.mainui.travelscreen.ui.TravelScreen
 import com.example.invyucab_project.mainui.userdetailsscreen.ui.UserDetailsScreen
 import com.example.invyucab_project.mainui.vehiclepreferences.ui.VehiclePreferencesScreen
+// Import the new screen
+import com.example.invyucab_project.mainui.aboutusscreen.ui.AboutUsScreen
 
 @Composable
 fun NavGraph(
@@ -95,6 +97,9 @@ fun NavGraph(
         composable(Screen.MemberLevelScreen.route) { MemberLevelScreen(navController = navController) }
         composable(Screen.PaymentMethodScreen.route) { PaymentMethodScreen(navController = navController) }
         composable(Screen.RideHistoryScreen.route) { RideHistoryScreen(navController = navController) }
+
+        // ✅ NEW: About Us Screen Composable
+        composable(Screen.AboutUsScreen.route) { AboutUsScreen(navController = navController) }
 
         composable(
             route = Screen.RideSelectionScreen.route,

@@ -120,7 +120,14 @@ fun DriverProfileScreen(
                 ProfileOptionRow(text = "Car", onClick = { /* TODO */ })
                 ProfileOptionRow(text = "Push Notification", onClick = { /* TODO */ })
                 ProfileOptionRow(text = "Complain", onClick = { /* TODO */ })
-                ProfileOptionRow(text = "About Us", onClick = { /* TODO */ })
+
+                // ✅ UPDATED: Navigation for About Us
+                ProfileOptionRow(
+                    text = "About Us",
+                    onClick = {
+                        navController.navigate(Screen.AboutUsScreen.route)
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.weight(1f))
