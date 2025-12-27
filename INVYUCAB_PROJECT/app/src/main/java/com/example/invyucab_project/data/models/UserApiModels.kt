@@ -230,16 +230,3 @@ data class UpdateFcmTokenResponse(
     @Json(name = "success") val success: Boolean,
     @Json(name = "message") val message: String
 )
-
-// ✅ ADDED: Models for Twilio Masked Calling
-@JsonClass(generateAdapter = true)
-data class InitiateCallRequest(
-    @Json(name = "from_number") val fromNumber: String,
-    @Json(name = "to_number") val toNumber: String
-)
-
-@JsonClass(generateAdapter = true)
-data class InitiateCallResponse(
-    @Json(name = "success") val success: Boolean,
-    @Json(name = "message") val message: String
-)

@@ -153,17 +153,6 @@ class BookingDetailViewModel @Inject constructor(
         }
     }
 
-    // ✅ ADDED: Function to initiate call
-    fun initiateCall(driverPhone: String) {
-        viewModelScope.launch {
-            try {
-                repository.initiateCall(driverPhone)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
     private fun rebookRide(oldRide: RiderOngoingRideItem) {
         viewModelScope.launch {
             try {

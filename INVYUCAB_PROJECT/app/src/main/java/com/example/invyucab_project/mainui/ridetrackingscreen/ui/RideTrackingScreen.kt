@@ -3,6 +3,8 @@ package com.example.invyucab_project.mainui.ridetrackingscreen.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.widget.Toast
@@ -215,7 +217,15 @@ fun RideTrackingScreen(
                             context = context,
                             onCallDriver = {
                                 if (!driverPhone.isNullOrEmpty()) {
-                                    viewModel.initiateCall(driverPhone)
+                                    // ✅ FIXED: Removed viewModel.initiateCall(driverPhone)
+                                    // Added direct Intent call
+                                    try {
+                                        val intent = Intent(Intent.ACTION_DIAL)
+                                        intent.data = Uri.parse("tel:$driverPhone")
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Could not open dialer", Toast.LENGTH_SHORT).show()
+                                    }
                                 } else {
                                     Toast.makeText(context, "Driver number not available", Toast.LENGTH_SHORT).show()
                                 }

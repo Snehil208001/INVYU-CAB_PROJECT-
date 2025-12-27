@@ -130,19 +130,6 @@ class AppRepository @Inject constructor(
         }
     }
 
-    // 4. Initiate Call via Twilio
-    suspend fun initiateCall(targetPhoneNumber: String): Response<InitiateCallResponse> {
-        val currentUserPhone = userPreferencesRepository.getPhoneNumber() ?: ""
-
-        if (currentUserPhone.isEmpty() || targetPhoneNumber.isEmpty()) {
-            return Response.error(400, ResponseBody.create(null, "Missing phone numbers. Me: $currentUserPhone, Target: $targetPhoneNumber"))
-        }
-
-        val url = "https://cab-masked-calling-2047.twil.io/initiate-call"
-        val request = InitiateCallRequest(fromNumber = currentUserPhone, toNumber = targetPhoneNumber)
-        return customApiService.initiateCall(url, request)
-    }
-
     // -------------------------------------------------------------------------
 
     fun listenForRealtimeRides(): Flow<List<DriverUpcomingRideItem>> = callbackFlow {

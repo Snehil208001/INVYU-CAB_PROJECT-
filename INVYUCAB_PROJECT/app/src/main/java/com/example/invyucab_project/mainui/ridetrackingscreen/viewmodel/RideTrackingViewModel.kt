@@ -117,28 +117,4 @@ class RideTrackingViewModel @Inject constructor(
             }
         }
     }
-
-    // ✅ UPDATED: Function to call the other party
-    // Handles case where phone number was not passed via navigation
-    fun initiateCall(targetPhone: String?) {
-        val phoneToCall = targetPhone ?: _riderPhone.value // Use fetched phone if arg is null
-
-        if (phoneToCall.isNullOrEmpty()) {
-            sendEvent(UiEvent.ShowSnackbar("Rider number not available"))
-            return
-        }
-
-        viewModelScope.launch {
-            try {
-                val response = appRepository.initiateCall(phoneToCall)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    sendEvent(UiEvent.ShowSnackbar("Connecting Call..."))
-                } else {
-                    sendEvent(UiEvent.ShowSnackbar("Call Failed: ${response.body()?.message ?: response.message()}"))
-                }
-            } catch (e: Exception) {
-                sendEvent(UiEvent.ShowSnackbar("Error: ${e.message}"))
-            }
-        }
-    }
 }

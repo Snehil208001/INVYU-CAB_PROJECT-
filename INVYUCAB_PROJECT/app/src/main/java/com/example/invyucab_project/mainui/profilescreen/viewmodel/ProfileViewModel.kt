@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.lifecycle.viewModelScope
 import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.common.Resource
+import com.example.invyucab_project.core.navigations.Screen // ✅ ADDED Import
 import com.example.invyucab_project.data.preferences.UserPreferencesRepository
 import com.example.invyucab_project.domain.model.ProfileOption
 import com.example.invyucab_project.domain.model.UserProfile
@@ -27,9 +28,8 @@ class ProfileViewModel @Inject constructor(
     private val logoutUserUseCase: LogoutUserUseCase,
     private val checkUserUseCase: CheckUserUseCase,
     private val userPreferencesRepository: UserPreferencesRepository
-) : BaseViewModel() { // ✅ Inherit from BaseViewModel for consistency
+) : BaseViewModel() {
 
-    // ✅ Start with a loading placeholder or empty state
     private val _userProfile = MutableStateFlow(UserProfile(name = "Loading...", phone = ""))
     val userProfile: StateFlow<UserProfile> = _userProfile
 
@@ -46,7 +46,6 @@ class ProfileViewModel @Inject constructor(
         fetchUserProfile()
     }
 
-    // ✅ New Function: Fetch user details using the stored phone number
     private fun fetchUserProfile() {
         val storedPhone = userPreferencesRepository.getPhoneNumber()
 
@@ -56,7 +55,6 @@ class ProfileViewModel @Inject constructor(
                     is Resource.Success -> {
                         val status = result.data
                         if (status is UserCheckStatus.Exists) {
-                            // ✅ Update the state with the real name from the API
                             _userProfile.value = _userProfile.value.copy(
                                 name = status.name,
                                 phone = storedPhone
@@ -74,10 +72,14 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    // ✅ FIXED: Added navigation event
     fun logout() {
         viewModelScope.launch {
             logoutUserUseCase.invoke()
             Log.d("ProfileViewModel", "Logout successful")
+
+            // This tells the ProfileScreen to actually navigate
+            sendEvent(UiEvent.Navigate(Screen.AuthScreen.route))
         }
     }
 }

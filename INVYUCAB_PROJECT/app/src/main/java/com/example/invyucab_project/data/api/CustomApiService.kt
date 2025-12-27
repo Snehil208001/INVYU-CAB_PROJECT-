@@ -60,9 +60,4 @@ interface CustomApiService {
     // ✅ ADDED: Endpoint to update FCM Token
     @POST("riding_app/v1/update_fcm_token")
     suspend fun updateFcmToken(@Body request: UpdateFcmTokenRequest): Response<UpdateFcmTokenResponse>
-
-    // ✅ ADDED: Twilio Masked Calling Endpoint
-    // We use @Url to override the base URL since this goes to Twilio Functions
-    @POST
-    suspend fun initiateCall(@Url url: String, @Body request: InitiateCallRequest): Response<InitiateCallResponse>
 }
