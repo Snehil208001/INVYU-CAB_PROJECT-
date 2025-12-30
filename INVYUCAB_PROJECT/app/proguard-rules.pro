@@ -19,3 +19,32 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+####################################
+# Keep annotations (VERY IMPORTANT)
+####################################
+-keepattributes *Annotation*
+
+####################################
+# Moshi
+####################################
+-keep class com.squareup.moshi.** { *; }
+-keep class kotlin.Metadata { *; }
+
+# If using @JsonClass(generateAdapter = true)
+-keep class **JsonAdapter { *; }
+
+####################################
+# Retrofit & OkHttp
+####################################
+-keep class retrofit2.** { *; }
+-keep class okhttp3.** { *; }
+
+####################################
+# Your API response / request models
+####################################
+-keep class com.example.invyucab_project.** { *; }
+####################################
+# Coroutines (safe)
+####################################
+-keep class kotlinx.coroutines.** { *; }
