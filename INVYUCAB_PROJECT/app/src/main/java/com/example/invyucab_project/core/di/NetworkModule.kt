@@ -39,7 +39,10 @@ object NetworkModule {
     @Singleton
     fun provideLoggingInterceptor(): HttpLoggingInterceptor {
         return HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG)
+                HttpLoggingInterceptor.Level.BODY
+            else
+                HttpLoggingInterceptor.Level.NONE
         }
     }
 
@@ -117,7 +120,7 @@ object NetworkModule {
             .client(okHttpClient)
             // ✅✅✅ START OF FIX ✅✅✅
             // The correct method is .withNullSerialization()
-            .addConverterFactory(MoshiConverterFactory.create(moshi).withNullSerialization())
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
             // ✅✅✅ END OF FIX ✅✅✅
             .build()
     }

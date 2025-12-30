@@ -50,7 +50,7 @@ class CheckUserUseCase @Inject constructor(
         } catch (e: IOException) {
             emit(Resource.Error("Network error. Please check your connection."))
         } catch (e: Exception) {
-            emit(Resource.Error("An unknown error occurred."))
+            emit(Resource.Error(e.message.toString()))
         }
     }
 }
