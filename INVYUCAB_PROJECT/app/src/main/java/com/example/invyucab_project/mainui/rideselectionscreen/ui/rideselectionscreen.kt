@@ -261,18 +261,21 @@ fun RideSelectionScreen(
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
 
+            // ✅ FIXED: Snackbar is now visible (White text on Black background)
             uiState.errorMessage?.let { error ->
                 Snackbar(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 360.dp, start = 16.dp, end = 16.dp),
+                    containerColor = Color.Black,
+                    contentColor = Color.White,
                     action = {
                         TextButton(onClick = { viewModel.dismissError() }) {
-                            Text("OK")
+                            Text("OK", color = CabMintGreen)
                         }
                     }
                 ) {
-                    Text(text = error)
+                    Text(text = error, color = Color.White)
                 }
             }
         }

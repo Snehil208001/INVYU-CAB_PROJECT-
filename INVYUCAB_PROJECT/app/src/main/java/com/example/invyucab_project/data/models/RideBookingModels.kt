@@ -1,10 +1,12 @@
 package com.example.invyucab_project.data.models
 
+import androidx.annotation.Keep
 import com.squareup.moshi.Json
 
 /**
  * Request body for creating a new ride.
  */
+@Keep
 data class CreateRideRequest(
     @Json(name = "rider_id") val riderId: Int,
     @Json(name = "driver_id") val driverId: Int? = null,
@@ -22,11 +24,13 @@ data class CreateRideRequest(
 /**
  * Response body for the create ride API.
  */
+@Keep
 data class CreateRideResponse(
     @Json(name = "success") val success: Boolean,
     @Json(name = "data") val data: Any? = null
 )
 
+@Keep
 data class RideData(
     @Json(name = "ride_id") val rideId: Int,
     @Json(name = "user_pin") val userPin: Int
@@ -34,16 +38,19 @@ data class RideData(
 
 // --- Total Rides Models ---
 
+@Keep
 data class DriverTotalRidesRequest(
     @Json(name = "driver_id") val driverId: Int
 )
 
+@Keep
 data class DriverTotalRidesResponse(
     @Json(name = "success") val success: Boolean,
     @Json(name = "message") val message: String? = null,
     @Json(name = "data") val data: List<RideHistoryItem>? = null
 )
 
+@Keep
 data class RideHistoryItem(
     @Json(name = "ride_id") val rideId: Int?,
     @Json(name = "pickup_address") val pickupAddress: String? = null,
@@ -66,15 +73,18 @@ data class RideHistoryItem(
 
 // --- Ongoing Rides Models (Driver Side) ---
 
+@Keep
 data class DriverOngoingRidesRequest(
     @Json(name = "driver_id") val driverId: Int
 )
 
+@Keep
 data class DriverOngoingRidesResponse(
     @Json(name = "success") val success: Boolean,
     @Json(name = "data") val data: List<OngoingRideItem>? = null
 )
 
+@Keep
 data class OngoingRideItem(
     @Json(name = "ride_id") val rideId: Int?,
     @Json(name = "rider_id") val riderId: Int? = null,
@@ -94,6 +104,7 @@ data class OngoingRideItem(
 
 // --- Start Ride Models ---
 
+@Keep
 data class StartRideRequest(
     @Json(name = "ride_id") val rideId: Int,
     @Json(name = "rider_id") val riderId: Int,
@@ -102,12 +113,14 @@ data class StartRideRequest(
     @Json(name = "started_at") val startedAt: String
 )
 
+@Keep
 data class StartRideResponse(
     @Json(name = "success") val success: Boolean,
     @Json(name = "message") val message: String? = null,
     @Json(name = "data") val data: BookingDetailsData? = null
 )
 
+@Keep
 data class BookingDetailsData(
     @Json(name = "otp") val otp: String? = null,
     @Json(name = "driver_name") val driverName: String? = null,
@@ -117,11 +130,13 @@ data class BookingDetailsData(
 
 // --- Update Ride Status Models ---
 
+@Keep
 data class UpdateRideStatusRequest(
     @Json(name = "ride_id") val rideId: Int,
     @Json(name = "status") val status: String
 )
 
+@Keep
 data class UpdateRideStatusResponse(
     @Json(name = "success") val success: Boolean,
     @Json(name = "message") val message: String? = null,
@@ -130,15 +145,18 @@ data class UpdateRideStatusResponse(
 
 // --- Rider Ongoing Ride Models ---
 
+@Keep
 data class RiderOngoingRideRequest(
     @Json(name = "ride_id") val rideId: Int
 )
 
+@Keep
 data class RiderOngoingRideResponse(
     @Json(name = "success") val success: Boolean,
     @Json(name = "data") val data: List<RiderOngoingRideItem>? = null
 )
 
+@Keep
 data class RiderOngoingRideItem(
     @Json(name = "ride_id") val rideId: Int,
     @Json(name = "status") val status: String? = null,
@@ -158,12 +176,12 @@ data class RiderOngoingRideItem(
     @Json(name = "drop_address") val dropAddress: String? = null,
     @Json(name = "estimated_price") val estimatedPrice: String? = null,
     @Json(name = "driver_phone") val driverPhone: String? = null,
-    // ✅ ADDED: This field was missing, causing the error
     @Json(name = "rider_mobile_number") val riderMobileNumber: String? = null
 )
 
 // --- Local Data Models ---
 
+@Keep
 data class DriverUpcomingRideItem(
     val rideId: Int?,
     val riderId: Int? = null,

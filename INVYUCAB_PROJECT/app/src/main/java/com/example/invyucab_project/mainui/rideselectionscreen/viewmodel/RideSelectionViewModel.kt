@@ -267,13 +267,23 @@ class RideSelectionViewModel @Inject constructor(
         val userIdString = userPreferencesRepository.getUserId()
         val userId = userIdString?.toIntOrNull()
 
+        // 👇 LOG EVERYTHING TO SEE WHAT IS NULL
+        Log.d("RideBookingDebug", "Attempting to book...")
+        Log.d("RideBookingDebug", "User ID: $userId")
+        Log.d("RideBookingDebug", "Pickup: $pickup")
+        Log.d("RideBookingDebug", "Drop: $drop")
+        Log.d("RideBookingDebug", "Selected Ride: ${selectedRide?.name}")
+        Log.d("RideBookingDebug", "Price: ${selectedRide?.price}")
+
         if (userId == null) {
+            Log.e("RideBookingDebug", "ERROR: User ID is null. Session expired.")
             userPreferencesRepository.clearUserStatus()
             _uiState.update { it.copy(errorMessage = "Session expired. Please restart app.") }
             return
         }
 
         if (selectedRide == null || pickup == null || drop == null || selectedRide.price == null) {
+            Log.e("RideBookingDebug", "ERROR: Missing details. Price is probably null.")
             _uiState.update { it.copy(errorMessage = "Cannot book ride, missing details.") }
             return
         }
@@ -294,6 +304,7 @@ class RideSelectionViewModel @Inject constructor(
             when (result) {
                 is Resource.Loading -> _bookingState.update { it.copy(isLoading = true) }
                 is Resource.Success -> {
+                    Log.d("RideBookingDebug", "Booking Success!")
                     _bookingState.update { it.copy(isLoading = false) }
                     val rawData = result.data?.data
                     var rideId: Int? = null
@@ -317,10 +328,12 @@ class RideSelectionViewModel @Inject constructor(
                             dropPlaceId = dropPlaceId ?: ""
                         ))
                     } else {
+                        Log.e("RideBookingDebug", "Booking failed: Invalid server response data: $rawData")
                         _uiState.update { it.copy(errorMessage = "Booking failed: Invalid server response") }
                     }
                 }
                 is Resource.Error -> {
+                    Log.e("RideBookingDebug", "Booking API Failed: ${result.message}")
                     _bookingState.update { it.copy(isLoading = false) }
                     _uiState.update { it.copy(errorMessage = result.message ?: "Booking failed") }
                 }
