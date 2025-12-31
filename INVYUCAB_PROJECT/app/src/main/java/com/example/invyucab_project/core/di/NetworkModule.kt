@@ -3,6 +3,7 @@ package com.example.invyucab_project.core.di
 import com.example.invyucab_project.BuildConfig
 import com.example.invyucab_project.data.api.CustomApiService
 import com.example.invyucab_project.data.api.GoogleMapsApiService
+import com.squareup.moshi.JsonAdapter // ✅ Added Import
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Module
@@ -14,6 +15,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import java.lang.reflect.Type // ✅ Added Import
 import javax.inject.Named
 import javax.inject.Singleton
 
@@ -30,6 +32,21 @@ object NetworkModule {
     @Singleton
     fun provideMoshi(): Moshi {
         return Moshi.Builder()
+            // ✅ FIX: Add this factory to force null serialization
+            .add(object : JsonAdapter.Factory {
+                override fun create(
+                    type: Type,
+                    annotations: Set<Annotation>,
+                    moshi: Moshi
+                ): JsonAdapter<*>? {
+                    return try {
+                        // This delegates to the next adapter but forces it to serialize nulls
+                        moshi.nextAdapter<Any>(this, type, annotations).serializeNulls()
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+            })
             .add(KotlinJsonAdapterFactory())
             .build()
     }
@@ -97,7 +114,7 @@ object NetworkModule {
         return retrofit.create(GoogleMapsApiService::class.java)
     }
 
-    // --- ✅ NEW: Custom API Components ---
+    // --- Custom API Components ---
 
     @Provides
     @Singleton
@@ -118,10 +135,7 @@ object NetworkModule {
         return Retrofit.Builder()
             .baseUrl(CUSTOM_API_BASE_URL)
             .client(okHttpClient)
-            // ✅✅✅ START OF FIX ✅✅✅
-            // The correct method is .withNullSerialization()
             .addConverterFactory(MoshiConverterFactory.create(moshi))
-            // ✅✅✅ END OF FIX ✅✅✅
             .build()
     }
 
