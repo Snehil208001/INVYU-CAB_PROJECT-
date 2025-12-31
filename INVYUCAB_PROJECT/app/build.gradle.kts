@@ -37,9 +37,23 @@ android {
         manifestPlaceholders["MAPS_API_KEY"] = apiKey
     }
 
+    // ✅ ADDED: Signing Configuration with your specific path and passwords
+//    signingConfigs {
+//        create("release") {
+//            // Path confirmed in debugging
+//            storeFile = file("C:\\Users\\snehi\\OneDrive\\Desktop\\keystore\\TRideJKSfile")
+//            storePassword = "Tride@123"
+//            keyAlias = "TRide"
+//            keyPassword = "Tride@123"
+//        }
+//    }
+
     buildTypes {
         release {
-            isMinifyEnabled = true
+            // ✅ ADDED: This line applies the signing config to your release build
+//            signingConfig = signingConfigs.getByName("release")
+
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -66,7 +80,7 @@ dependencies {
     // Standard Android & Compose dependencies
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.runtime.compose) // ✅ ADD THIS LINE
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
@@ -97,7 +111,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.4.0")
 
     //FCM
-    implementation(libs.firebase.messaging) // ✅ ADD THIS
+    implementation(libs.firebase.messaging)
     // Firestore
     implementation("com.google.firebase:firebase-firestore:25.1.1")
     // Retrofit & Moshi
