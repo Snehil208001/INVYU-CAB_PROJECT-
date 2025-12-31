@@ -20,12 +20,32 @@ class CreateRideUseCase @Inject constructor(
             if (response.isSuccessful) {
                 response.body()?.let {
                     emit(Resource.Success(it))
-                } ?: throw IOException("Empty response body")
+                } ?: emit(Resource.Error("Empty response body"))
             } else {
-                throw HttpException(response)
+                // ✅ FIX: Read the full error body to get the actual server error message
+                val errorMsg = try {
+                    response.errorBody()?.string()
+                } catch (e: Exception) {
+                    null
+                }
+
+                // Fallback to HTTP status message or code if body is empty
+                val finalError = if (!errorMsg.isNullOrBlank()) {
+                    errorMsg
+                } else {
+                    response.message().ifBlank { "Error Code: ${response.code()}" }
+                }
+
+                emit(Resource.Error(finalError))
             }
         } catch (e: HttpException) {
-            emit(Resource.Error(e.message()))
+            // ✅ FIX: Extract error body from exception if thrown
+            val errorBody = try {
+                e.response()?.errorBody()?.string()
+            } catch (ex: Exception) {
+                null
+            }
+            emit(Resource.Error(errorBody ?: e.message ?: "HTTP Error"))
         } catch (e: IOException) {
             emit(Resource.Error("Couldn't reach server. Check your internet connection."))
         } catch (e: Exception) {
