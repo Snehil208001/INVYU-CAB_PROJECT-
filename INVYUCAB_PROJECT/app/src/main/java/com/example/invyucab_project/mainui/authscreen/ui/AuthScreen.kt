@@ -1,11 +1,12 @@
 package com.example.invyucab_project.mainui.authscreen.ui
 
-import android.widget.Toast
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import com.example.invyucab_project.R
+
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -32,9 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.invyucab_project.R
 import com.example.invyucab_project.core.base.BaseViewModel
-import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.domain.model.AuthTab
 import com.example.invyucab_project.domain.model.GoogleSignInState
 import com.example.invyucab_project.mainui.authscreen.viewmodel.AuthViewModel

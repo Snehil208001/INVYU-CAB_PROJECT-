@@ -6,6 +6,8 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.net.Uri
+import com.example.invyucab_project.R
+
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -42,7 +44,6 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.invyucab_project.R
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.domain.model.RideOption
 import com.example.invyucab_project.mainui.rideselectionscreen.viewmodel.RideNavigationEvent

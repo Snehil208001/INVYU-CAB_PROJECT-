@@ -5,6 +5,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.example.invyucab_project.R
+
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.widget.Toast
@@ -37,7 +39,6 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.invyucab_project.R
 import com.example.invyucab_project.core.base.BaseViewModel
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.ridetrackingscreen.viewmodel.RideTrackingViewModel

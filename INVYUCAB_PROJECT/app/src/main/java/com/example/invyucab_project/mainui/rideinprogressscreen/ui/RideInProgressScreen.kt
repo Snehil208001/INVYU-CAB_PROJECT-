@@ -3,6 +3,8 @@ package com.example.invyucab_project.mainui.rideinprogressscreen.ui
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import com.example.invyucab_project.R
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -24,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.invyucab_project.R
 import com.example.invyucab_project.core.common.Resource
 import com.example.invyucab_project.core.navigations.Screen
 import com.example.invyucab_project.mainui.rideinprogressscreen.viewmodel.RideInProgressViewModel

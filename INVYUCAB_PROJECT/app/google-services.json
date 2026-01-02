@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "4006876917-554km1sksa4ob45vedjmpv7njin32pts.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.invyucab_project",
+            "certificate_hash": "4a6659c5d4713eb933a34a6bbcc281169f12cedf"
+          }
+        },
+        {
           "client_id": "4006876917-dujk9emmg6ffv0ou76cle9hmoa0ed9ji.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -21,6 +29,35 @@
             "certificate_hash": "70141e45096fc8f6a74228fbc3344019064d4b00"
           }
         },
+        {
+          "client_id": "4006876917-onht2bdb8l3vjbvg8eranfceuapk8efc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACUUYHMf0AwOnRUjF2CL07v6-mB5mvE5k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "4006876917-onht2bdb8l3vjbvg8eranfceuapk8efc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:4006876917:android:4dd61af41c9db3438797bc",
+        "android_client_info": {
+          "package_name": "com.tride.app"
+        }
+      },
+      "oauth_client": [
         {
           "client_id": "4006876917-onht2bdb8l3vjbvg8eranfceuapk8efc.apps.googleusercontent.com",
           "client_type": 3

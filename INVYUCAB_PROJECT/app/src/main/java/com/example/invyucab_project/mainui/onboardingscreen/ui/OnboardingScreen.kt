@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import com.example.invyucab_project.R
+
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel // ✅ ADDED Import
 import androidx.navigation.NavController
-import com.example.invyucab_project.R
 import com.example.invyucab_project.core.navigations.Screen
 // ✅ ADDED Import
 import com.example.invyucab_project.mainui.onboardingscreen.viewmodel.OnboardingViewModel

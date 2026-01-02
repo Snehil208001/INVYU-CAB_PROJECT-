@@ -9,7 +9,6 @@ plugins {
     alias(libs.plugins.google.gms.google.services)
 }
 
-// Logic to read API key from local.properties
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
@@ -18,41 +17,26 @@ if (localPropertiesFile.exists()) {
 val apiKey = localProperties.getProperty("MAPS_API_KEY") ?: ""
 
 android {
+    // TRICK: Keep namespace as the OLD name so your code/imports keep working
     namespace = "com.example.invyucab_project"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.invyucab_project"
+        // FIX: Change Application ID to the NEW name for Play Store
+        applicationId = "com.tride.app"
+
         minSdk = 24
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        // Make API key available in BuildConfig
         buildConfigField("String", "MAPS_API_KEY", "\"$apiKey\"")
-
-        // Make API key available to AndroidManifest.xml
         manifestPlaceholders["MAPS_API_KEY"] = apiKey
     }
 
-    // ✅ ADDED: Signing Configuration with your specific path and passwords
-//    signingConfigs {
-//        create("release") {
-//            // Path confirmed in debugging
-//            storeFile = file("C:\\Users\\snehi\\OneDrive\\Desktop\\keystore\\TRideJKSfile")
-//            storePassword = "Tride@123"
-//            keyAlias = "TRide"
-//            keyPassword = "Tride@123"
-//        }
-//    }
-
     buildTypes {
         release {
-            // ✅ ADDED: This line applies the signing config to your release build
-//            signingConfig = signingConfigs.getByName("release")
-
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -77,7 +61,6 @@ android {
 }
 
 dependencies {
-    // Standard Android & Compose dependencies
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
@@ -89,10 +72,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation("androidx.compose.material:material-icons-extended")
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")
-    // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.7")
-
-    // Dagger Hilt (using KSP instead of KAPT)
     implementation("com.google.dagger:hilt-android:2.51.1")
     implementation(libs.firebase.auth)
     implementation(libs.androidx.credentials)
@@ -100,27 +80,17 @@ dependencies {
     implementation(libs.googleid)
     ksp("com.google.dagger:hilt-android-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
-
-    // Google Maps for Compose
     implementation("com.google.maps.android:maps-compose:4.3.3")
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.android.gms:play-services-location:21.2.0")
-    implementation(libs.maps.utils) // Polyline utils
-
-    // Coil for Image Loading
+    implementation(libs.maps.utils)
     implementation("io.coil-kt:coil-compose:2.4.0")
-
-    //FCM
     implementation(libs.firebase.messaging)
-    // Firestore
     implementation("com.google.firebase:firebase-firestore:25.1.1")
-    // Retrofit & Moshi
     implementation(libs.retrofit)
     implementation(libs.converter.moshi)
     implementation(libs.moshi)
     implementation(libs.okhttp.logging.interceptor)
-
-    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

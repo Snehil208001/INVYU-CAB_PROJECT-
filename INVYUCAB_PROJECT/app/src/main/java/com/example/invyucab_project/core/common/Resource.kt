@@ -1,7 +1,5 @@
 package com.example.invyucab_project.core.common
 
-import com.example.invyucab_project.R // You may need to add string resources
-
 /**
  * A generic sealed class that wraps data with its loading status.
  * @param T The type of data being loaded.
