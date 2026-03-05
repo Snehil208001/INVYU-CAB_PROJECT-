@@ -64,8 +64,9 @@ app/
 ## Author
 
 **Snehil**  
-- LinkedIn: [SNEHIL](https://www.linkedin.com/in/snehil)  
-- GitHub: [@Snehil208001](https://github.com/Snehil208001)
+- LinkedIn: [SNEHIL](https://www.linkedin.com/in/snehil7542)  
+- GitHub: [@Snehil208001](https://github.com/Snehil208001)  
+- TRide on Play Store: [Download](https://play.google.com/store/apps/details?id=com.tride.app)
 
 ## License
 
